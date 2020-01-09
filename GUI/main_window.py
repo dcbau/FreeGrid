@@ -9,7 +9,6 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from GUI.PicButton import PicButton
-from GUI.glWidget import glWidget
 from GUI.vispyWidget import VispyCanvas, VispyWidget
 import threading
 import numpy as np

@@ -23,6 +23,7 @@ void main()
 {
     v_destinationColour = a_sourceColour;
     gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
+    gl_PointSize = 5.0;
 }
 """
 
@@ -60,7 +61,7 @@ class VispyWidget(QWidget):
 
 class VispyCanvas(app.Canvas):
 
-    def __init__(self, theta=90.0, phi=90.0, z=6.0):
+    def __init__(self, theta=0, phi=0, z=6.0):
 
 
         self.calibrationPosition = np.empty([3, 4])
@@ -116,9 +117,9 @@ class VispyCanvas(app.Canvas):
         #self.indices = gloo.IndexBuffer(self.indices)
 
         testangles = np.array([[0, 90],
-                              [0, 45],
-                              [135, 90],
-                              [180, 180]])
+                              [90, 135],
+                              [180, 90],
+                              [270, 180]])
 
         num_vertices = testangles.size
         self.data3 = np.zeros([num_vertices, 3], dtype=np.float32)
@@ -126,8 +127,8 @@ class VispyCanvas(app.Canvas):
 
         r = 1.5
         for i in range(int(testangles.size/2)):
-            az = testangles[i][0]
-            el = testangles[i][1]
+            az = (testangles[i][0]-90) *np.pi /180.0
+            el = testangles[i][1] *np.pi /180.0
             self.data3[i][0] = r * np.sin(el) * np.cos(az)
             self.data3[i][1] = r * np.cos(el)
             self.data3[i][2] = r * np.sin(el) * np.sin(az)
@@ -391,8 +392,8 @@ class VispyCanvas(app.Canvas):
 
         """ refresh canvas """
         gloo.clear()
-        view = translate((0, -0.5, -self.z))
-        model = np.dot(rotate(self.theta, (0, 1, 0)), rotate(self.phi, (0, 0, 1)))
+        view = np.dot(np.dot(rotate(self.theta, (0, 1, 0)), rotate(self.phi, (1, 0, 0))), translate((0, -0.5, -self.z)))
+        model = np.dot(rotate(0, (0, 1, 0)), rotate(0, (0, 0, 1)))
         self.program['u_model'] = model
         self.program['u_view'] = view
         self.program['a_position'] = self.data
@@ -418,9 +419,12 @@ class VispyCanvas(app.Canvas):
         self.program['u_view'] = view
         self.program.draw('lines', self.indices2)
 
+        model = np.dot(rotate(0, (0, 1, 0)), rotate(0, (0, 0, 1)))
+        self.program['u_model'] = model
+
         self.program['a_position'] = self.data3
         self.program['a_sourceColour'] = self.data_color3
-        self.program.draw('lines')
+        self.program.draw('points')
 
 
     def update_angle(self, theta, phi):

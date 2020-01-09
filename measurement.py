@@ -42,7 +42,7 @@ class Measurement():
         self.recorded_nch = []
 
 
-    def single_measurement(self, fname = "/Users/davidbau/audio_test_files/sweep_50-22k.wav"):
+    def single_measurement(self, fname = "Resources/sweep_50-22k.wav"):
         wf = wave.open(fname, 'rb')
         chunk = 1024
 
