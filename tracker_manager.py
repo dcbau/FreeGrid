@@ -4,7 +4,7 @@ from typing import Optional
 from openvr import *
 import time
 import numpy as np
-
+import pyshtools
 
 class Device():
     def __init__(self, type, id, is_available=False, is_active = False):
@@ -22,6 +22,12 @@ class Device():
     def get_id(self):
         return self.id
 
+class pose():
+    def __init__(self, x_left, y_up, z_forward, translation):
+        self.x_left = x_left
+        self.y_up = y_up
+        self.z_forward = z_forward
+        self.translation = translation
 
 
 class TrackerManager():
@@ -68,6 +74,7 @@ class TrackerManager():
             if (hasattr(self, 'controller2')):
                 print("Has controller 2!")
 
+
         def checkForTriggerEvent(self):
 
             #print("Check for Trigger Event")
@@ -87,42 +94,73 @@ class TrackerManager():
 
         def trigger_haptic_impulse(self):
             if (hasattr(self, 'controller1')):
-                self.vr_system.triggerHapticPulse(self.controller1.id, 0, 10)
+                self.vr_system.triggerHapticPulse(self.controller1.id, 1, 100)
             elif (hasattr(self, 'controller2')):
-                self.vr_system.triggerHapticPulse(self.controller2.id, 0, 10)
+                self.vr_system.triggerHapticPulse(self.controller2.id, 1, 100)
 
 
         def getRelativePosition(self):
 
-            #print("Get Realtive Position")
             try:
                 pose_base, pose_relative = self.getTrackerData()
             except:
-                return 0, 0, 1
-                print("EXPECTOPOFIAEÖGOI")
+                return 180, 90, 1
+                #print("EXPECTOPOFIAEÖGOI")
 
-            if(pose_base != False and pose_relative != False):
+            if (pose_base != False and pose_relative != False):
 
-                transvec = np.array([pose_relative.m[0][3] - pose_base.m[0][3],
-                                     pose_relative.m[1][3] - pose_base.m[1][3],
-                                     pose_relative.m[2][3] - pose_base.m[2][3]])
+                translation_base = np.array([pose_base.m[0][3], pose_base.m[1][3], pose_base.m[2][3]])
+                translation_relative = np.array([pose_relative.m[0][3], pose_relative.m[1][3], pose_relative.m[2][3]])
+
+                # offset from ears to tracker
+                # true head center lies below the tracker (negative y/up direction) and shi, so we translate the pose matrix "down"
+                offsetY = -0.15 # approx 15cm
+                offsetZ =  0.01 # needs to be tested
+                offsetYvector = offsetY * np.array([pose_base.m[0][1], pose_base.m[1][1], pose_base.m[2][1]])
+                offsetZvector = offsetZ * np.array([pose_base.m[0][2], pose_base.m[1][2], pose_base.m[2][2]])
+                translation_base = translation_base + offsetYvector + offsetZvector
+
+
+                # offset from speaker membrane to tracker
+                offsetY = -0.15  # approx 15cm
+                offsetZ = 0.01  # needs to be tested
+                offsetYvector = offsetY * np.array([pose_relative.m[0][1], pose_relative.m[1][1], pose_relative.m[2][1]])
+                offsetZvector = offsetZ * np.array([pose_relative.m[0][2], pose_relative.m[1][2], pose_relative.m[2][2]])
+                translation_relative = translation_relative + offsetYvector + offsetZvector
+
+
+
+                #transvec = np.array([pose_relative.m[0][3] - pose_base.m[0][3],
+                #                     pose_relative.m[1][3] - pose_base.m[1][3],
+                #                     pose_relative.m[2][3] - pose_base.m[2][3]])
+                transvec = translation_relative - translation_base
                 n = np.array([pose_base.m[0][2], pose_base.m[1][2], pose_base.m[2][2]])
                 u = np.array([pose_base.m[0][1], pose_base.m[1][1], pose_base.m[2][1]])
                 v = np.array([pose_base.m[0][0], pose_base.m[1][0], pose_base.m[2][0]])
-                #print("n=", n, "  u=", u, "  v=", v)
-                r = np.array([np.inner(v, transvec), np.inner(u, transvec), np.inner(n, transvec)])
-                #print("r= ", r)
-                r2d = 180 / np.pi
 
+                #transvec_projected = np.array([pose_base.m[0][2],
+                #                               #pose_relative.m[1][3] - pose_base.m[1][3],
+                #                               translation_relative[1] - translation_base[1],
+                #                               pose_base.m[2][2]])
+
+                #rxx = np.array([np.inner(v, transvec), np.inner(u, transvec_projected), np.inner(n, transvec)])
+                # print("n=", n, "  u=", u, "  v=", v)
+                r = np.array([np.inner(v, transvec), np.inner(u, transvec), np.inner(n, transvec)])
+
+                r2d = 180 / np.pi
                 az = r2d * np.arctan2(r[0], -r[2])
                 #print(r[0], r[2], az)
                 radi = np.linalg.norm(r)
-                el = r2d * np.arccos(r[1] / radi)
+                #radixx = np.linalg.norm(rxx)
+                print(r[1])
+                el = r2d * np.arccos(r[1])
+                el = 180 - el
 
                 if (az < 0):
                     az += 360
-
+                #print("Az: ", az, "  El:", el)
                 return az, el, radi
+
 
         def getTrackerData(self):
 

@@ -50,7 +50,7 @@ class Ui_MainWindow(object):
         self.vpWidget.setGeometry(QtCore.QRect(10, 10, 300, 300))
         self.vpWidget.setObjectName("vpWidget")
         self.vpWidget.setLayout(QtWidgets.QVBoxLayout())
-        #self.vpWidget.clic.connect(self.vispy_canvas.update_angle())
+        #self.vpWidget.clicked.connect(self.vispy_canvas.update_angle())
 
         self.vispy_canvas = VispyCanvas()
         #QtCore.QObject.connect(self.vpWidget, SIGNAL(""), b2_clicked)
@@ -150,7 +150,8 @@ class Ui_MainWindow(object):
         self.measurement_running_flag = False
         self.measurement_position = []
         self.measurement_valid = False
-        self.measurement_history = []
+        self.measurement_history = np.array([])
+        self.mesurement_trigger = False
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -165,6 +166,9 @@ class Ui_MainWindow(object):
     def select_input_device(self, name):
         self.measurement_ref.set_input_device_by_name(name)
 
+    def trigger_measurement(self):
+        self.mesurement_trigger = True
+
 
     def timer_callback(self):
         if(self.measurement_running_flag == True):
@@ -172,14 +176,17 @@ class Ui_MainWindow(object):
             tolerance_angle = 1 # (degree)
             tolerance_radius = 0.1 # (meter)
             az, el, r = self.vispy_canvas.tracker.getRelativePosition()
-            if(angularDistance(az, el, self.measurement_position[0], self.measurement_position[1]) > tolerance_angle
-                    and abs(r - self.measurement_position) > tolerance_radius):
+            variance = angularDistance(az, el, self.measurement_position[0], self.measurement_position[1]) *180 / np.pi
+            if( variance > tolerance_angle
+                    or abs(r - self.measurement_position[2]) > tolerance_radius):
+
                 self.measurement_valid = False
                 self.vispy_canvas.tracker.trigger_haptic_impulse()
 
 
         else:
-            if(self.vispy_canvas.tracker.checkForTriggerEvent()):
+            if(self.vispy_canvas.tracker.checkForTriggerEvent() or self.mesurement_trigger):
+                self.mesurement_trigger = False
                 az, el, r = self.vispy_canvas.tracker.getRelativePosition()
                 self.measurement_position = np.array([az, el, r])
                 t1 = MeasurementHelperThread(target=self.measurement_ref.single_measurement, ref=self)
@@ -195,7 +202,13 @@ class Ui_MainWindow(object):
                                                      self.measurement_position[1],
                                                      self.measurement_position[2])
 
-        if not self.measurement_history:
+        if self.measurement_valid:
+            self.vispy_canvas.meas_points.add_point(self.measurement_position[0], self.measurement_position[1])
+            print("Measurement valid")
+        else:
+            print("ERROR, Measurement not valid")
+
+        if self.measurement_history.any():
             # if it is the first measurement, there´s nothing to append
             self.measurement_history = self.measurement_position
         else:
@@ -208,6 +221,8 @@ class MeasurementHelperThread(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
+        print("run")
+
         self._starget()
         self._ref.stop_measurement()
 

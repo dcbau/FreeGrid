@@ -1,5 +1,7 @@
 import pyaudio
 import wave
+from numpy.fft import *
+import numpy as np
 
 
 
@@ -36,8 +38,12 @@ class Measurement():
 
         print("Default Output Device: ", self.current_output_device)
 
+        #self.excitation_signal =
+
         self.measurement_count = 0
         self.recorded_sweep = []
+        self.excitation_sweep = []
+        self.recorded_ir = []
         self.recorded_sr = []
         self.recorded_nch = []
 
@@ -66,8 +72,10 @@ class Measurement():
         print("Start Playback")
         index = 0
         frames = []
+        direct_feedback = []
         while index < wf.getnframes():
             stream.write(data)
+            direct_feedback.append(data)
             data = wf.readframes(chunk)
             index += chunk
             frames.append(stream_rec.read(chunk))
@@ -78,30 +86,39 @@ class Measurement():
         stream.close()
         p.terminate()
 
-        self.recorded_sweep = frames
+        self.recorded_sweep = frames # np.fromstring(frames, 'Float32')
+        self.excitation_sweep = direct_feedback # np.fromstring(direct_feedback, 'Float32')
         self.recorded_sr = wf.getframerate()
         self.recorded_nch = n_chn_in
 
 
+    def make_ir(self, excitation_signal, recorded_signal):
+        return ifft(fft(recorded_signal) / fft(excitation_signal))
 
 
     def save_single_measurement(self, valid, _az, _el, _r):
 
         if valid:
 
-            filename = "recorded_sweep_" + str(self.measurement_count) + "_" + str(_az) + "_" + "_" + str(_r) + ".wav"
+            filename = "recorded_sweep_" + str(self.measurement_count) + "_" + str(int(round(_az))) + "_" + "_" + str(int(round(_el))) + ".wav"
             self.measurement_count += 1
             wavefile = wave.open(filename, 'wb')
             wavefile.setnchannels(self.recorded_nch)
             p = pyaudio.PyAudio()
             wavefile.setsampwidth(p.get_sample_size(pyaudio.paInt16))
             wavefile.setframerate(self.recorded_sr)
+
+            #ir_l = self.make_ir(self.excitation_sweep, self.recorded_sweep[1])
+            #ir_r = self.make_ir(self.excitation_sweep, self.recorded_sweep[2])
+
             wavefile.writeframes(b''.join(self.recorded_sweep))
             wavefile.close()
 
         self.recorded_ir = []
         self.recorded_sr = []
         self.recorded_nch = []
+        self.recorded_sweep = []
+        self.excitation_sweep = []
 
     def get_input_devices(self):
         return self.input_devices
