@@ -93,38 +93,32 @@ class Ui_MainWindow(object):
         self.calibrateButton.setText("Calibrate")
         self.calibrateButton.clicked.connect(self.vispy_canvas.calibrate)
 
-        self.output_device_label = QtWidgets.QLabel(self.tab_2)
-        self.output_device_label.setGeometry(350, 10, 150, 20)
-        self.output_device_label.setText("Output Device")
-
-        self.comboBoxOutput = QtWidgets.QComboBox(self.tab_2)
-        outputDevices = measurement_ref.get_output_devices()
-        for dev in outputDevices:
-            self.comboBoxOutput.addItem(dev['name'])
-        self.comboBoxOutput.setGeometry(350, 30, 200, 30)
-        self.comboBoxOutput.activated[str].connect(self.select_output_device)
-        #self.comboBoxOutput.setCurrentText(self.measurement_ref.get_current_output_device())
-        # self.comboBoxOutputChannels = QtWidgets.QComboBox(self.tab_2)
-        # self.comboBoxOutputChannels.setGeometry(350, 60, 70, 30)
-        # self.get_output_channels()
-
-        self.input_device_label = QtWidgets.QLabel(self.tab_2)
-        self.input_device_label.setGeometry(350, 100, 150, 20)
-        self.input_device_label.setText("Input Device")
-
-        self.comboBoxInput = QtWidgets.QComboBox(self.tab_2)
-        inputDevices = measurement_ref.get_input_devices()
-        for dev in inputDevices:
-            self.comboBoxInput.addItem(dev['name'])
-        self.comboBoxInput.setGeometry(350, 120, 200, 30)
-        self.comboBoxInput.activated[str].connect(self.select_input_device)
-        #self.comboBoxInput.setCurrentText(self.measurement_ref.get_current_input_device())
+        # self.output_device_label = QtWidgets.QLabel(self.tab_2)
+        # self.output_device_label.setGeometry(350, 10, 150, 20)
+        # self.output_device_label.setText("Output Device")
         #
-        # self.comboBoxInputChannels_L = QtWidgets.QComboBox(self.tab_2)
-        # self.comboBoxInputChannels_L.setGeometry(350, 150, 70, 30)
-        # self.comboBoxInputChannels_R = QtWidgets.QComboBox(self.tab_2)
-        # self.comboBoxInputChannels_R.setGeometry(450, 150, 70, 30)
-        # self.get_input_channels()
+        # self.comboBoxOutput = QtWidgets.QComboBox(self.tab_2)
+        # outputDevices = measurement_ref.get_output_devices()
+        # for dev in outputDevices:
+        #     self.comboBoxOutput.addItem(dev['name'])
+        # self.comboBoxOutput.setGeometry(350, 30, 200, 30)
+        # self.comboBoxOutput.activated[str].connect(self.select_output_device)
+        # #self.comboBoxOutput.setCurrentText(self.measurement_ref.get_current_output_device())
+        # # self.comboBoxOutputChannels = QtWidgets.QComboBox(self.tab_2)
+        # # self.comboBoxOutputChannels.setGeometry(350, 60, 70, 30)
+        # # self.get_output_channels()
+        #
+        # self.input_device_label = QtWidgets.QLabel(self.tab_2)
+        # self.input_device_label.setGeometry(350, 100, 150, 20)
+        # self.input_device_label.setText("Input Device")
+        #
+        # self.comboBoxInput = QtWidgets.QComboBox(self.tab_2)
+        # inputDevices = measurement_ref.get_input_devices()
+        # for dev in inputDevices:
+        #     self.comboBoxInput.addItem(dev['name'])
+        # self.comboBoxInput.setGeometry(350, 120, 200, 30)
+        # self.comboBoxInput.activated[str].connect(self.select_input_device)
+
 
 
         self.tabWidget.addTab(self.tab_2, "")

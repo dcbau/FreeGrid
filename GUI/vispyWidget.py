@@ -358,7 +358,7 @@ class VispyCanvas(app.Canvas):
 
         self.tracker_orientation = TrackerOrientation(self.tracker)
 
-        scene = pywavefront.Wavefront('Resources/untitled.obj')
+        #scene = pywavefront.Wavefront('Resources/untitled.obj')
 
         program = gloo.Program(vert=vertex, frag=fragment)
         # program.bind(self.data2)

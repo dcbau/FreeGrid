@@ -1,161 +1,109 @@
-import pyaudio
-import wave
-from numpy.fft import *
+import sounddevice as sd
+from scipy.signal import chirp
+import matplotlib.pyplot as mplot
+import matplotlib
+import scipy.io.wavfile as wave
+from numpy.fft import fft, ifft
 import numpy as np
+import time
 
 
 
 class Measurement():
 
     def __init__(self):
-        self.p = pyaudio.PyAudio()
-        info = self.p.get_host_api_info_by_index(0)
-        self.host_api = info.get('name')
-        numdevices = info.get('deviceCount')
-        print("\nAvailable Devices:")
-        self.input_devices = []
-        self.output_devices = []
-        for i in range(0, numdevices):
 
-            dev = {
-                "name": self.p.get_device_info_by_host_api_device_index(0, i).get('name'),
-                "numInputChannels": self.p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels'),
-                "numOutputChannels": self.p.get_device_info_by_host_api_device_index(0, i).get('maxOutputChannels'),
-                "index": i
-            }
+        devices = sd.query_devices()
+        print(devices)
+        print(sd.default.device)
 
-            if dev["numInputChannels"] > 0:
-                self.input_devices.append(dev)
-                print("Input Device id ", i, " - ", dev['name'])
+        fs = 48000
 
-            if dev["numOutputChannels"] > 0:
-                self.output_devices.append(dev)
-                print("Output Device id ", i, " - ", dev['name'])
+        # define sweep parameters
+        sweeplength_sec = 3
+        silencelength_sec = 1
+        amplitude_db = -20
+        amplitude_lin = 10 ** (amplitude_db / 20)
+        f_start = 20
+        f_end = 20000
 
+        # make sweep
+        t_sweep = np.linspace(0, sweeplength_sec, sweeplength_sec * fs)
+        sweep = amplitude_lin * chirp(t_sweep, f0=f_start, t1=sweeplength_sec, f1=f_end, method='logarithmic', phi=90)
 
-        self.current_output_device = self.p.get_default_output_device_info()["index"]
-        self.current_input_device = self.p.get_default_input_device_info()["index"]
+        silence = np.zeros(fs * silencelength_sec)
 
-        print("Default Output Device: ", self.current_output_device)
+        self.excitation = np.append(sweep, silence)
+        self.excitation = np.array([self.excitation, self.excitation])  # make stereo, for out channels 1 & 2
+        self.excitation = np.transpose(self.excitation).astype(np.float32)
 
-        #self.excitation_signal =
+        self.fs = fs
 
         self.measurement_count = 0
-        self.recorded_sweep = []
-        self.excitation_sweep = []
+
+        self.recorded_sweep_l = []
+        self.recorded_sweep_r = []
+        self.feedback_loop = []
         self.recorded_ir = []
         self.recorded_sr = []
         self.recorded_nch = []
 
+    def single_measurement(self):
 
-    def single_measurement(self, fname = "Resources/sweep_50-22k.wav"):
-        wf = wave.open(fname, 'rb')
-        chunk = 1024
+        time.sleep(0.5)
 
-        n_chn_in, n_chn_out = self.get_available_channels_in_out()
+        #should be adaptive!
+        available_in_channels = 2
 
-        p = pyaudio.PyAudio()
-        stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                        channels=wf.getnchannels(),
-                        rate=wf.getframerate(),
-                        output=True,
-                        output_device_index=self.current_output_device)
+        # do measurement
 
-        data = wf.readframes(chunk)
+        if(available_in_channels == 2):
 
-        stream_rec = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                            channels=n_chn_in,
-                            rate=wf.getframerate(),
-                            input=True,
-                            input_device_index=self.current_input_device)
+            # ch1 = left
+            # ch2 = right
+            recorded = sd.playrec(self.excitation, self.fs, channels=2)
+            sd.wait()
 
-        print("Start Playback")
-        index = 0
-        frames = []
-        direct_feedback = []
-        while index < wf.getnframes():
-            stream.write(data)
-            direct_feedback.append(data)
-            data = wf.readframes(chunk)
-            index += chunk
-            frames.append(stream_rec.read(chunk))
+            self.recorded_sweep_l = recorded[:, 0]
+            self.recorded_sweep_r = recorded[:, 1]
+            self.feedback_loop = self.excitation[:, 0]
 
-        print("Playback finished")
+        elif(available_in_channels > 2):
 
-        stream_rec.close()
-        stream.close()
-        p.terminate()
+            # ch1 = left
+            # ch2 = right
+            # ch3 = feedback loop
+            recorded = sd.playrec(self.excitation, self.fs, channels=3)
+            sd.wait()
 
-        self.recorded_sweep = frames # np.fromstring(frames, 'Float32')
-        self.excitation_sweep = direct_feedback # np.fromstring(direct_feedback, 'Float32')
-        self.recorded_sr = wf.getframerate()
-        self.recorded_nch = n_chn_in
+            self.recorded_sweep_l = recorded[:, 0]
+            self.recorded_sweep_r = recorded[:, 1]
+            self.feedback_loop = recorded[:, 2]
 
 
-    def make_ir(self, excitation_signal, recorded_signal):
-        return ifft(fft(recorded_signal) / fft(excitation_signal))
+
+
+
 
 
     def save_single_measurement(self, valid, _az, _el, _r):
 
         if valid:
 
-            filename = "recorded_sweep_" + str(self.measurement_count) + "_" + str(int(round(_az))) + "_" + "_" + str(int(round(_el))) + ".wav"
-            self.measurement_count += 1
-            wavefile = wave.open(filename, 'wb')
-            wavefile.setnchannels(self.recorded_nch)
-            p = pyaudio.PyAudio()
-            wavefile.setsampwidth(p.get_sample_size(pyaudio.paInt16))
-            wavefile.setframerate(self.recorded_sr)
+            ir_l = ifft(fft(self.recorded_sweep_l) / fft(self.feedback_loop))
+            ir_r = ifft(fft(self.recorded_sweep_r) / fft(self.feedback_loop))
 
-            #ir_l = self.make_ir(self.excitation_sweep, self.recorded_sweep[1])
-            #ir_r = self.make_ir(self.excitation_sweep, self.recorded_sweep[2])
+            ir = np.array([ir_l, ir_r])
+            print('Saving an array')
+            print( np.shape(ir))
 
-            wavefile.writeframes(b''.join(self.recorded_sweep))
-            wavefile.close()
+            #filename = "ir_" + str(self.measurement_count) + "_" + str(int(round(_az))) + "_" + "_" + str(int(round(_el))) + ".wav"
+            #self.measurement_count += 1
+
+
 
         self.recorded_ir = []
         self.recorded_sr = []
         self.recorded_nch = []
         self.recorded_sweep = []
-        self.excitation_sweep = []
-
-    def get_input_devices(self):
-        return self.input_devices
-
-    def get_output_devices(self):
-        return self.output_devices
-
-    def set_output_device_by_name(self, name):
-        for dev in self.output_devices:
-            if (name == dev['name']):
-                self.current_output_device = dev['index']
-                print("New Output: ", self.current_output_device, " (", name, ")")
-
-    def set_input_device_by_name(self, name):
-        for dev in self.input_devices:
-            if (name == dev['name']):
-                self.current_input_device = dev['index']
-                print("New Input: ", self.current_input_device, " (", name, ")")
-
-
-    # def get_current_output_device(self):
-    #     return self.p.get_device_info_by_host_api_device_index(0, self.current_output_device).get('name')
-    #
-    # def get_current_input_device(self):
-    #     return self.p.get_device_info_by_host_api_device_index(0, self.current_input_device).get('name')
-
-    def set_input_channels(self):
-       self.output_stream_info = pyaudio.PaMacCoreStreamInfo(None, )
-
-    def get_available_channels_in_out(self):
-
-        for dev in self.input_devices:
-            if (self.current_input_device == dev['index']):
-                n_ch_in = dev['numInputChannels']
-        for dev in self.output_devices:
-            if (self.current_output_device == dev['index']):
-                n_ch_out = dev['numOutputChannels']
-
-        print("N In Channels: ", n_ch_in)
-        return n_ch_in, n_ch_out
+        self.feedback_loop = []
