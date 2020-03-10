@@ -4,7 +4,7 @@ from typing import Optional
 from openvr import *
 import time
 import numpy as np
-import pyshtools
+#import pyshtools
 
 class Device():
     def __init__(self, type, id, is_available=False, is_active = False):
@@ -63,6 +63,7 @@ class TrackerManager():
                         self.controller2.set_availability(self.vr_system.isTrackedDeviceConnected(deviceID))
 
             if(hasattr(self, 'tracker1')):
+                self.calibrationPose = self.getTrackerDataSolo()
                 print("Has tracker one!")
 
             if (hasattr(self, 'tracker2')):
@@ -99,12 +100,69 @@ class TrackerManager():
                 self.vr_system.triggerHapticPulse(self.controller2.id, 1, 100)
 
 
+        def getRelativePositionSolo(self):
+
+            try:
+                pose = self.getTrackerDataSolo()
+            except:
+                return 180, 90, 1
+
+            if (pose != False):
+
+
+                translation = np.array([pose.m[0][3] - self.calibrationPose.m[0][3],
+                                             pose.m[1][3] - self.calibrationPose.m[1][3],
+                                             pose.m[2][3] - self.calibrationPose.m[2][3]])
+
+
+                forwardVec = np.array([pose.m[0][2]-self.calibrationPose.m[0][2],
+                                       pose.m[1][2]-self.calibrationPose.m[1][2],
+                                       pose.m[2][2]-self.calibrationPose.m[2][2]])
+                forwardVec = np.array([self.calibrationPose.m[0][2],
+                                       self.calibrationPose.m[1][2],
+                                       self.calibrationPose.m[2][2]])
+
+                forwardVec = np.array([pose.m[0][2] ,
+                                       pose.m[1][2] ,
+                                       pose.m[2][2] ])
+
+                forwardVecCal = np.array([self.calibrationPose.m[0][2],
+                                            self.calibrationPose.m[1][2],
+                                            self.calibrationPose.m[2][2]])
+
+                forwardVec *= -1
+                forwardVecCal *= -1
+
+
+                r2d = 180 / np.pi
+
+                az = r2d * np.arctan2(forwardVec[0], -forwardVec[2])
+                az_cal = r2d * np.arctan2(forwardVecCal[0], -forwardVecCal[2])
+                az = az - az_cal
+                #print(r[0], r[2], az)
+                radi = np.linalg.norm(forwardVec)
+                #radixx = np.linalg.norm(rxx)
+                #print(forwardVec[0], forwardVec[1], forwardVec[2])
+                el = r2d * np.arccos(forwardVec[1])
+                el = 180 - el
+
+                if (az < 0):
+                    az += 360
+                print("Az: ", az, "  El:", el)
+                return az, el, radi
+
         def getRelativePosition(self):
 
             try:
                 pose_base, pose_relative = self.getTrackerData()
             except:
-                return 180, 90, 1
+                try:
+                    az, el, r = self.getRelativePositionSolo()
+                    return az, el, r
+                except:
+                    print("Execptoion")
+                    raise
+                    return 180, 90, 1
                 #print("EXPECTOPOFIAEÖGOI")
 
             if (pose_base != False and pose_relative != False):
@@ -114,19 +172,13 @@ class TrackerManager():
 
                 # offset from ears to tracker
                 # true head center lies below the tracker (negative y/up direction) and shi, so we translate the pose matrix "down"
-                offsetY = -0.15 # approx 15cm
-                offsetZ =  0.01 # needs to be tested
+                offsetY = 0#-0.15 # approx 15cm
+                offsetZ =  0#0.01 # needs to be tested
                 offsetYvector = offsetY * np.array([pose_base.m[0][1], pose_base.m[1][1], pose_base.m[2][1]])
                 offsetZvector = offsetZ * np.array([pose_base.m[0][2], pose_base.m[1][2], pose_base.m[2][2]])
-                translation_base = translation_base + offsetYvector + offsetZvector
+                #translation_base = translation_base + offsetYvector + offsetZvector
 
 
-                # offset from speaker membrane to tracker
-                offsetY = -0.15  # approx 15cm
-                offsetZ = 0.01  # needs to be tested
-                offsetYvector = offsetY * np.array([pose_relative.m[0][1], pose_relative.m[1][1], pose_relative.m[2][1]])
-                offsetZvector = offsetZ * np.array([pose_relative.m[0][2], pose_relative.m[1][2], pose_relative.m[2][2]])
-                translation_relative = translation_relative + offsetYvector + offsetZvector
 
 
 
@@ -162,10 +214,7 @@ class TrackerManager():
                 return az, el, radi
 
 
-        def getTrackerData(self):
-
-            #poseMatrix1 = []
-            #poseMatrix2 = []
+        def getTrackerDataSolo(self):
 
             if(hasattr(self, 'tracker1')):
                 result, controllerState, trackedDevicePose = self.vr_system.getControllerStateWithPose(TrackingUniverseRawAndUncalibrated, self.tracker1.id)
@@ -176,20 +225,39 @@ class TrackerManager():
                         self.tracker1.isActive = True
                         poseMatrix1 = trackedDevicePose.mDeviceToAbsoluteTracking
 
+
+            return poseMatrix1
+
+        def getTrackerData(self):
+
+            # poseMatrix1 = []
+            # poseMatrix2 = []
+
+            if (hasattr(self, 'tracker1')):
+                result, controllerState, trackedDevicePose = self.vr_system.getControllerStateWithPose(
+                    TrackingUniverseRawAndUncalibrated, self.tracker1.id)
+                self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseRawAndUncalibrated, 0,
+                                                               trackedDevicePose)
+                if (trackedDevicePose.bDeviceIsConnected):
+                    self.tracker1.isAvailable = True
+                    if (trackedDevicePose.bPoseIsValid):
+                        self.tracker1.isActive = True
+                        poseMatrix1 = trackedDevicePose.mDeviceToAbsoluteTracking
+
             if (hasattr(self, 'tracker2')):
                 result, controllerState, trackedDevicePose = self.vr_system.getControllerStateWithPose(
                     TrackingUniverseRawAndUncalibrated, self.tracker2.id)
-                self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseRawAndUncalibrated, 0, trackedDevicePose)
+                self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseRawAndUncalibrated, 0,
+                                                               trackedDevicePose)
                 if (trackedDevicePose.bDeviceIsConnected):
                     self.tracker2.isAvailable = True
                     if (trackedDevicePose.bPoseIsValid):
                         self.tracker2.isActive = True
                         poseMatrix2 = trackedDevicePose.mDeviceToAbsoluteTracking
 
-
-            #if ('poseMatrix1' in locals() and 'poseMatrix2' in locals()):
+                # if ('poseMatrix1' in locals() and 'poseMatrix2' in locals()):
                 return poseMatrix1, poseMatrix2
-            #else:
+            # else:
             #    return False
 
 
