@@ -35,6 +35,8 @@ class TrackerManager():
 
         def __init__(self):
 
+            self.fallback_angle = np.array([0, 90, 1])
+
             # initialize open VR
             try:
                 self.vr_system = init(VRApplication_Background)
@@ -104,7 +106,7 @@ class TrackerManager():
             try:
                 pose_base, pose_relative = self.getTrackerData()
             except:
-                return 180, 90, 1
+                return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
                 #print("EXPECTOPOFIAEÖGOI")
 
             if (pose_base != False and pose_relative != False):
@@ -192,6 +194,9 @@ class TrackerManager():
             #else:
             #    return False
 
+        def set_angle_manually(self, azimuth, elevation):
+            self.fallback_angle[0] = azimuth
+            self.fallback_angle[1] = elevation
 
 
 
