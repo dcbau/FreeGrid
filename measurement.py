@@ -24,7 +24,7 @@ class Measurement():
         silencelength_sec = 1
         amplitude_db = -20
         amplitude_lin = 10 ** (amplitude_db / 20)
-        f_start = 20
+        f_start = 100
         f_end = 20000
 
         # make sweep
@@ -50,12 +50,21 @@ class Measurement():
 
     def single_measurement(self):
 
-        time.sleep(0.5)
+        time.sleep(2)
 
-        #should be adaptive!
-        available_in_channels = 2
+        available_in_channels = sd.query_devices(sd.default.device[0])['max_input_channels']
 
         # do measurement
+
+        if(available_in_channels == 1):
+            # ch1 = left
+            # ch2 = right
+            recorded = sd.playrec(self.excitation, self.fs, channels=1)
+            sd.wait()
+
+            self.recorded_sweep_l = recorded[:, 0]
+            self.recorded_sweep_r = recorded[:, 0]
+            self.feedback_loop = self.excitation[:, 0]
 
         if(available_in_channels == 2):
 
@@ -73,7 +82,7 @@ class Measurement():
             # ch1 = left
             # ch2 = right
             # ch3 = feedback loop
-            recorded = sd.playrec(self.excitation, self.fs, channels=3)
+            recorded = sd.playrec(self.excitation, self.fs, channels=1)
             sd.wait()
 
             self.recorded_sweep_l = recorded[:, 0]
@@ -82,23 +91,30 @@ class Measurement():
 
 
 
+    def get_recordings(self):
+        return [self.recorded_sweep_l, self.recorded_sweep_r, self.feedback_loop]
 
-
+    def get_irs(self):
+        try:
+            return [self.ir_l, self.ir_r]
+        except:
+            return
 
 
     def save_single_measurement(self, valid, _az, _el, _r):
 
         if valid:
 
-            ir_l = ifft(fft(self.recorded_sweep_l) / fft(self.feedback_loop))
-            ir_r = ifft(fft(self.recorded_sweep_r) / fft(self.feedback_loop))
+            self.ir_l = ifft(fft(self.recorded_sweep_l) / fft(self.feedback_loop))
+            self.ir_r = ifft(fft(self.recorded_sweep_r) / fft(self.feedback_loop))
 
-            ir = np.array([ir_l, ir_r])
+            ir = np.transpose(np.array([self.ir_l, self.ir_r])).astype(np.float32)
             print('Saving an array')
             print( np.shape(ir))
 
-            #filename = "ir_" + str(self.measurement_count) + "_" + str(int(round(_az))) + "_" + "_" + str(int(round(_el))) + ".wav"
-            #self.measurement_count += 1
+            filename = "ir_" + str(self.measurement_count) + "_" + str(int(round(_az))) + "_" + "_" + str(int(round(_el))) + ".wav"
+            wave.write(filename, 48000, ir)
+            self.measurement_count += 1
 
 
 

@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'main_window.ui'
-#
-# Created by: PyQt5 UI code generator 5.13.2
-#
-# WARNING! All changes made in this file will be lost!
-
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from GUI.PicButton import PicButton
@@ -13,11 +7,15 @@ from GUI.vispyWidget import VispyCanvas, VispyWidget
 import threading
 import numpy as np
 from grid_filling import angularDistance
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+import matplotlib
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow, measurement_ref):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(600, 500)
+        MainWindow.resize(900, 500)
 
         self.measurement_ref = measurement_ref
 
@@ -47,27 +45,39 @@ class Ui_MainWindow(object):
 
 
         self.vpWidget = VispyWidget(self.tab_2)
-        self.vpWidget.setGeometry(QtCore.QRect(10, 10, 300, 300))
+        self.vpWidget.setGeometry(QtCore.QRect(10, 10, 400, 400))
         self.vpWidget.setObjectName("vpWidget")
         self.vpWidget.setLayout(QtWidgets.QVBoxLayout())
-        #self.vpWidget.clicked.connect(self.vispy_canvas.update_angle())
 
         self.vispy_canvas = VispyCanvas()
         #QtCore.QObject.connect(self.vpWidget, SIGNAL(""), b2_clicked)
         #self.vpWidget.mousePressEvent.connect(self.vispy_canvas.update_angle())
 
         self.vpWidget.layout().addWidget(self.vispy_canvas.native)
+        #self.vpWidget.clicked.connect(self.vispy_canvas.inc_angle)
 
 
         self.sliderTheta = QtWidgets.QSlider(self.tab_2)
-        self.sliderTheta.setGeometry(QtCore.QRect(10, 310, 300, 30))
+        self.sliderTheta.setGeometry(self.vpWidget.frameGeometry().x(),
+                                     self.vpWidget.frameGeometry().bottom(),
+                                     self.vpWidget.frameGeometry().width(),
+                                     20)
+        #self.sliderTheta.setGeometry(QtCore.QRect(10, 310, 300, 30))
         self.sliderTheta.setOrientation(QtCore.Qt.Horizontal)
         self.sliderTheta.setObjectName("sliderTheta")
         self.sliderTheta.valueChanged.connect(self.vispy_canvas.update_theta)
 
         self.sliderPhi = QtWidgets.QSlider(self.tab_2)
-        self.sliderPhi.setGeometry(QtCore.QRect(310, 10, 30, 300))
+        self.sliderPhi.setGeometry(self.vpWidget.frameGeometry().right(),
+                                     self.vpWidget.frameGeometry().y(),
+                                     20,
+                                     self.vpWidget.frameGeometry().height())
+
         self.sliderPhi.setOrientation(QtCore.Qt.Vertical)
+        self.sliderPhi.setMinimum(-25)
+        self.sliderPhi.setMaximum(25)
+        self.sliderPhi.setValue(0)
+
         self.sliderPhi.setObjectName("sliderPhi")
         self.sliderPhi.valueChanged.connect(self.vispy_canvas.update_phi)
 
@@ -84,14 +94,16 @@ class Ui_MainWindow(object):
 
         #elf.pushButton = QtWidgets.QPushButton(self.tab_2)
         self.pushButton = PicButton(pixmap, pixmap_mouseover, pixmap_pressed, self.tab_2)
-        self.pushButton.setGeometry(QtCore.QRect(350, 350, 189/2, 187/2))
+        self.pushButton.setGeometry(QtCore.QRect(750, 350, 189/2, 187/2))
         self.pushButton.setObjectName("pushButton")
-        #self.pushButton.clicked.connect(self.vispy_canvas.inc_angle)
+        self.pushButton.clicked.connect(self.trigger_measurement)
 
         self.calibrateButton = QtWidgets.QPushButton(self.tab_2)
-        self.calibrateButton.setGeometry(QtCore.QRect(30, 350, 70, 30))
         self.calibrateButton.setText("Calibrate")
-        self.calibrateButton.clicked.connect(self.vispy_canvas.calibrate)
+        self.calibrateButton.setGeometry(QtCore.QRect(650, 350, 50, 20))
+        self.calibrateButton.setObjectName("calibrateButton")
+        self.calibrateButton.clicked.connect(self.vispy_canvas.tracker.calibrate)
+
 
         # self.output_device_label = QtWidgets.QLabel(self.tab_2)
         # self.output_device_label.setGeometry(350, 10, 150, 20)
@@ -118,6 +130,44 @@ class Ui_MainWindow(object):
         #     self.comboBoxInput.addItem(dev['name'])
         # self.comboBoxInput.setGeometry(350, 120, 200, 30)
         # self.comboBoxInput.activated[str].connect(self.select_input_device)
+
+
+        self.azimuthBox = QtWidgets.QSpinBox(self.tab_2)
+        self.azimuthBox.setGeometry(QtCore.QRect(440, 350, 80, 20))
+        self.azimuthBox.setMaximum(359)
+        self.azimuthBox.valueChanged.connect(self.manual_update_az)
+
+        self.elevationBox = QtWidgets.QSpinBox(self.tab_2)
+        self.elevationBox.setGeometry(QtCore.QRect(440, 380, 80, 20))
+        self.elevationBox.setMaximum(90)
+        self.elevationBox.setMinimum(-90)
+        self.elevationBox.valueChanged.connect(self.manual_update_el)
+
+        self.az_label = QtWidgets.QLabel(self.tab_2)
+        self.az_label.setGeometry(520, 350, 100, 20)
+        self.az_label.setText("Azimuth °")
+
+        self.el_label = QtWidgets.QLabel(self.tab_2)
+        self.el_label.setGeometry(520, 380, 100, 20)
+        self.el_label.setText("Elevation °")
+
+        self.plotWidget = VispyWidget(self.tab_2)
+        self.plotWidget.setGeometry(QtCore.QRect(450, 10, 400, 300))
+        self.plotWidget.setObjectName("plotWidget")
+        self.plotWidget.setLayout(QtWidgets.QVBoxLayout())
+
+        self.plot1 = Figure()
+        self.plot1_canvas = FigureCanvas(self.plot1)
+        self.plot2 = Figure()
+        self.plot2_canvas = FigureCanvas(self.plot2)
+        self.plot3 = Figure()
+        self.plot3_canvas = FigureCanvas(self.plot3)
+        self.plot4 = Figure()
+        self.plot4_canvas = FigureCanvas(self.plot4)
+        self.plotWidget.layout().addWidget(self.plot1_canvas)
+        #self.plotWidget.layout().addWidget(self.plot2_canvas)
+        #self.plotWidget.layout().addWidget(self.plot3_canvas)
+        #self.plotWidget.layout().addWidget(self.plot4_canvas)
 
 
 
@@ -154,6 +204,13 @@ class Ui_MainWindow(object):
         self.pushButton.setText(_translate("MainWindow", "PushButton"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Measure"))
 
+    def manual_update_az(self):
+        self.vispy_canvas.tracker.fallback_angle[0] = self.azimuthBox.value()
+
+    def manual_update_el(self):
+        self.vispy_canvas.tracker.fallback_angle[1] = self.elevationBox.value()
+
+
     def select_output_device(self, name):
         self.measurement_ref.set_output_device_by_name(name)
 
@@ -189,7 +246,10 @@ class Ui_MainWindow(object):
                 t1.start()
 
     def stop_measurement(self):
+
         self.measurement_running_flag = False
+
+        self.plotRecordings()
 
         self.measurement_ref.save_single_measurement(self.measurement_valid,
                                                      self.measurement_position[0],
@@ -208,6 +268,24 @@ class Ui_MainWindow(object):
         else:
             self.measurement_history = np.append(self.measurement_history, self.measurement_position)
 
+    def plotRecordings(self):
+        matplotlib.rcParams.update({'font.size': 5})
+
+        [rec_l, rec_r, fb_loop] = self.measurement_ref.get_recordings()
+        ax1 = self.plot1.add_subplot(311)
+        ax1.clear()
+        ax1.plot(rec_l)
+
+        ax2 = self.plot1.add_subplot(312)
+        ax2.clear()
+        ax2.plot(rec_r)
+
+        ax3 = self.plot1.add_subplot(313)
+        ax3.clear()
+        ax3.plot(fb_loop)
+        self.plot1_canvas.draw()
+
+
 class MeasurementHelperThread(threading.Thread):
     def __init__(self, target, ref):
         self._starget = target
@@ -219,4 +297,5 @@ class MeasurementHelperThread(threading.Thread):
 
         self._starget()
         self._ref.stop_measurement()
+
 

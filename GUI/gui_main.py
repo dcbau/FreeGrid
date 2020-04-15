@@ -16,7 +16,7 @@ class gui_main(QtWidgets.QMainWindow):
         self._ui = Ui_MainWindow()
         self._ui.setupUi(self, self.measurement_ref)
 
-        self._ui.pushButton.clicked.connect(self._ui.trigger_measurement)
+        #self._ui.pushButton.clicked.connect(self._ui.trigger_measurement)
 
     def closeEvent(self, *args, **kwargs):
         super(QtWidgets.QMainWindow, self).closeEvent(*args, **kwargs)
