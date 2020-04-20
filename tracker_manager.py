@@ -206,108 +206,78 @@ class TrackerManager():
         def getRelativePosition(self):
 
             try:
-                pose_base, pose_relative = self.getTrackerData()
+                pose_head, pose_speaker = self.getTrackerData()
             except:
-                try:
-                    az, el, r = self.getRelativePositionSolo()
-                    return az, el, r
-                except:
-                    #print("Execptoion")
-                    #raise
-                    return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
-                #print("EXPECTOPOFIAEÖGOI")
+                return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
 
-            if (pose_base != False and pose_relative != False):
+            if (pose_head != False and pose_speaker != False):
 
+                # STEP1: get the correct translation between head and speaker
 
-                # take direction vectors of tracker 2 as reference coordinate system
-                # apply
-
-
-                translation_base = np.array([pose_base.m[0][3], pose_base.m[1][3], pose_base.m[2][3]])
-                translation_relative = np.array([pose_relative.m[0][3], pose_relative.m[1][3], pose_relative.m[2][3]])
+                translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
+                translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
 
                 # offset from ears to tracker
-                # true head center lies below the tracker (negative y/up direction) and shi, so we translate the pose matrix "down"
-                offsetY = 0#-0.15 # approx 15cm
-                offsetZ =  0#0.01 # needs to be tested
-                offsetYvector = offsetY * np.array([pose_base.m[0][1], pose_base.m[1][1], pose_base.m[2][1]])
-                offsetZvector = offsetZ * np.array([pose_base.m[0][2], pose_base.m[1][2], pose_base.m[2][2]])
-                #translation_base = translation_base + offsetYvector + offsetZvector
+                # true head center lies below the tracker (negative y direction), so we translate the pose matrix "down"
+                offset_y = -0.15 # approx 15cm
+                offset_y_vector = offset_y * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
+                translation_head = translation_head + offset_y_vector
 
+                # offset from speaker center to tracker
+                offset_y = -0.07  # approx 15cm
+                offset_z = -0.06
+                offset_y_vector = offset_y * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
+                offset_z_vector = offset_z * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
 
+                translation_speaker = translation_speaker + offset_y_vector + offset_z_vector
 
-                #transvec = np.array([pose_relative.m[0][3] - pose_base.m[0][3],
-                #                     pose_relative.m[1][3] - pose_base.m[1][3],
-                #                     pose_relative.m[2][3] - pose_base.m[2][3]])
-                transvec = translation_relative - translation_base
+                # get vector pointing from head center to speaker center
+                transvec = translation_speaker - translation_head
+
+                # STEP2: get the correct orientation of the head
 
                 # get the base tracker rotation in quaternions
-
-                fwd = np.array([pose_base.m[0][2], pose_base.m[1][2], pose_base.m[2][2]])
-                up = np.array([pose_base.m[0][1], pose_base.m[1][1], pose_base.m[2][1]])
-                side = np.array([pose_base.m[0][0], pose_base.m[1][0], pose_base.m[2][0]])
+                fwd = np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
+                up = np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
+                side = np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
 
                 r_w = np.sqrt(abs(1 + side[0] + up[1] + fwd[2])) / 2
                 r_x = (up[2] - fwd[1]) / (4 * r_w)
                 r_y = (fwd[0] - side[2]) / (4 * r_w)
                 r_z = (side[1] - up[0]) / (4 * r_w)
 
-                baseRotation = Quaternion(r_w, r_x, r_y, r_z)
+                head_rotation = Quaternion(r_w, r_x, r_y, r_z)
 
                 # apply calibrated rotation
-                rotation = baseRotation* self.calibrationRotation
+                rotation = head_rotation * self.calibrationRotation
 
                 # make "new' direction vectors by rotating a normed set of orthogonal direction vectors
-                x = np.array([1.0, 0.0, 0.0])
-                y = np.array([0.0, 0.0, -1.0]) # i don´t know why, but y and z axis are flipped somehow
-                z = np.array([0.0, 1.0, 0.0]) #
+                side = np.array([1.0, 0.0, 0.0])
+                up = np.array([0.0, 0.0, -1.0]) # i don´t know why, but y and z axis are flipped somehow
+                fwd = np.array([0.0, 1.0, 0.0]) #
 
-                x_rot = rotation.rotate(x)
-                y_rot = rotation.rotate(y)
-                z_rot = rotation.rotate(z)
+                side = rotation.rotate(side)
+                up = rotation.rotate(up)
+                fwd = rotation.rotate(fwd)
 
+                # STEP3: calculate direction vector to speaker relative to head coordinate system
+                # (head coordinate system = side, up, fwd)
 
+                direction_vector = np.array([np.inner(side, transvec), np.inner(up, transvec), np.inner(fwd, transvec)])
+                direction_vector = direction_vector / np.linalg.norm(direction_vector)
 
+                # get spherical coordinates from direction vector
+                az = np.rad2deg(np.arctan2(direction_vector[0], -direction_vector[2]))
+                if az < 0:
+                    az += 360
 
-                #u = -np.array([pose_base.m[0][2], pose_base.m[1][2], pose_base.m[2][2]])
-                #n = np.array([pose_base.m[0][1], pose_base.m[1][1], pose_base.m[2][1]])
-                #v = np.array([pose_base.m[0][0], pose_base.m[1][0], pose_base.m[2][0]])
-
-                #n = self.calibrationRotation.rotate(n)
-                #u = self.calibrationRotation.rotate(u)
-                #v = self.calibrationRotation.rotate(v)
-
-                n = z_rot
-                u = y_rot
-                v = x_rot
-
-
-
-                #transvec_projected = np.array([pose_base.m[0][2],
-                #                               #pose_relative.m[1][3] - pose_base.m[1][3],
-                #                               translation_relative[1] - translation_base[1],
-                #                               pose_base.m[2][2]])
-
-                #rxx = np.array([np.inner(v, transvec), np.inner(u, transvec_projected), np.inner(n, transvec)])
-                # print("n=", n, "  u=", u, "  v=", v)
-                r = np.array([np.inner(v, transvec), np.inner(u, transvec), np.inner(n, transvec)])
-
-                r = r / np.linalg.norm(r)
-
-                r2d = 180 / np.pi
-                az = r2d * np.arctan2(r[0], -r[2])
-                #print(r[0], r[2], az)
-                radi = np.linalg.norm(r)
-                #radixx = np.linalg.norm(rxx)
-                #print(r[1])
-                el = r2d * np.arccos(-r[1])
+                el = np.rad2deg(np.arccos(-direction_vector[1]))
                 el = el - 90
 
-                if (az < 0):
-                    az += 360
-                #print("Az: ", az, "  El:", el)
-                return az, el, radi
+                radius = np.linalg.norm(direction_vector)
+
+                print(az, el, radius)
+                return az, el, radius
 
 
 

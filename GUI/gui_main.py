@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets
-from GUI.main_window import Ui_MainWindow
+from GUI.main_window import UiMainWindow
 
 class gui_main(QtWidgets.QMainWindow):
 
@@ -13,14 +13,9 @@ class gui_main(QtWidgets.QMainWindow):
         self.loadMainGui()
 
     def loadMainGui(self):
-        self._ui = Ui_MainWindow()
+        self._ui = UiMainWindow()
         self._ui.setupUi(self, self.measurement_ref)
-
-        #self._ui.pushButton.clicked.connect(self._ui.trigger_measurement)
 
     def closeEvent(self, *args, **kwargs):
         super(QtWidgets.QMainWindow, self).closeEvent(*args, **kwargs)
         self.measurement_ref.shutdown()
-
-    def start_measurement(self):
-        self.measurement_ref.single_measurement()

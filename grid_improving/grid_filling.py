@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import special as sp
-from grid_creation import *
+from grid_improving.grid_creation import *
 import itertools
 import time
 

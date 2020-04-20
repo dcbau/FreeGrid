@@ -330,7 +330,7 @@ class VispyCanvas(app.Canvas):
         self.azimuthdisplay = AzimuthAngleDisplay(self.sphereradius)
         self.elevationdisplay = ElevationAngleDisplay(self.sphereradius)
 
-        # scene = pywavefront.Wavefront('Resources/untitled.obj')
+        # scene = pywavefront.Wavefront('resources/untitled.obj')
 
         program = gloo.Program(vert=vertex, frag=fragment)
         # program.bind(self.data2)
