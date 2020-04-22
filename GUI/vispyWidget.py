@@ -300,40 +300,22 @@ class VispyCanvas(app.Canvas):
 
         app.Canvas.__init__(self, size=(200, 200), title='plot3d',
                             keys='interactive')
-        # app.use_app('PyQt5')
 
-        N = 1000
-        self.data = np.c_[
-            np.sin(np.linspace(-10, 10, N) * np.pi),
-            np.cos(np.linspace(-10, 10, N) * np.pi),
-            np.linspace(-2, 2, N)]
 
-        # self.data = self.make_plane_grid(5, 9)
+
         self.sphereradius = 1.5
         self.boxsize = 0.4
-        # self.data, self.indices, self.line_indices = self.sphere(self.sphereradius, 15, 20)
 
         self.sphere = Sphere(self.sphereradius, 15, 20)
-
         self.speaker = Speaker(self.boxsize)
 
-        # testangles = np.array([[0, 90],
-        #                       [90, 90],
-        #                       [180, 90],
-        #                       [270, 90]])
-
         self.meas_points = SpherePoints(self.sphereradius)
-        # for row in testangles:
-        #    self.meas_points.add_point(row[0], row[1])
 
-        self.tracker_orientation = TrackerOrientation(self.tracker)
+        #self.tracker_orientation = TrackerOrientation(self.tracker)
         self.azimuthdisplay = AzimuthAngleDisplay(self.sphereradius)
         self.elevationdisplay = ElevationAngleDisplay(self.sphereradius)
 
-        # scene = pywavefront.Wavefront('resources/untitled.obj')
-
         program = gloo.Program(vert=vertex, frag=fragment)
-        # program.bind(self.data2)
 
         # initialize 3D view
         view = np.eye(4, dtype=np.float32)
@@ -346,7 +328,6 @@ class VispyCanvas(app.Canvas):
         program['u_projection'] = projection
         # program['a_position'] = gloo.VertexBuffer(self.data)
 
-        # bind
         self.program = program
         self.theta = theta
         self.phi = phi
@@ -365,80 +346,6 @@ class VispyCanvas(app.Canvas):
 
         self.timer = app.Timer(interval=0.05, connect=self.timer_callback, start=True)
 
-    def update_position(self):
-
-        # self.tracker.checkForTriggerEvent()
-        try:
-            az, el, r = self.tracker.getRelativePosition()
-        except:
-            az = 90
-            el = 0
-            r = 1
-
-        # self.phi = az
-        # self.theta = el
-
-        self.update()
-
-        return
-
-        poseMatrix = self.tracker.getTrackerData()
-
-        if (poseMatrix != False):
-            pose = np.array([[poseMatrix.m[0][0], poseMatrix.m[0][1], poseMatrix.m[0][2], poseMatrix.m[0][3]],
-                             [poseMatrix.m[1][0], poseMatrix.m[1][1], poseMatrix.m[1][2], poseMatrix.m[1][3]],
-                             [poseMatrix.m[2][0], poseMatrix.m[2][1], poseMatrix.m[2][2], poseMatrix.m[2][3]]])
-
-            pose[:, 3] = np.subtract(pose[:, 3], self.calibrationPosition[:, 3])
-
-            self.data2 = np.array([[0, 0, 0],
-                                   [pose[0][0], pose[1][0], pose[2][0]],
-                                   [0, 0, 0],
-                                   [pose[0][1], pose[1][1], pose[2][1]],
-                                   [0, 0, 0],
-                                   [pose[0][2], pose[1][2], pose[2][2]]])
-            # self.translateXYZ(self.data2, 1)
-
-            self.data2[:, 0] += pose[0][3] * 10
-            self.data2[:, 1] += pose[1][3] * 10
-            self.data2[:, 2] += pose[2][3] * 10
-
-            self.data2 = self.data2.astype(np.float32)
-            # np.append(self.data2, [[0, 0, 0,], [poseMatrix.m[0][1], poseMatrix.m[1][1], poseMatrix.m[2][1]]], axis=0)
-        self.update()
-
-    def translateXYZ(self, data, x):
-        data[:, 0] += x
-
-    def make_plane_grid(self, size, num_grid_lines):
-        start = size / 2
-        delta = size / (num_grid_lines - 1)
-
-        grid_data = np.empty([num_grid_lines * 4, 3])
-        index = 0
-        for i in range(num_grid_lines):
-            p1x = -start + i * delta
-            p1y = - start
-            grid_data[index] = [p1x, 0.0, p1y]
-            index += 1
-
-            p2x = p1x
-            p2y = start
-            grid_data[index] = [p2x, 0, p2y]
-            index += 1
-
-        for i in range(num_grid_lines):
-            p1x = -start
-            p1y = - start + i * delta
-            grid_data[index] = [p1x, 0.0, p1y]
-            index += 1
-
-            p2x = - p1x
-            p2y = p1y
-            grid_data[index] = [p2x, 0, p2y]
-            index += 1
-
-        return grid_data
 
     def on_resize(self, event):
         """
@@ -451,8 +358,6 @@ class VispyCanvas(app.Canvas):
         self.program['u_projection'] = perspective(45.0, ratio, 2.0, 10.0)
 
     def on_draw(self, event):
-
-        # self.tracker.getTrackerData()
 
         """ refresh canvas """
         gloo.clear()
@@ -467,53 +372,20 @@ class VispyCanvas(app.Canvas):
 
         self.meas_points.draw(self.program)
 
-        #self.tracker_orientation.draw(self.program)
-
-
         self.azimuthdisplay.draw(self.program, az)
         self.elevationdisplay.draw(self.program, az, el)
 
-        # oriantation1 = DrawVector(alpha=1)
-        # oriantation2 = DrawVector(alpha=1)
-        #
-        #
-        # #print(viewVec)
-        # try:
-        #     vec1_x, vec1_y, vec1_z, vec2_x, vec2_y, vec2_z = self.tracker.getViewVector()
-        #     oriantation1.draw(self.program, vec1_x[0], vec1_x[1], vec1_x[2],
-        #                                     vec1_y[0], vec1_y[1], vec1_y[2],
-        #                                     vec1_z[0], vec1_z[1], vec1_z[2])
-        #     #oriantation2.draw(self.program, vec2_x[0], vec2_x[1], vec2_x[2],
-        #     #                                vec2_y[0], vec2_y[1], vec2_y[2],
-        #     #                                vec2_z[0], vec2_z[1], vec2_z[2])
-        # except:
-        #     pass
-
-
-    def update_angle(self, theta, phi):
-        self.theta = theta
-        self.phi = phi
-
     def update_phi(self, phi):
         self.phi = -phi * 3.6
-        # print("Phi: ", self.phi, "  Theta: ", self.theta)
         self.update()
 
     def update_theta(self, theta):
         self.theta = theta * 3.6
-        # print("Phi: ", self.phi, "  Theta: ", self.theta)
-
         self.update()
-
-    def inc_angle(self):
-        self.theta = self.theta + 10
-        self.update()
-        print("Inc Angle")
 
     def timer_callback(self, event):
-        # self.theta = self.theta + 1
-        self.update_position()
+        self.update()
+
 
     def start(self):
-
         app.run()

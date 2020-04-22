@@ -154,3 +154,4 @@ class Speaker():
 
         #reset model transformation
         program['u_model'] = np.identity(4)
+

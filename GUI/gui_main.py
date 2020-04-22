@@ -12,10 +12,15 @@ class gui_main(QtWidgets.QMainWindow):
 
         self.loadMainGui()
 
+
     def loadMainGui(self):
         self._ui = UiMainWindow()
         self._ui.setupUi(self, self.measurement_ref)
 
     def closeEvent(self, *args, **kwargs):
         super(QtWidgets.QMainWindow, self).closeEvent(*args, **kwargs)
-        self.measurement_ref.shutdown()
+
+    def resizeEvent(self, event):
+        self._ui.retranslateUi(self)
+
+

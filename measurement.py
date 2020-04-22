@@ -8,7 +8,6 @@ import numpy as np
 import time
 
 
-
 class Measurement():
 
     def __init__(self):
@@ -44,11 +43,16 @@ class Measurement():
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
-        self.recorded_ir = []
-        self.recorded_sr = []
-        self.recorded_nch = []
+        self.ir_l = []
+        self.ir_r = []
 
     def single_measurement(self):
+
+        self.recorded_sweep_l = []
+        self.recorded_sweep_r = []
+        self.feedback_loop = []
+        self.ir_l = []
+        self.ir_r = []
 
         time.sleep(2)
 
@@ -100,26 +104,46 @@ class Measurement():
         except:
             return
 
+    def deconv(self, x, y):
+
+        # zero padding
+        input_length = np.size(y)
+        n = np.ceil(np.log2(input_length)) + 1
+        padded_length = int(pow(2, n))
+        num_zeros_to_append = padded_length - input_length
+
+        x = np.pad(x, (0, num_zeros_to_append))
+        y = np.pad(y, (0, num_zeros_to_append))
+
+        # deconvolution
+        h = ifft(fft(y) / fft(x)).real
+        # truncate and window
+        h = h[0:input_length]
+
+        # squared cosine fade
+        fadeout_length = 2000
+        fade_tmp = np.cos(np.linspace(0, np.pi / 2, fadeout_length)) ** 2
+        window = np.ones(np.size(h))
+        window[np.size(window) - fadeout_length: np.size(window)] = fade_tmp
+        h = h * window
+
+        return h
 
     def save_single_measurement(self, valid, _az, _el, _r):
 
         if valid:
 
-            self.ir_l = ifft(fft(self.recorded_sweep_l) / fft(self.feedback_loop))
-            self.ir_r = ifft(fft(self.recorded_sweep_r) / fft(self.feedback_loop))
+            self.ir_l = self.deconv(self.feedback_loop, self.recorded_sweep_l)
+            self.ir_r = self.deconv(self.feedback_loop, self.recorded_sweep_r)
 
             ir = np.transpose(np.array([self.ir_l, self.ir_r])).astype(np.float32)
             print('Saving an array')
-            print( np.shape(ir))
+            print(np.shape(ir))
 
-            filename = "ir_" + str(self.measurement_count) + "_" + str(int(round(_az))) + "_" + "_" + str(int(round(_el))) + ".wav"
+            filename = "ir" + str(self.measurement_count) + "_az" + str(int(round(_az))) + "_el" + str(int(round(_el))) + ".wav"
             wave.write(filename, 48000, ir)
             self.measurement_count += 1
 
 
 
-        self.recorded_ir = []
-        self.recorded_sr = []
-        self.recorded_nch = []
-        self.recorded_sweep = []
-        self.feedback_loop = []
+
