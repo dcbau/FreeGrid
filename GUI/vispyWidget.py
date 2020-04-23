@@ -292,11 +292,12 @@ class SpherePoints():
 
 class VispyCanvas(app.Canvas):
 
-    def __init__(self, theta=0, phi=45, z=6.0):
+    def __init__(self, measurement_ref, theta=0, phi=45, z=6.0):
 
         self.calibrationPosition = np.empty([3, 4])
 
-        self.tracker = tracker_manager.TrackerManager()
+        #self.tracker = tracker_ref
+        self.measurement_ref = measurement_ref
 
         app.Canvas.__init__(self, size=(200, 200), title='plot3d',
                             keys='interactive')
@@ -367,7 +368,7 @@ class VispyCanvas(app.Canvas):
 
         self.sphere.draw(self.program)
 
-        az, el, r = self.tracker.getRelativePosition()
+        az, el, r = self.measurement_ref.tracker.getRelativePosition()
         self.speaker.draw(self.program, az, el, self.sphereradius)
 
         self.meas_points.draw(self.program)

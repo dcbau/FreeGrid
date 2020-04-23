@@ -8,6 +8,32 @@ import numpy as np
 import time
 
 
+def deconv(x, y):
+
+    # zero padding
+    input_length = np.size(y)
+    n = np.ceil(np.log2(input_length)) + 1
+    padded_length = int(pow(2, n))
+    num_zeros_to_append = padded_length - input_length
+
+    x = np.pad(x, (0, num_zeros_to_append))
+    y = np.pad(y, (0, num_zeros_to_append))
+
+    # deconvolution
+    h = ifft(fft(y) / fft(x)).real
+    # truncate and window
+    h = h[0:input_length]
+
+    # squared cosine fade
+    fadeout_length = 2000
+    fade_tmp = np.cos(np.linspace(0, np.pi / 2, fadeout_length)) ** 2
+    window = np.ones(np.size(h))
+    window[np.size(window) - fadeout_length: np.size(window)] = fade_tmp
+    h = h * window
+
+    return h
+
+
 class Measurement():
 
     def __init__(self):
@@ -37,8 +63,6 @@ class Measurement():
         self.excitation = np.transpose(self.excitation).astype(np.float32)
 
         self.fs = fs
-
-        self.measurement_count = 0
 
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
@@ -93,6 +117,9 @@ class Measurement():
             self.recorded_sweep_r = recorded[:, 1]
             self.feedback_loop = recorded[:, 2]
 
+        # make IR
+        self.ir_l = deconv(self.feedback_loop, self.recorded_sweep_l)
+        self.ir_r = deconv(self.feedback_loop, self.recorded_sweep_r)
 
 
     def get_recordings(self):
@@ -103,47 +130,3 @@ class Measurement():
             return [self.ir_l, self.ir_r]
         except:
             return
-
-    def deconv(self, x, y):
-
-        # zero padding
-        input_length = np.size(y)
-        n = np.ceil(np.log2(input_length)) + 1
-        padded_length = int(pow(2, n))
-        num_zeros_to_append = padded_length - input_length
-
-        x = np.pad(x, (0, num_zeros_to_append))
-        y = np.pad(y, (0, num_zeros_to_append))
-
-        # deconvolution
-        h = ifft(fft(y) / fft(x)).real
-        # truncate and window
-        h = h[0:input_length]
-
-        # squared cosine fade
-        fadeout_length = 2000
-        fade_tmp = np.cos(np.linspace(0, np.pi / 2, fadeout_length)) ** 2
-        window = np.ones(np.size(h))
-        window[np.size(window) - fadeout_length: np.size(window)] = fade_tmp
-        h = h * window
-
-        return h
-
-    def save_single_measurement(self, valid, _az, _el, _r):
-
-        if valid:
-
-            self.ir_l = self.deconv(self.feedback_loop, self.recorded_sweep_l)
-            self.ir_r = self.deconv(self.feedback_loop, self.recorded_sweep_r)
-
-            ir = np.transpose(np.array([self.ir_l, self.ir_r])).astype(np.float32)
-            print('Saving an array')
-            print(np.shape(ir))
-
-            filename = "ir" + str(self.measurement_count) + "_az" + str(int(round(_az))) + "_el" + str(int(round(_el))) + ".wav"
-            wave.write(filename, 48000, ir)
-            self.measurement_count += 1
-
-
-
-

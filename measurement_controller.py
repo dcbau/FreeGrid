@@ -3,6 +3,7 @@ import threading
 from PyQt5 import QtCore
 from measurement import Measurement
 import numpy as np
+import scipy.io
 from grid_improving.grid_filling import angularDistance
 
 
@@ -22,6 +23,9 @@ class MeasurementController:
         self.measurement_history = np.array([])
         self.measurement_trigger = False
         self.gui_handle = []
+
+        self.measurements = np.array([])
+        self.positions = np.array([])
 
 
     def register_gui_handler(self, handle):
@@ -63,26 +67,47 @@ class MeasurementController:
 
         #self.plotRecordings()
 
-        self.measurement.save_single_measurement(self.measurement_valid,
-                                                 self.measurement_position[0],
-                                                 self.measurement_position[1],
-                                                 self.measurement_position[2])
-
         if self.measurement_valid:
-            #self.vispy_canvas.meas_points.add_point(self.measurement_position[0], self.measurement_position[1])
+            print("Measurement valid")
+
             [rec_l, rec_r, fb_loop] = self.measurement.get_recordings()
             self.gui_handle.plot_recordings(rec_l, rec_r, fb_loop)
             [ir_l, ir_r] = self.measurement.get_irs()
             self.gui_handle.plot_IRs(ir_l, ir_r)
-            print("Measurement valid")
+            self.gui_handle.add_measurement_point(self.measurement_position[0], self.measurement_position[1])
+
+
+            ir = np.array([[ir_l, ir_r]]).astype(np.float32)
+
+            if self.measurements.any():
+                self.measurements = np.concatenate((self.measurements, ir))
+            else:
+                self.measurements = ir
+
+            if self.positions.any():
+                self.positions = np.concatenate((self.positions, self.measurement_position.reshape(1, 3)))
+            else:
+                self.positions = self.measurement_position.reshape(1, 3)
+
+            export = {'dataIR': self.measurements, 'sourcePositions': self.positions}
+            scipy.io.savemat("export_to_matlab", export)
+
+            #
+            # filename = "ir" + str(self.measurement_count) + "_az" + str(int(round(_az))) + "_el" + str(
+            #     int(round(_el))) + ".wav"
+            # wave.write(filename, 48000, ir)
+            # self.measurement_count += 1
+            #
+            # if self.measurement_history.any():
+            #     # if it is the first measurement, there´s nothing to append
+            #     self.measurement_history = self.measurement_position
+            # else:
+            #     self.measurement_history = np.append(self.measurement_history, self.measurement_position)
+
         else:
             print("ERROR, Measurement not valid")
 
-        if self.measurement_history.any():
-            # if it is the first measurement, there´s nothing to append
-            self.measurement_history = self.measurement_position
-        else:
-            self.measurement_history = np.append(self.measurement_history, self.measurement_position)
+
 
 
 

@@ -16,7 +16,7 @@ class UiMainWindow(object):
 
     def setupUi(self, MainWindow, measurement_ref):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(850, 550)
+        MainWindow.resize(1100, 900)
 
         self.measurement_ref = measurement_ref
 
@@ -50,7 +50,7 @@ class UiMainWindow(object):
         self.vpWidget = QtWidgets.QWidget(self.tab_measure)
         self.vpWidget.setObjectName("vpWidget")
         self.vpWidget.setLayout(QtWidgets.QVBoxLayout())
-        self.vispy_canvas = VispyCanvas()
+        self.vispy_canvas = VispyCanvas(measurement_ref)
         self.vpWidget.layout().addWidget(self.vispy_canvas.native)
 
         self.sliderTheta = QtWidgets.QSlider(self.tab_measure)
@@ -76,7 +76,12 @@ class UiMainWindow(object):
         self.calibrateButton = QtWidgets.QPushButton(self.tab_measure)
         self.calibrateButton.setText("Calibrate")
         self.calibrateButton.setObjectName("calibrateButton")
-        self.calibrateButton.clicked.connect(self.vispy_canvas.tracker.calibrate)
+        self.calibrateButton.clicked.connect(self.measurement_ref.tracker.calibrate)
+
+        self.switchTrackersButton = QtWidgets.QPushButton(self.tab_measure)
+        self.switchTrackersButton.setText("Switch Trackers")
+        self.switchTrackersButton.setObjectName("switchTrackersButton")
+        self.switchTrackersButton.clicked.connect(self.measurement_ref.tracker.switch_trackers)
 
         self.azimuthBox = QtWidgets.QSpinBox(self.tab_measure)
         self.azimuthBox.setMaximum(359)
@@ -201,8 +206,12 @@ class UiMainWindow(object):
                                          self.sliderTheta.geometry().bottom(),
                                          size,
                                          40)
+        self.switchTrackersButton.setGeometry(vispybox.center().x() - size / 2,
+                                              self.calibrateButton.geometry().bottom() + 5,
+                                              size,
+                                              40)
         self.az_label.setGeometry(vispybox.x(),
-                                  self.calibrateButton.geometry().bottom() + 5,
+                                  self.switchTrackersButton.geometry().bottom() + 5,
                                   80,
                                   20)
 
@@ -229,17 +238,20 @@ class UiMainWindow(object):
 
 
     def manual_update_az(self):
-        self.vispy_canvas.tracker.fallback_angle[0] = self.azimuthBox.value()
+        self.measurement_ref.tracker.fallback_angle[0] = self.azimuthBox.value()
 
     def manual_update_el(self):
-        self.vispy_canvas.tracker.fallback_angle[1] = self.elevationBox.value()
+        self.measurement_ref.tracker.fallback_angle[1] = self.elevationBox.value()
 
+    def add_measurement_point(self, az, el):
+        self.vispy_canvas.meas_points.add_point(az, el)
 
 
     def plot_recordings(self, rec_l, rec_r, fb_loop):
         matplotlib.rcParams.update({'font.size': 5})
 
         #[rec_l, rec_r, fb_loop] = self.measurement_ref.get_latest_recordings()
+        self.plot1.clf()
         ax1 = self.plot1.add_subplot(311)
         ax1.clear()
         ax1.plot(rec_l)
@@ -257,6 +269,7 @@ class UiMainWindow(object):
         matplotlib.rcParams.update({'font.size': 5})
 
         # [rec_l, rec_r, fb_loop] = self.measurement_ref.get_latest_recordings()
+        self.plot2.clf()
         ax1 = self.plot2.add_subplot(211)
         ax1.clear()
         ax1.plot(ir_l)

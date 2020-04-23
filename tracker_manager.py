@@ -45,7 +45,7 @@ class TrackerManager():
 
         def __init__(self):
 
-            self.fallback_angle = np.array([0, 0, 1])
+            self.fallback_angle = np.array([0.0, 0.0, 1.0])
 
             # initialize open VR
             try:
@@ -91,7 +91,7 @@ class TrackerManager():
 
             self.calibrationRotation = Quaternion()
             self.calibrate()
-
+            self.trackers_switched = False
             self.counter = 0
 
 
@@ -137,6 +137,12 @@ class TrackerManager():
             print("Quaternion: ", self.calibrationRotation)
             print("Rotation Axis: ",  self.calibrationRotation.axis)
             print("Rotation Angle: ", self.calibrationRotation.degrees)
+
+        def switch_trackers(self):
+            if self.trackers_switched:
+                self.trackers_switched = False
+            else:
+                self.trackers_switched = True
 
 
 
@@ -207,6 +213,7 @@ class TrackerManager():
 
             try:
                 pose_head, pose_speaker = self.getTrackerData()
+
             except:
                 return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
 
@@ -217,17 +224,18 @@ class TrackerManager():
                 translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
                 translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
 
+
                 # offset from ears to tracker
                 # true head center lies below the tracker (negative y direction), so we translate the pose matrix "down"
-                offset_y = -0.15 # approx 15cm
-                offset_y_vector = offset_y * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
+                offset_y = 0.12 # approx 15cm
+                offset_y_vector = offset_y * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
                 translation_head = translation_head + offset_y_vector
 
-                # offset from speaker center to tracker
-                offset_y = -0.07  # approx 15cm
-                offset_z = -0.06
-                offset_y_vector = offset_y * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
-                offset_z_vector = offset_z * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
+                #offset from speaker center to tracker
+                offset_y = 0.1
+                offset_z = 0.1
+                offset_y_vector = offset_y * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
+                offset_z_vector = offset_z * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
 
                 translation_speaker = translation_speaker + offset_y_vector + offset_z_vector
 
@@ -264,7 +272,8 @@ class TrackerManager():
                 # (head coordinate system = side, up, fwd)
 
                 direction_vector = np.array([np.inner(side, transvec), np.inner(up, transvec), np.inner(fwd, transvec)])
-                direction_vector = direction_vector / np.linalg.norm(direction_vector)
+                radius = np.linalg.norm(direction_vector)
+                direction_vector = direction_vector / radius
 
                 # get spherical coordinates from direction vector
                 az = np.rad2deg(np.arctan2(direction_vector[0], -direction_vector[2]))
@@ -274,7 +283,6 @@ class TrackerManager():
                 el = np.rad2deg(np.arccos(-direction_vector[1]))
                 el = el - 90
 
-                radius = np.linalg.norm(direction_vector)
 
                 print(az, el, radius)
                 return az, el, radius
@@ -310,13 +318,16 @@ class TrackerManager():
                         poseMatrix2 = trackedDevicePose.mDeviceToAbsoluteTracking
 
                 # if ('poseMatrix1' in locals() and 'poseMatrix2' in locals()):
-                return poseMatrix1, poseMatrix2
+                if self.trackers_switched:
+                    return poseMatrix2, poseMatrix1
+                else:
+                    return poseMatrix1, poseMatrix2
             # else:
             #    return False
 
         def set_angle_manually(self, azimuth, elevation):
-            self.fallback_angle[0] = azimuth
-            self.fallback_angle[1] = elevation
+            self.fallback_angle[0] = float(azimuth)
+            self.fallback_angle[1] = float(elevation)
 
 
 
