@@ -64,11 +64,24 @@ class Measurement():
 
         self.fs = fs
 
+        #read sound files
+        self.sound_success_fs, self.sound_success = wave.read('Resources/soundfx_success.wav')
+        self.sound_failed_fs, self.sound_failed = wave.read('Resources/soundfx_failed.wav')
+
+
+
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
         self.ir_l = []
         self.ir_r = []
+
+    def play_sound(self, success):
+        if success:
+            sd.play(self.sound_success, self.sound_success_fs)
+        else:
+            sd.play(self.sound_failed, self.sound_failed_fs)
+        sd.wait()
 
     def single_measurement(self):
 

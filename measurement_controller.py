@@ -55,19 +55,21 @@ class MeasurementController:
                 self.measurement_trigger = False
                 az, el, r = self.tracker.getRelativePosition()
                 self.measurement_position = np.array([az, el, r])
-                running_measurement = AsyncMeasurementThread(target=self.measurement.single_measurement, ref=self)
+                running_measurement = AsyncMeasurementThread(target_start=self.measurement.single_measurement, target_stop=self.done_measurement())
                 self.measurement_running_flag = True
                 self.measurement_valid = True
                 running_measurement.start()
 
 
-    def stop_measurement(self):
+    def done_measurement(self):
 
         self.measurement_running_flag = False
 
         #self.plotRecordings()
 
         if self.measurement_valid:
+            self.measurement.play_sound(True)
+            self.
             print("Measurement valid")
 
             [rec_l, rec_r, fb_loop] = self.measurement.get_recordings()
@@ -105,6 +107,7 @@ class MeasurementController:
             #     self.measurement_history = np.append(self.measurement_history, self.measurement_position)
 
         else:
+            self.measurement.play_sound(False)
             print("ERROR, Measurement not valid")
 
 
@@ -113,13 +116,14 @@ class MeasurementController:
 
 
 class AsyncMeasurementThread(threading.Thread):
-    def __init__(self, target, ref):
-        self._starget = target
-        self._ref = ref
+    def __init__(self, target_start, target_stop=None):
+        self.start = target_start
+        self.on_stop = target_stop
         threading.Thread.__init__(self)
 
     def run(self):
         print("run")
 
-        self._starget()
-        self._ref.stop_measurement()
+        self.start()
+        if self.on_stop is not None:
+            self.on_stop()
