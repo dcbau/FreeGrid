@@ -12,6 +12,7 @@ class MeasurementController:
     def __init__(self):
         self.tracker = TrackerManager()
         self.measurement = Measurement()
+        self.devices = self.measurement.get_names_of_defualt_devices()
 
         self._timer = QtCore.QTimer()
         self._timer.timeout.connect(self.timer_callback)
@@ -22,6 +23,8 @@ class MeasurementController:
         self.measurement_valid = False
         self.measurement_history = np.array([])
         self.measurement_trigger = False
+        self.reference_measurement_trigger = False
+
         self.gui_handle = []
 
         self.measurements = np.array([])
@@ -33,6 +36,9 @@ class MeasurementController:
 
     def trigger_measurement(self):
         self.measurement_trigger = True
+
+    def trigger_reference_measurement(self):
+        self.reference_measurement_trigger = True
 
     def timer_callback(self):
         if self.measurement_running_flag:
@@ -49,16 +55,26 @@ class MeasurementController:
                 self.tracker.trigger_haptic_impulse()
 
         else:
+            # check for tracker status
+            self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
+
+            # check for measurement triggers
             if self.tracker.checkForTriggerEvent() or self.measurement_trigger:
 
                 # start a measurement
                 self.measurement_trigger = False
                 az, el, r = self.tracker.getRelativePosition()
                 self.measurement_position = np.array([az, el, r])
-                running_measurement = AsyncMeasurementThread(target_start=self.measurement.single_measurement, target_stop=self.done_measurement())
+                run_measurement = StartSingleMeasurementAsync(self)
                 self.measurement_running_flag = True
                 self.measurement_valid = True
-                running_measurement.start()
+                run_measurement.start()
+
+            elif self.reference_measurement_trigger:
+                # start reference measurement
+                self.reference_measurement_trigger = False
+                run_measurement = StartReferenceMeasurementAsync(self)
+                run_measurement.start()
 
 
     def done_measurement(self):
@@ -69,7 +85,7 @@ class MeasurementController:
 
         if self.measurement_valid:
             self.measurement.play_sound(True)
-            self.
+
             print("Measurement valid")
 
             [rec_l, rec_r, fb_loop] = self.measurement.get_recordings()
@@ -92,38 +108,49 @@ class MeasurementController:
                 self.positions = self.measurement_position.reshape(1, 3)
 
             export = {'dataIR': self.measurements, 'sourcePositions': self.positions}
-            scipy.io.savemat("export_to_matlab", export)
-
-            #
-            # filename = "ir" + str(self.measurement_count) + "_az" + str(int(round(_az))) + "_el" + str(
-            #     int(round(_el))) + ".wav"
-            # wave.write(filename, 48000, ir)
-            # self.measurement_count += 1
-            #
-            # if self.measurement_history.any():
-            #     # if it is the first measurement, there´s nothing to append
-            #     self.measurement_history = self.measurement_position
-            # else:
-            #     self.measurement_history = np.append(self.measurement_history, self.measurement_position)
+            scipy.io.savemat("measured_points", export)
 
         else:
             self.measurement.play_sound(False)
             print("ERROR, Measurement not valid")
 
+    def done_measurement_reference(self):
+
+
+        self.measurement.play_sound(True)
+
+        [rec_l, rec_r, fb_loop] = self.measurement.get_recordings()
+        self.gui_handle.plot_recordings(rec_l, rec_r, fb_loop)
+        [ir_l, ir_r] = self.measurement.get_irs()
+        self.gui_handle.plot_IRs(ir_l, np.zeros(np.size(ir_r)))
+
+        self.gui_handle.add_reference_point()
+
+        ir = ir_l.astype(np.float32)
+
+        export = {'dataIR': ir}
+        scipy.io.savemat("reference_measurement", export)
 
 
 
-
-
-class AsyncMeasurementThread(threading.Thread):
-    def __init__(self, target_start, target_stop=None):
-        self.start = target_start
-        self.on_stop = target_stop
+class StartSingleMeasurementAsync(threading.Thread):
+    def __init__(self, parent):
         threading.Thread.__init__(self)
+        self.parent = parent
 
     def run(self):
         print("run")
+        self.parent.measurement.single_measurement()
+        print("stop")
+        self.parent.done_measurement()
 
-        self.start()
-        if self.on_stop is not None:
-            self.on_stop()
+class StartReferenceMeasurementAsync(threading.Thread):
+    def __init__(self, parent):
+        threading.Thread.__init__(self)
+        self.parent = parent
+
+    def run(self):
+        print("run")
+        self.parent.measurement.single_measurement()
+        print("stop")
+        self.parent.done_measurement_reference()

@@ -20,7 +20,7 @@ class PicButton(QAbstractButton):
         painter.drawPixmap(event.rect(), pix)
 
     def sizeHint(self):
-        return self.pixmap.siue()
+        return self.pixmap.size()
 
     def enterEvent(self, event):
         self.update()

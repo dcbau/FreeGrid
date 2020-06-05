@@ -46,6 +46,14 @@ class TrackerManager():
         def __init__(self):
 
             self.fallback_angle = np.array([0.0, 0.0, 1.0])
+            self.trackers_switched = False
+            self.counter = 0
+
+            self.offset_cm = {
+                'speaker_z': 6,
+                'speaker_y': 7,
+                'head_y': 15
+            }
 
             # initialize open VR
             try:
@@ -89,10 +97,13 @@ class TrackerManager():
             if (hasattr(self, 'controller2')):
                 print("Has controller 2!")
 
+
+
             self.calibrationRotation = Quaternion()
             self.calibrate()
-            self.trackers_switched = False
-            self.counter = 0
+
+
+
 
 
 
@@ -219,7 +230,7 @@ class TrackerManager():
 
             if (pose_head != False and pose_speaker != False):
 
-                mystery_flag = False
+                mystery_flag = False #for testing debugging
 
                 # STEP1: get the correct translation between head and speaker
 
@@ -229,23 +240,20 @@ class TrackerManager():
 
                 # offset from ears to tracker
                 # true head center lies below the tracker (negative y direction), so we translate the pose matrix "down"
-                offset_y = 0.15 # approx 15cm
                 if mystery_flag:
-                    offset_y_vector = offset_y * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
+                    offset_y_vector = self.offset_cm['head_y'] * 0.01 * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
                 else:
-                    offset_y_vector = -offset_y * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
+                    offset_y_vector = -self.offset_cm['head_y'] * 0.01 * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
 
                 translation_head = translation_head + offset_y_vector
 
                 #offset from speaker center to tracker
-                offset_y = 0.07
-                offset_z = 0.06
                 if mystery_flag:
-                    offset_y_vector = offset_y * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
-                    offset_z_vector = offset_z * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
+                    offset_y_vector = self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
+                    offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
                 else:
-                    offset_y_vector = -offset_y * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
-                    offset_z_vector = offset_z * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
+                    offset_y_vector = -self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
+                    offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
                 translation_speaker = translation_speaker + offset_y_vector + offset_z_vector
 
                 # get vector pointing from head center to speaker center
@@ -319,7 +327,10 @@ class TrackerManager():
                     if (trackedDevicePose.bPoseIsValid):
                         self.tracker1.isActive = True
                         poseMatrix1 = trackedDevicePose.mDeviceToAbsoluteTracking
-                        #print("Angular Velocity", trackedDevicePose.vAngularVelocity)
+                    else:
+                        self.tracker1.isActive = False
+                else:
+                    self.tracker1.isAvailable = False
 
             if (hasattr(self, 'tracker2')):
                 result, controllerState, trackedDevicePose = self.vr_system.getControllerStateWithPose(
@@ -331,6 +342,10 @@ class TrackerManager():
                     if (trackedDevicePose.bPoseIsValid):
                         self.tracker2.isActive = True
                         poseMatrix2 = trackedDevicePose.mDeviceToAbsoluteTracking
+                    else:
+                        self.tracker1.isActive = False
+                else:
+                    self.tracker1.isAvailable = False
 
                 # if ('poseMatrix1' in locals() and 'poseMatrix2' in locals()):
                 if self.trackers_switched:
@@ -343,6 +358,27 @@ class TrackerManager():
         def set_angle_manually(self, azimuth, elevation):
             self.fallback_angle[0] = float(azimuth)
             self.fallback_angle[1] = float(elevation)
+
+
+        def check_tracker_availability(self):
+            tracker_status = {
+                "tracker1": "Unavailable",
+                "tracker2": "Unavailable"
+            }
+            if (hasattr(self, 'tracker1')):
+                if self.tracker1.isActive:
+                    tracker_status['tracker1'] = "Tracking"
+                elif self.tracker1.isAvailable:
+                    tracker_status['tracker1'] = "Available / Not tracking"
+
+            if (hasattr(self, 'tracker2')):
+                if self.tracker2.isActive:
+                    tracker_status['tracker2'] = "Tracking"
+                elif self.tracker2.isAvailable:
+                    tracker_status['tracker2'] = "Available / Not tracking"
+
+            return tracker_status
+
 
 
 

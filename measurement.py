@@ -42,6 +42,8 @@ class Measurement():
         print(devices)
         print(sd.default.device)
 
+        self.get_names_of_defualt_devices()
+
         fs = 48000
 
         # define sweep parameters
@@ -76,6 +78,8 @@ class Measurement():
         self.ir_l = []
         self.ir_r = []
 
+
+
     def play_sound(self, success):
         if success:
             sd.play(self.sound_success, self.sound_success_fs)
@@ -96,10 +100,8 @@ class Measurement():
         available_in_channels = sd.query_devices(sd.default.device[0])['max_input_channels']
 
         # do measurement
-
         if(available_in_channels == 1):
-            # ch1 = left
-            # ch2 = right
+            # ch1 = left & right
             recorded = sd.playrec(self.excitation, self.fs, channels=1)
             sd.wait()
 
@@ -107,7 +109,7 @@ class Measurement():
             self.recorded_sweep_r = recorded[:, 0]
             self.feedback_loop = self.excitation[:, 0]
 
-        if(available_in_channels == 2):
+        elif(available_in_channels == 2):
 
             # ch1 = left
             # ch2 = right
@@ -123,7 +125,7 @@ class Measurement():
             # ch1 = left
             # ch2 = right
             # ch3 = feedback loop
-            recorded = sd.playrec(self.excitation, self.fs, channels=1)
+            recorded = sd.playrec(self.excitation, self.fs, channels=3)
             sd.wait()
 
             self.recorded_sweep_l = recorded[:, 0]
@@ -133,6 +135,34 @@ class Measurement():
         # make IR
         self.ir_l = deconv(self.feedback_loop, self.recorded_sweep_l)
         self.ir_r = deconv(self.feedback_loop, self.recorded_sweep_r)
+
+
+    def get_names_of_defualt_devices(self):
+        input_dev = sd.query_devices(sd.default.device[0])
+        output_dev = sd.query_devices(sd.default.device[1])
+
+        out_excitation = output_dev['name'] + ", Ch1"
+        num_in_ch = input_dev['max_input_channels']
+        num_out_ch = output_dev['max_output_channels']
+
+        device_strings = {
+            "out_excitation": "Unavailable",
+            "out_feedback": "Unavailable/Disabled",
+            "in_left": "Unavailable",
+            "in_right": "Unavailable",
+            "in_feedback": "Unavailable/Disabled"
+        }
+        if num_out_ch > 0:
+            device_strings["out_excitation"] = output_dev['name'] + ", Ch1"
+        if num_in_ch > 0:
+            device_strings["in_left"] = input_dev['name'] + ", Ch1"
+        if num_in_ch > 1:
+            device_strings["in_right"] = input_dev['name'] + ", Ch2"
+        if num_in_ch > 2 and num_out_ch > 1:
+            device_strings["in_feedback"] = input_dev['name'] + ", Ch3"
+            device_strings["out_feedback"] = output_dev['name'] + ", Ch2"
+
+        return device_strings
 
 
     def get_recordings(self):

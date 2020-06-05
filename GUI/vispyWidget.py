@@ -26,7 +26,7 @@ void main()
 {
     v_destinationColour = a_sourceColour;
     gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
-    gl_PointSize = 10.0;
+    gl_PointSize = 20.0;
 }
 """
 
@@ -252,31 +252,61 @@ class ElevationAngleDisplay():
 class SpherePoints():
     def __init__(self, radius=1):
         self.point_angles = []
-        self.vertices = []
-        self.colors = []
+        self.vertices = np.array([[],[],[]], dtype=np.float32).reshape(0, 3)
+        self.colors = np.array([[],[],[], []], dtype=np.float32).reshape(0, 4)
         self.radius = radius
+
+    # def add_point(self, az, el):
+    #
+    #     print("Point: ", az, "  ", el)
+    #     self.point_angles.append([az, 90 - el])
+    #
+    #     num_vertices = int(len(self.point_angles))
+    #     self.vertices = np.zeros([num_vertices, 3], dtype=np.float32)
+    #     self.colors = np.zeros([num_vertices, 4], dtype=np.float32)
+    #
+    #     r = self.radius
+    #     for i in range(num_vertices):
+    #         az = (self.point_angles[i][0] - 90) * np.pi / 180.0
+    #         el = self.point_angles[i][1] * np.pi / 180.0
+    #         self.vertices[i][0] = r * np.sin(el) * np.cos(az)
+    #         self.vertices[i][1] = r * np.cos(el)
+    #         self.vertices[i][2] = r * np.sin(el) * np.sin(az)
+    #
+    #         self.colors[i][0] = 1.0
+    #         self.colors[i][1] = 0.0
+    #         self.colors[i][2] = 0.0
+    #         self.colors[i][3] = 1.0
+    #
 
     def add_point(self, az, el):
 
         print("Point: ", az, "  ", el)
-        self.point_angles.append([az, 90 - el])
-
-        num_vertices = int(len(self.point_angles))
-        self.vertices = np.zeros([num_vertices, 3], dtype=np.float32)
-        self.colors = np.zeros([num_vertices, 4], dtype=np.float32)
 
         r = self.radius
-        for i in range(num_vertices):
-            az = (self.point_angles[i][0] - 90) * np.pi / 180.0
-            el = self.point_angles[i][1] * np.pi / 180.0
-            self.vertices[i][0] = r * np.sin(el) * np.cos(az)
-            self.vertices[i][1] = r * np.cos(el)
-            self.vertices[i][2] = r * np.sin(el) * np.sin(az)
 
-            self.colors[i][0] = 1.0
-            self.colors[i][1] = 0.0
-            self.colors[i][2] = 0.0
-            self.colors[i][3] = 1.0
+        az = (az - 90) * np.pi / 180.0
+        el = (90 - el) * np.pi / 180.0
+        new_vertex = np.array([r * np.sin(el) * np.cos(az),
+                               r * np.cos(el),
+                               r * np.sin(el) * np.sin(az)],
+                              dtype=np.float32).reshape(1, 3)
+
+        new_color = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)
+
+
+        self.vertices = np.append(self.vertices, new_vertex, 0)
+        self.colors = np.append(self.colors, new_color, 0)
+
+
+    def add_reference_measurement_point(self):
+
+        new_vertex = np.array([0.0, 0.0, 0.0], dtype=np.float32).reshape(1, 3)
+        new_color = np.array([0.0, 0.0, 1.0, 1.0], dtype=np.float32).reshape(1, 4)
+
+        self.vertices = np.append(self.vertices, new_vertex, 0)
+        self.colors = np.append(self.colors, new_color, 0)
+
 
     def draw(self, program):
 
@@ -292,7 +322,9 @@ class SpherePoints():
 
 class VispyCanvas(app.Canvas):
 
-    def __init__(self, measurement_ref, theta=0, phi=45, z=6.0):
+    def __init__(self, measurement_ref, parent_window, theta=0, phi=45, z=6.0):
+
+        self.parent_window = parent_window
 
         self.calibrationPosition = np.empty([3, 4])
 
@@ -311,6 +343,8 @@ class VispyCanvas(app.Canvas):
         self.speaker = Speaker(self.boxsize)
 
         self.meas_points = SpherePoints(self.sphereradius)
+
+
 
         #self.tracker_orientation = TrackerOrientation(self.tracker)
         self.azimuthdisplay = AzimuthAngleDisplay(self.sphereradius)
@@ -345,6 +379,10 @@ class VispyCanvas(app.Canvas):
         # show the canvas
         self.show()
 
+        self.current_azimuth = 0.0
+        self.current_elevation = 0.0
+
+
         self.timer = app.Timer(interval=0.05, connect=self.timer_callback, start=True)
 
 
@@ -369,12 +407,18 @@ class VispyCanvas(app.Canvas):
         self.sphere.draw(self.program)
 
         az, el, r = self.measurement_ref.tracker.getRelativePosition()
+        self.current_azimuth = az
+        self.current_elevation = el
         self.speaker.draw(self.program, az, el, self.sphereradius)
 
         self.meas_points.draw(self.program)
 
         self.azimuthdisplay.draw(self.program, az)
         self.elevationdisplay.draw(self.program, az, el)
+
+        self.parent_window.updateCurrentAngle(az, el)
+
+
 
     def update_phi(self, phi):
         self.phi = -phi * 3.6
