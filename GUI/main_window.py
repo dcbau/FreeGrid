@@ -9,6 +9,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib
 
+import os
+
 
 class UiMainWindow(object):
 
@@ -37,6 +39,9 @@ class UiMainWindow(object):
         self.elevationLabel = QtWidgets.QLabel("El: ")
         self.elevationLabel.setFont(QtGui.QFont("Arial", 24))
         self.elevationLabel.setMaximumHeight(30)
+        self.radiusLabel = QtWidgets.QLabel("Radius: ")
+        self.radiusLabel.setFont(QtGui.QFont("Arial", 15))
+        self.radiusLabel.setMaximumHeight(30)
 
 
         self.vpWidget = QtWidgets.QGroupBox("Virtual Speaker Position")
@@ -68,6 +73,7 @@ class UiMainWindow(object):
 
         self.vpWidget.layout().addWidget(self.azimuthLabel, 6, 1, 1, 1)
         self.vpWidget.layout().addWidget(self.elevationLabel, 6, 2, 1, 1)
+        self.vpWidget.layout().addWidget(self.radiusLabel, 6, 3, 1, 1)
 
 
 
@@ -141,9 +147,9 @@ class UiMainWindow(object):
         self.tabWidget.addTab(self.tab_measure, "")
 
         self.instructionsbox = QtWidgets.QLabel()
-        pixmap = QtGui.QPixmap("resources/tracker_speaker_setup.png")
+        pixmap = QtGui.QPixmap("resources/tracker_setup.png")
         pixmap = pixmap.scaledToHeight(int(self.tab_config.height()), QtCore.Qt.SmoothTransformation)
-
+        #pixmap = pixmap.scaledToWidth(500, QtCore.Qt.SmoothTransformation)
         self.instructionsbox.setPixmap(pixmap)
         #self.instructionsbox.setScaledContents(True)
         #self.instructionsbox.show()
@@ -186,6 +192,22 @@ class UiMainWindow(object):
         self.calibrateButton.setObjectName("calibrateButton")
         self.calibrateButton.clicked.connect(self.measurement_ref.tracker.calibrate)
         self.tab_config.layout().addWidget(self.calibrateButton)
+
+        self.output_folder_box = QtWidgets.QGroupBox("Select output folder for measured data")
+        self.output_folder_box.setLayout(QtWidgets.QHBoxLayout())
+        path = os.getcwd()
+        self.measurement_ref.set_output_path(path)
+
+        self.output_folder_select = QtWidgets.QLineEdit()
+        self.output_folder_select.setText(path)
+        self.output_folder_box.layout().addWidget(self.output_folder_select)
+
+        self.select_folder_button = QtWidgets.QPushButton()
+        self.select_folder_button.setText("...")
+        self.select_folder_button.clicked.connect(self.select_folder_dialog)
+        self.output_folder_box.layout().addWidget(self.select_folder_button)
+
+        self.tab_config.layout().addWidget(self.output_folder_box)
 
         self.azimuthBox = QtWidgets.QSpinBox()
         self.azimuthBox.setMaximum(359)
@@ -420,9 +442,10 @@ class UiMainWindow(object):
         else:
             self.manualAngleBox.setEnabled(True)
 
-    def updateCurrentAngle(self, az, el):
+    def updateCurrentAngle(self, az, el, r):
         self.azimuthLabel.setText("Az: " + str(az) + "°")
         self.elevationLabel.setText("El: " + str(el) + "°")
+        self.radiusLabel.setText("Radius: " + str(r) + "m")
 
     def set_offset_speaker_z(self):
         self.measurement_ref.tracker.offset_cm['speaker_z'] = self.offet_speaker_z.value()
@@ -432,3 +455,13 @@ class UiMainWindow(object):
 
     def set_offset_head_y(self):
         self.measurement_ref.tracker.offset_cm['head_y'] = self.offset_head_y.value()
+
+    def select_folder_dialog(self):
+        path = QtWidgets.QFileDialog.getExistingDirectory(self.centralwidget,
+                                                          'Open Directory',
+                                                          self.output_folder_select.text(),
+                                                          QtWidgets.QFileDialog.ShowDirsOnly | QtWidgets.QFileDialog.DontResolveSymlinks)
+        if path:
+            self.output_folder_select.setText(path)
+            self.measurement_ref.set_output_path(path)
+

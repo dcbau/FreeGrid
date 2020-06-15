@@ -5,7 +5,7 @@ from measurement import Measurement
 import numpy as np
 import scipy.io
 from grid_improving.grid_filling import angularDistance
-
+import os
 
 class MeasurementController:
 
@@ -107,15 +107,16 @@ class MeasurementController:
             else:
                 self.positions = self.measurement_position.reshape(1, 3)
 
-            export = {'dataIR': self.measurements, 'sourcePositions': self.positions}
-            scipy.io.savemat("measured_points", export)
+            export = {'dataIR': self.measurements, 'sourcePositions': self.positions, 'fs:': 48000}
+
+            filepath = os.path.join(self.output_path, "measured_points.mat")
+            scipy.io.savemat(filepath, export)
 
         else:
             self.measurement.play_sound(False)
             print("ERROR, Measurement not valid")
 
     def done_measurement_reference(self):
-
 
         self.measurement.play_sound(True)
 
@@ -128,8 +129,13 @@ class MeasurementController:
 
         ir = ir_l.astype(np.float32)
 
-        export = {'dataIR': ir}
-        scipy.io.savemat("reference_measurement", export)
+        export = {'referenceIR': ir, 'fs:': 48000}
+
+        filepath = os.path.join(self.output_path, "reference_measurement.mat")
+        scipy.io.savemat(filepath, export)
+
+    def set_output_path(self, path):
+        self.output_path = path
 
 
 

@@ -416,7 +416,7 @@ class VispyCanvas(app.Canvas):
         self.azimuthdisplay.draw(self.program, az)
         self.elevationdisplay.draw(self.program, az, el)
 
-        self.parent_window.updateCurrentAngle(az, el)
+        self.parent_window.updateCurrentAngle(az, el, r)
 
 
 
