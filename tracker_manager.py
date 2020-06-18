@@ -69,11 +69,13 @@ class TrackerManager():
                 dev_class = self.vr_system.getTrackedDeviceClass(deviceID)
                 if(dev_class == TrackedDeviceClass_GenericTracker):
                     if(not hasattr(self, 'tracker1')):
-                        self.tracker1 = Device(TrackedDeviceClass_GenericTracker, deviceID)
-                        self.tracker1.set_availability(self.vr_system.isTrackedDeviceConnected(deviceID))
+                        if self.vr_system.isTrackedDeviceConnected(deviceID):
+                            self.tracker1 = Device(TrackedDeviceClass_GenericTracker, deviceID)
+                            self.tracker1.set_availability(True)
                     elif (not hasattr(self, 'tracker2')):
-                        self.tracker2 = Device(TrackedDeviceClass_GenericTracker, deviceID)
-                        self.tracker2.set_availability(self.vr_system.isTrackedDeviceConnected(deviceID))
+                        if self.vr_system.isTrackedDeviceConnected(deviceID):
+                            self.tracker2 = Device(TrackedDeviceClass_GenericTracker, deviceID)
+                            self.tracker2.set_availability(True)
                 elif(dev_class == TrackedDeviceClass_Controller):
                     if(not hasattr(self, 'controller1')):
                         self.controller1 = Device(TrackedDeviceClass_Controller, deviceID)
@@ -84,19 +86,20 @@ class TrackerManager():
 
 
             if(hasattr(self, 'tracker1')):
-                self.calibrationPose = self.calibrate()
                 print("Has tracker one!")
+                if(self.tracker1.is_available()):
+                    print("Tracker 1 Available")
 
             if (hasattr(self, 'tracker2')):
-
                 print("Has tracker two!")
+                if (self.tracker2.is_available()):
+                    print("Tracker 2 Available")
 
             if (hasattr(self, 'controller1')):
                 print("Has controller 1!")
 
             if (hasattr(self, 'controller2')):
                 print("Has controller 2!")
-
 
 
             self.calibrationRotation = Quaternion()
@@ -113,31 +116,65 @@ class TrackerManager():
             #print("Check for Trigger Event")
             if (hasattr(self, 'controller1')):
                 result, controllerState = self.vr_system.getControllerState(self.controller1.id)
-                #print(controllerState.ulButtonPressed)
-                if(bool(controllerState.ulButtonPressed >> 33 & 1)):
+                inputs = self.from_controller_state_to_dict(controllerState)
+                if(bool(controllerState.ulButtonPressed >> 2 & 1)):
+                    print("Button Pressed 1")
                     return True
 
             if (hasattr(self, 'controller2')):
                 result, controllerState = self.vr_system.getControllerState(self.controller2.id)
-                # print(controllerState.ulButtonPressed)
-                if (bool(controllerState.ulButtonPressed >> 33 & 1)):
+                if (bool(controllerState.ulButtonPressed >> 2 & 1)):
+                    print("Button Pressed 2")
                     return True
 
             return False
 
+        def from_controller_state_to_dict(self, pControllerState):
+            # docs: https://github.com/ValveSoftware/openvr/wiki/IVRSystem::GetControllerState
+            d = {}
+            d['unPacketNum'] = pControllerState.unPacketNum
+            # on trigger .y is always 0.0 says the docs
+            d['trigger'] = pControllerState.rAxis[1].x
+            # 0.0 on trigger is fully released
+            # -1.0 to 1.0 on joystick and trackpads
+            d['trackpad_x'] = pControllerState.rAxis[0].x
+            d['trackpad_y'] = pControllerState.rAxis[0].y
+            # These are published and always 0.0
+            # for i in range(2, 5):
+            #     d['unknowns_' + str(i) + '_x'] = pControllerState.rAxis[i].x
+            #     d['unknowns_' + str(i) + '_y'] = pControllerState.rAxis[i].y
+            d['ulButtonPressed'] = pControllerState.ulButtonPressed
+            d['ulButtonTouched'] = pControllerState.ulButtonTouched
+            # To make easier to understand what is going on
+            # Second bit marks menu button
+            d['menu_button'] = bool(pControllerState.ulButtonPressed >> 1 & 1)
+            # 32 bit marks trackpad
+            d['trackpad_pressed'] = bool(pControllerState.ulButtonPressed >> 32 & 1)
+            d['trackpad_touched'] = bool(pControllerState.ulButtonTouched >> 32 & 1)
+            # third bit marks grip button
+            d['grip_button'] = bool(pControllerState.ulButtonPressed >> 2 & 1)
+            # System button can't be read, if you press it
+            # the controllers stop reporting
+            return d
+
         def trigger_haptic_impulse(self):
+
             if (hasattr(self, 'controller1')):
-                self.vr_system.triggerHapticPulse(self.controller1.id, 1, 100)
-            elif (hasattr(self, 'controller2')):
-                self.vr_system.triggerHapticPulse(self.controller2.id, 1, 100)
+                id = self.controller1.id
+            else:
+                id = self.controller2.id
+            for i in range(1000):
+                self.vr_system.triggerHapticPulse(id, 1, 1000)
+
 
         def calibrate(self):
+
+            print("Calibration")
+
             try:
-                pose_base, pose_relative = self.getTrackerData()
+                pose_base, pose_relative = self.get_tracker_data()
             except:
-               return
-
-
+                return
 
             head_tracker = Quaternion(convert_to_quaternion(pose_base))
             reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
@@ -145,92 +182,23 @@ class TrackerManager():
             self.calibrationRotation = head_tracker.inverse * reference_tracker
 
 
-            print("Quaternion: ", self.calibrationRotation)
-            print("Rotation Axis: ",  self.calibrationRotation.axis)
-            print("Rotation Angle: ", self.calibrationRotation.degrees)
-
         def switch_trackers(self):
             if self.trackers_switched:
                 self.trackers_switched = False
             else:
                 self.trackers_switched = True
 
-
-
-        def getViewVector(self):
-            try:
-                pose_base, pose_relative = self.getTrackerData()
-            except:
-                return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-
-
-            z_pose = np.array([pose_base.m[0][2], pose_base.m[1][2], pose_base.m[2][2]])
-            y_pose = np.array([pose_base.m[0][1], pose_base.m[1][1], pose_base.m[2][1]])
-            x_pose = np.array([pose_base.m[0][0], pose_base.m[1][0], pose_base.m[2][0]])
-
-            return x_pose, y_pose, z_pose, x_pose, y_pose, z_pose
-
-            # get the base tracker rotation in quaternions
-
-            head_tracker = Quaternion(convert_to_quaternion(pose_base))
-            reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
-
-
-            # make "new' direction vectors by rotating a normed set of orthogonal direction vectors
-            x = np.array([1.0, 0.0, 0.0])
-            y = np.array([0.0, 1.0, 0.0])
-            z = np.array([0.0, 0.0, 1.0])
-
-
-            # apply calibrated rotation
-            #rotation = reference_tracker
-
-
-            #x_rot1 = rotation.rotate(x)
-            #y_rot1 = rotation.rotate(y)
-            #z_rot1 = rotation.rotate(z)
-
-
-            # apply calibrated rotation
-
-
-            # die rotation muss relativ zum tracker-koordinatensystem sein, nicht zum globalen!!
-            # so funtionierts noch nicht aber der ansatz ist glaube ich gut
-
-            #rotation_axis = self.calibrationRotation.axis
-            #make rotation relative to tracker coordinate system
-            #r = np.array([np.inner(x_rot1, rotation_axis), np.inner(y_rot1, rotation_axis), np.inner(z_rot1, rotation_axis)])
-            #degrees = self.calibrationRotation.degrees
-            #calibrationRotation  = Quaternion(axis=[r[0], r[1], r[2]], degrees=degrees)
-            #print(calibrationRotation)
-
-            rotation = head_tracker # self.calibrationRotation
-
-
-            #rotation = calibrationRotation
-
-            x_rot2 = rotation.rotate(x)
-            y_rot2 = rotation.rotate(y)
-            z_rot2 = rotation.rotate(z)
-            #print(x_rot1, x_rot2)
-
-            print(x_pose, y_pose, z_pose)
-
-            return x_pose, y_pose, z_pose, x_rot2, y_rot2, z_rot2
-
-
-
-        def getRelativePosition(self):
+        def get_relative_position(self):
 
             try:
-                pose_head, pose_speaker = self.getTrackerData()
+                pose_head, pose_speaker = self.get_tracker_data()
 
             except:
                 return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
 
-            if (pose_head != False and pose_speaker != False):
+            if pose_head != False and pose_speaker != False:
 
-                mystery_flag = False #for testing debugging
+                mystery_flag = True #for testing debugging
 
                 # STEP1: get the correct translation between head and speaker
 
@@ -247,7 +215,7 @@ class TrackerManager():
 
                 translation_head = translation_head + offset_y_vector
 
-                #offset from speaker center to tracker
+                # offset from speaker center to tracker
                 if mystery_flag:
                     offset_y_vector = self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
                     offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
@@ -255,6 +223,7 @@ class TrackerManager():
                     offset_y_vector = -self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
                     offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
                 translation_speaker = translation_speaker + offset_y_vector + offset_z_vector
+
 
                 # get vector pointing from head center to speaker center
                 transvec = translation_speaker - translation_head
@@ -307,53 +276,44 @@ class TrackerManager():
                 el = el - 90
 
 
-                print(az, el, radius)
+                #print(az, el, radius)
                 return az, el, radius
 
+        def get_tracker_data(self):
 
+            #poseMatrix1 = []
+            #poseMatrix2 = []
 
-        def getTrackerData(self):
-
-            # poseMatrix1 = []
-            # poseMatrix2 = []
-
-            if (hasattr(self, 'tracker1')):
-                result, controllerState, trackedDevicePose = self.vr_system.getControllerStateWithPose(
-                    TrackingUniverseRawAndUncalibrated, self.tracker1.id)
-                self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseRawAndUncalibrated, 0,
-                                                               trackedDevicePose)
-                if (trackedDevicePose.bDeviceIsConnected):
-                    self.tracker1.isAvailable = True
-                    if (trackedDevicePose.bPoseIsValid):
+            pose = self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseStanding,
+                                                                  0,
+                                                                  k_unMaxTrackedDeviceCount)
+            pose1 = pose[self.tracker1.id]
+            if pose1.bDeviceIsConnected:
+                self.tracker1.isAvailable = True
+                if pose1.bPoseIsValid:
                         self.tracker1.isActive = True
-                        poseMatrix1 = trackedDevicePose.mDeviceToAbsoluteTracking
-                    else:
+                        poseMatrix1 = pose1.mDeviceToAbsoluteTracking
+                else:
                         self.tracker1.isActive = False
-                else:
-                    self.tracker1.isAvailable = False
+            else:
+                self.tracker1.isAvailable = False
 
-            if (hasattr(self, 'tracker2')):
-                result, controllerState, trackedDevicePose = self.vr_system.getControllerStateWithPose(
-                    TrackingUniverseRawAndUncalibrated, self.tracker2.id)
-                self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseRawAndUncalibrated, 0,
-                                                               trackedDevicePose)
-                if (trackedDevicePose.bDeviceIsConnected):
-                    self.tracker2.isAvailable = True
-                    if (trackedDevicePose.bPoseIsValid):
-                        self.tracker2.isActive = True
-                        poseMatrix2 = trackedDevicePose.mDeviceToAbsoluteTracking
-                    else:
-                        self.tracker1.isActive = False
+            pose2 = pose[self.tracker2.id]
+            if pose2.bDeviceIsConnected:
+                self.tracker2.isAvailable = True
+                if pose2.bPoseIsValid:
+                    self.tracker2.isActive = True
+                    poseMatrix2 = pose2.mDeviceToAbsoluteTracking
                 else:
-                    self.tracker1.isAvailable = False
+                    self.tracker1.isActive = False
+            else:
+                self.tracker1.isAvailable = False
 
-                # if ('poseMatrix1' in locals() and 'poseMatrix2' in locals()):
-                if self.trackers_switched:
-                    return poseMatrix2, poseMatrix1
-                else:
-                    return poseMatrix1, poseMatrix2
-            # else:
-            #    return False
+            if self.trackers_switched:
+                return poseMatrix2, poseMatrix1
+            else:
+                 return poseMatrix1, poseMatrix2
+
 
         def set_angle_manually(self, azimuth, elevation):
             self.fallback_angle[0] = float(azimuth)

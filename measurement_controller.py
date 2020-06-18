@@ -14,8 +14,15 @@ class MeasurementController:
         self.measurement = Measurement()
         self.devices = self.measurement.get_names_of_defualt_devices()
 
+
+        self.headmovement_trigger_counter = 0
+        self.headmovement_ref_position = [0, 0, 1]
+        self.auto_trigger_by_headmovement = False
+
+
         self._timer = QtCore.QTimer()
         self._timer.timeout.connect(self.timer_callback)
+        self.timer_interval_ms = 20
         self._timer.start(20)
 
         self.measurement_running_flag = False
@@ -29,6 +36,7 @@ class MeasurementController:
 
         self.measurements = np.array([])
         self.positions = np.array([])
+
 
 
     def register_gui_handler(self, handle):
@@ -46,7 +54,7 @@ class MeasurementController:
             # check for variance
             tolerance_angle = 1  # (degree)
             tolerance_radius = 0.1  # (meter)
-            az, el, r = self.tracker.getRelativePosition()
+            az, el, r = self.tracker.get_relative_position()
             variance = angularDistance(az, el, self.measurement_position[0],
                                        self.measurement_position[1]) * 180 / np.pi
             if (variance > tolerance_angle
@@ -59,11 +67,13 @@ class MeasurementController:
             self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
 
             # check for measurement triggers
-            if self.tracker.checkForTriggerEvent() or self.measurement_trigger:
+            if self.tracker.checkForTriggerEvent() \
+                    or self.measurement_trigger\
+                    or self.check_for_trigger_by_headmovement():
 
                 # start a measurement
                 self.measurement_trigger = False
-                az, el, r = self.tracker.getRelativePosition()
+                az, el, r = self.tracker.get_relative_position()
                 self.measurement_position = np.array([az, el, r])
                 run_measurement = StartSingleMeasurementAsync(self)
                 self.measurement_running_flag = True
@@ -75,6 +85,32 @@ class MeasurementController:
                 self.reference_measurement_trigger = False
                 run_measurement = StartReferenceMeasurementAsync(self)
                 run_measurement.start()
+
+    def check_for_trigger_by_headmovement(self):
+
+        if not self.auto_trigger_by_headmovement:
+            return False
+        # this function has to be called by a periodic timer callback and checks if the user´s head has remained still for a defined time interval
+
+        hold_still_interval_sec = 2
+        hold_still_num_callbacks = hold_still_interval_sec*1000 / self.timer_interval_ms
+
+        tolerance_angle = 1  # (degree)
+        tolerance_radius = 0.1  # (meter)
+        az, el, r = self.tracker.get_relative_position()
+        variance = angularDistance(az, el, self.measurement_position[0],
+                                   self.measurement_position[1]) * 180 / np.pi
+        if (variance > tolerance_angle
+                or abs(r - self.measurement_position[2]) > tolerance_radius):
+            self.headmovement_trigger_counter = 0
+            self.headmovement_ref_position = [az, el, r]
+        else:
+            self.headmovement_trigger_counter += 1
+            if self.headmovement_trigger_counter > hold_still_num_callbacks:
+                self.headmovement_trigger_counter = 0
+                return True
+
+        return False
 
 
     def done_measurement(self):

@@ -158,21 +158,21 @@ class UiMainWindow(object):
         self.offsetbox = QtWidgets.QGroupBox()
         self.offsetbox.setLayout(QtWidgets.QFormLayout())
 
-        self.offet_speaker_z = QtWidgets.QSpinBox()
-        self.offet_speaker_y = QtWidgets.QSpinBox()
-        self.offet_head_y = QtWidgets.QSpinBox()
+        self.offset_speaker_z = QtWidgets.QSpinBox()
+        self.offset_speaker_y = QtWidgets.QSpinBox()
+        self.offset_head_y = QtWidgets.QSpinBox()
 
-        self.offet_speaker_z.setValue(self.measurement_ref.tracker.offset_cm['speaker_z'])
-        self.offet_speaker_y.setValue(self.measurement_ref.tracker.offset_cm['speaker_y'])
-        self.offet_head_y.setValue(self.measurement_ref.tracker.offset_cm['head_y'])
+        self.offset_speaker_z.setValue(self.measurement_ref.tracker.offset_cm['speaker_z'])
+        self.offset_speaker_y.setValue(self.measurement_ref.tracker.offset_cm['speaker_y'])
+        self.offset_head_y.setValue(self.measurement_ref.tracker.offset_cm['head_y'])
 
-        self.offet_speaker_z.valueChanged.connect(self.set_offset_speaker_z)
-        self.offet_speaker_y.valueChanged.connect(self.set_offset_speaker_y)
-        self.offet_head_y.valueChanged.connect(self.set_offset_head_y)
+        self.offset_speaker_z.valueChanged.connect(self.set_offset_speaker_z)
+        self.offset_speaker_y.valueChanged.connect(self.set_offset_speaker_y)
+        self.offset_head_y.valueChanged.connect(self.set_offset_head_y)
 
-        self.offsetbox.layout().addRow("Tracker - Speaker Z (cm): ", self.offet_speaker_z)
-        self.offsetbox.layout().addRow("Tracker - Speaker Y (cm): ", self.offet_speaker_y)
-        self.offsetbox.layout().addRow("Tracker - Head Y (cm): ", self.offet_head_y)
+        self.offsetbox.layout().addRow("Tracker - Speaker Z (cm): ", self.offset_speaker_z)
+        self.offsetbox.layout().addRow("Tracker - Speaker Y (cm): ", self.offset_speaker_y)
+        self.offsetbox.layout().addRow("Tracker - Head Y (cm): ", self.offset_head_y)
 
         self.tab_config.layout().addWidget(self.offsetbox)
 
@@ -186,11 +186,13 @@ class UiMainWindow(object):
         self.switchTrackersButton.clicked.connect(self.measurement_ref.tracker.switch_trackers)
         self.tab_config.layout().addWidget(self.switchTrackersButton)
 
+        self.calibration_wait_time = QtWidgets.QSpinBox()
+        self.tab_config.layout().addWidget(self.calibration_wait_time)
 
         self.calibrateButton = QtWidgets.QPushButton(self.tab_measure)
         self.calibrateButton.setText("Calibrate")
         self.calibrateButton.setObjectName("calibrateButton")
-        self.calibrateButton.clicked.connect(self.measurement_ref.tracker.calibrate)
+        self.calibrateButton.clicked.connect(self.trigger_calibration)
         self.tab_config.layout().addWidget(self.calibrateButton)
 
         self.output_folder_box = QtWidgets.QGroupBox("Select output folder for measured data")
@@ -443,15 +445,16 @@ class UiMainWindow(object):
             self.manualAngleBox.setEnabled(True)
 
     def updateCurrentAngle(self, az, el, r):
-        self.azimuthLabel.setText("Az: " + str(az) + "°")
-        self.elevationLabel.setText("El: " + str(el) + "°")
-        self.radiusLabel.setText("Radius: " + str(r) + "m")
+        r = r*100
+        self.azimuthLabel.setText("Az: %.0f°" % az)
+        self.elevationLabel.setText("El: %.0f°" % el)
+        self.radiusLabel.setText("Radius: %.0fcm" % r)
 
     def set_offset_speaker_z(self):
-        self.measurement_ref.tracker.offset_cm['speaker_z'] = self.offet_speaker_z.value()
+        self.measurement_ref.tracker.offset_cm['speaker_z'] = self.offset_speaker_z.value()
 
     def set_offset_speaker_y(self):
-        self.measurement_ref.tracker.offset_cm['speaker_y'] = self.offet_speaker_y.value()
+        self.measurement_ref.tracker.offset_cm['speaker_y'] = self.offset_speaker_y.value()
 
     def set_offset_head_y(self):
         self.measurement_ref.tracker.offset_cm['head_y'] = self.offset_head_y.value()
@@ -464,4 +467,9 @@ class UiMainWindow(object):
         if path:
             self.output_folder_select.setText(path)
             self.measurement_ref.set_output_path(path)
+
+    def trigger_calibration(self):
+        interval = self.calibration_wait_time.value() * 1000
+        timer = QtCore.QTimer()
+        QtCore.QTimer.singleShot(interval, self.measurement_ref.tracker.calibrate)
 

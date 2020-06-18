@@ -10,7 +10,7 @@ from PyQt5.QtCore import pyqtSignal, QSize, Qt
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-import pywavefront
+#import pywavefront
 
 import tracker_manager
 from GUI.gl_shapes import Sphere, Speaker
@@ -406,7 +406,7 @@ class VispyCanvas(app.Canvas):
 
         self.sphere.draw(self.program)
 
-        az, el, r = self.measurement_ref.tracker.getRelativePosition()
+        az, el, r = self.measurement_ref.tracker.get_relative_position()
         self.current_azimuth = az
         self.current_elevation = el
         self.speaker.draw(self.program, az, el, self.sphereradius)
