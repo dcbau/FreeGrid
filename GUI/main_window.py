@@ -233,21 +233,32 @@ class UiMainWindow(object):
         self.referenceTriggerButton = QtWidgets.QPushButton('Reference Measurement')
         self.referenceTriggerButton.setObjectName("Reference Measurement")
         #self.referenceTriggerButton.setFixedSize(QtCore.QSize(100, 100))
-        self.referenceTriggerButton.clicked.connect(self.measurement_ref.trigger_reference_measurement)
+        self.referenceTriggerButton.clicked.connect(self.trigger_ref_measurement)
 
         #pixmap = QtGui.QPixmap("resources/start_button_x2.png")
         #pixmap_mouseover = QtGui.QPixmap("resources/start_button_x2_mouseover.png")
         #pixmap_pressed = QtGui.QPixmap("resources/start_button_x2_pressed.png")
         #self.measurementTriggerButton = PicButton(pixmap, pixmap_mouseover, pixmap_pressed)
         self.measurementTriggerButton = QtWidgets.QPushButton('Single Measurement')
-        self.measurementTriggerButton.setEnabled(False)
+        #self.measurementTriggerButton.setEnabled(False)
         self.measurementTriggerButton.setObjectName("Single Measurement")
         self.measurementTriggerButton.setFixedSize(QtCore.QSize(200, 100))
         self.measurementTriggerButton.clicked.connect(self.measurement_ref.trigger_measurement)
 
+        self.autoTriggerButton = QtWidgets.QPushButton('Auto Measurement')
+        #self.autoTriggerButton.setEnabled(False)
+        self.autoTriggerButton.clicked.connect(self.measurement_ref.trigger_auto_measurement)
+
+        self.autoTriggerStopButton = QtWidgets.QPushButton('Stop Auto Measurement')
+        #self.autoTriggerStopButton.setEnabled(False)
+        self.autoTriggerStopButton.clicked.connect(self.measurement_ref.stop_auto_measurement)
+
+
         self.startMeasurementGroupBox.layout().addStretch()
         self.startMeasurementGroupBox.layout().addWidget(self.referenceTriggerButton)
         self.startMeasurementGroupBox.layout().addWidget(self.measurementTriggerButton)
+        self.startMeasurementGroupBox.layout().addWidget(self.autoTriggerButton)
+        self.startMeasurementGroupBox.layout().addWidget(self.autoTriggerStopButton)
         self.startMeasurementGroupBox.layout().addStretch()
         self.tab_measure.layout().addWidget(self.startMeasurementGroupBox)
 
@@ -399,7 +410,9 @@ class UiMainWindow(object):
         self.vispy_canvas.meas_points.add_point(az, el)
 
     def add_reference_point(self):
-        self.measurementTriggerButton.setEnabled(True)
+        #self.measurementTriggerButton.setEnabled(True)
+        #self.autoTriggerButton.setEnabled(True)
+        #self.autoTriggerStopButton.setEnabled(True)
         self.vispy_canvas.meas_points.add_reference_measurement_point()
 
     def plot_recordings(self, rec_l, rec_r, fb_loop):
@@ -473,3 +486,7 @@ class UiMainWindow(object):
         timer = QtCore.QTimer()
         QtCore.QTimer.singleShot(interval, self.measurement_ref.tracker.calibrate)
 
+    def trigger_ref_measurement(self):
+        interval = 10 * 1000
+        timer = QtCore.QTimer()
+        QtCore.QTimer.singleShot(interval, self.measurement_ref.trigger_reference_measurement)

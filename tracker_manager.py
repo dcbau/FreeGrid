@@ -158,6 +158,7 @@ class TrackerManager():
             return d
 
         def trigger_haptic_impulse(self):
+            return
 
             if (hasattr(self, 'controller1')):
                 id = self.controller1.id

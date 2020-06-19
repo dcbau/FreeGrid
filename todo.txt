@@ -1,0 +1,5 @@
+- fix position variance check
+- auto-configure-> checkbox
+- keyboard / midi control input
+- list of measurements 
+- delete last measurement option

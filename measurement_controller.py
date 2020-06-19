@@ -48,6 +48,12 @@ class MeasurementController:
     def trigger_reference_measurement(self):
         self.reference_measurement_trigger = True
 
+    def trigger_auto_measurement(self):
+        self.auto_trigger_by_headmovement = True
+
+    def stop_auto_measurement(self):
+        self.auto_trigger_by_headmovement = False
+
     def timer_callback(self):
         if self.measurement_running_flag:
 
@@ -57,6 +63,7 @@ class MeasurementController:
             az, el, r = self.tracker.get_relative_position()
             variance = angularDistance(az, el, self.measurement_position[0],
                                        self.measurement_position[1]) * 180 / np.pi
+            print(variance)
             if (variance > tolerance_angle
                     or abs(r - self.measurement_position[2]) > tolerance_radius):
                 self.measurement_valid = False
@@ -72,6 +79,8 @@ class MeasurementController:
                     or self.check_for_trigger_by_headmovement():
 
                 # start a measurement
+                if not self.measurements.any():
+                    self.tracker.calibrate()
                 self.measurement_trigger = False
                 az, el, r = self.tracker.get_relative_position()
                 self.measurement_position = np.array([az, el, r])
@@ -98,10 +107,10 @@ class MeasurementController:
         tolerance_angle = 1  # (degree)
         tolerance_radius = 0.1  # (meter)
         az, el, r = self.tracker.get_relative_position()
-        variance = angularDistance(az, el, self.measurement_position[0],
-                                   self.measurement_position[1]) * 180 / np.pi
+        variance = angularDistance(az, el, self.headmovement_ref_position[0],
+                                   self.headmovement_ref_position[1]) * 180 / np.pi
         if (variance > tolerance_angle
-                or abs(r - self.measurement_position[2]) > tolerance_radius):
+                or abs(r - self.headmovement_ref_position[2]) > tolerance_radius):
             self.headmovement_trigger_counter = 0
             self.headmovement_ref_position = [az, el, r]
         else:

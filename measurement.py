@@ -47,7 +47,7 @@ class Measurement():
         fs = 48000
 
         # define sweep parameters
-        sweeplength_sec = 3
+        sweeplength_sec = 1
         silencelength_sec = 1
         amplitude_db = -20
         amplitude_lin = 10 ** (amplitude_db / 20)
@@ -69,6 +69,10 @@ class Measurement():
         #read sound files
         self.sound_success_fs, self.sound_success = wave.read('Resources/soundfx_success.wav')
         self.sound_failed_fs, self.sound_failed = wave.read('Resources/soundfx_failed.wav')
+
+
+        self.sound_failed = self.sound_failed * 0.05 / 32768
+        self.sound_success = self.sound_success * 0.05 / 32768
 
 
 
