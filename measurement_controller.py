@@ -35,6 +35,8 @@ class MeasurementController:
         self.gui_handle = []
 
         self.measurements = np.array([])
+        self.raw_signals = np.array([])
+        self.raw_feedbackloop = np.array([])
         self.positions = np.array([])
 
 
@@ -141,18 +143,34 @@ class MeasurementController:
 
 
             ir = np.array([[ir_l, ir_r]]).astype(np.float32)
+            raw_rec = np.array([[rec_l, rec_r]]).astype(np.float32)
+            raw_fb = np.array([[fb_loop]]).astype(np.float32)
 
             if self.measurements.any():
                 self.measurements = np.concatenate((self.measurements, ir))
             else:
                 self.measurements = ir
 
+            if self.raw_signals.any():
+                self.raw_signals = np.concatenate((self.raw_signals, raw_rec))
+                self.raw_feedbackloop = np.concatenate((self.raw_feedbackloop, raw_fb))
+            else:
+                self.raw_signals = raw_rec
+                self.raw_feedbackloop = raw_fb
+
+
+
+
             if self.positions.any():
                 self.positions = np.concatenate((self.positions, self.measurement_position.reshape(1, 3)))
             else:
                 self.positions = self.measurement_position.reshape(1, 3)
 
-            export = {'dataIR': self.measurements, 'sourcePositions': self.positions, 'fs:': 48000}
+            export = {'rawRecorded': self.raw_signals,
+                      'rawFeedbackLoop': self.raw_feedbackloop,
+                      'dataIR': self.measurements,
+                      'sourcePositions': self.positions,
+                      'fs': 48000}
 
             filepath = os.path.join(self.output_path, "measured_points.mat")
             scipy.io.savemat(filepath, export)

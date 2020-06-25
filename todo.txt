@@ -1,3 +1,4 @@
+- adapt samplerate to hardware (also in file export!!)
 - fix position variance check
 - auto-configure-> checkbox
 - keyboard / midi control input
