@@ -199,6 +199,7 @@ class TrackerManager():
 
             if pose_head != False and pose_speaker != False:
 
+                # MYSTERIOUS PROBLEM: The Y and Z Axis are flipped in the TrackerPose from openVR most of the times.
                 mystery_flag = True #for testing debugging
 
                 # STEP1: get the correct translation between head and speaker
@@ -269,7 +270,7 @@ class TrackerManager():
                 direction_vector = direction_vector / radius
 
                 # get spherical coordinates from direction vector
-                az = np.rad2deg(np.arctan2(direction_vector[0], -direction_vector[2]))
+                az = np.rad2deg(np.arctan2(-direction_vector[0], -direction_vector[2]))
                 if az < 0:
                     az += 360
 

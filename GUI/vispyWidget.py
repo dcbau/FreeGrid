@@ -127,7 +127,7 @@ class AzimuthAngleDisplay():
         num_vertices = self.steps + 1
         # radius = 1
         self.az = np.linspace(0, 2 * np.pi, self.steps)
-        x = np.sin(self.az) * radius
+        x = -np.sin(self.az) * radius
         y = 0 * self.az
         z = -np.cos(self.az) * radius
 
@@ -239,7 +239,7 @@ class ElevationAngleDisplay():
 
         indices = gloo.IndexBuffer(indices.astype(np.uint32))
 
-        program['u_model'] = rotate(azimuth, (0, -1, 0))
+        program['u_model'] = rotate(azimuth, (0, 1, 0))
 
         if elevation > 0:
             program['a_position'] = self.vertices_pos
@@ -256,40 +256,21 @@ class SpherePoints():
         self.colors = np.array([[],[],[], []], dtype=np.float32).reshape(0, 4)
         self.radius = radius
 
-    # def add_point(self, az, el):
-    #
-    #     print("Point: ", az, "  ", el)
-    #     self.point_angles.append([az, 90 - el])
-    #
-    #     num_vertices = int(len(self.point_angles))
-    #     self.vertices = np.zeros([num_vertices, 3], dtype=np.float32)
-    #     self.colors = np.zeros([num_vertices, 4], dtype=np.float32)
-    #
-    #     r = self.radius
-    #     for i in range(num_vertices):
-    #         az = (self.point_angles[i][0] - 90) * np.pi / 180.0
-    #         el = self.point_angles[i][1] * np.pi / 180.0
-    #         self.vertices[i][0] = r * np.sin(el) * np.cos(az)
-    #         self.vertices[i][1] = r * np.cos(el)
-    #         self.vertices[i][2] = r * np.sin(el) * np.sin(az)
-    #
-    #         self.colors[i][0] = 1.0
-    #         self.colors[i][1] = 0.0
-    #         self.colors[i][2] = 0.0
-    #         self.colors[i][3] = 1.0
-    #
 
     def add_point(self, az, el):
 
         print("Point: ", az, "  ", el)
+        #x -> -z  y -> x z -> y
+
 
         r = self.radius
 
-        az = (az - 90) * np.pi / 180.0
-        el = (90 - el) * np.pi / 180.0
-        new_vertex = np.array([r * np.sin(el) * np.cos(az),
-                               r * np.cos(el),
-                               r * np.sin(el) * np.sin(az)],
+        az = az * np.pi / 180.0
+        el = el * np.pi / 180.0
+
+        new_vertex = np.array([-r * np.cos(el) * np.sin(az),
+                               r * np.sin(el),
+                               -r * np.cos(el) * np.cos(az)],
                               dtype=np.float32).reshape(1, 3)
 
         new_color = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)

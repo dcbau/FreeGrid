@@ -1,4 +1,5 @@
 - adapt samplerate to hardware (also in file export!!)
+- apply low/highpass filter and inversion dynamic restriction to inverse filter of deconvolution
 - fix position variance check
 - auto-configure-> checkbox
 - keyboard / midi control input

@@ -37,6 +37,11 @@ class MeasurementController:
         self.measurements = np.array([])
         self.raw_signals = np.array([])
         self.raw_feedbackloop = np.array([])
+
+        self.measurements_reference = np.array([])
+        self.raw_signals_reference = np.array([])
+        self.raw_feedbackloop_reference = np.array([])
+
         self.positions = np.array([])
 
 
@@ -172,7 +177,7 @@ class MeasurementController:
                       'sourcePositions': self.positions,
                       'fs': 48000}
 
-            filepath = os.path.join(self.output_path, "measured_points.mat")
+            filepath = os.path.join(self.output_path, "measured_points_20_08.mat")
             scipy.io.savemat(filepath, export)
 
         else:
@@ -190,11 +195,28 @@ class MeasurementController:
 
         self.gui_handle.add_reference_point()
 
-        ir = ir_l.astype(np.float32)
+        ir = np.array([[ir_l]]).astype(np.float32)
+        raw = np.array([[rec_l]]).astype(np.float32)
+        fb = np.array([[fb_loop]]).astype(np.float32)
 
-        export = {'referenceIR': ir, 'fs:': 48000}
+        if self.measurements_reference.any():
+            self.measurements_reference = np.concatenate((self.measurements_reference, ir))
+            self.raw_signals_reference = np.concatenate((self.raw_signals_reference, raw))
+            self.raw_feedbackloop_reference = np.concatenate((self.raw_feedbackloop_reference, fb))
+        else:
+            self.measurements_reference = ir
+            self.raw_signals_reference = raw
+            self.raw_feedbackloop_reference = fb
 
-        filepath = os.path.join(self.output_path, "reference_measurement.mat")
+        export = {'ref_rawRecorded': self.raw_signals_reference,
+                  'ref_rawFeedbackLoop': self.raw_feedbackloop_reference,
+                  'referenceIR': self.measurements_reference,
+                  'fs': 48000}
+
+
+
+
+        filepath = os.path.join(self.output_path, "reference_measurement_20_08.mat")
         scipy.io.savemat(filepath, export)
 
     def set_output_path(self, path):

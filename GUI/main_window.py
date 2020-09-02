@@ -487,6 +487,6 @@ class UiMainWindow(object):
         QtCore.QTimer.singleShot(interval, self.measurement_ref.tracker.calibrate)
 
     def trigger_ref_measurement(self):
-        interval = 10 * 1000
+        interval = 0.5 * 1000
         timer = QtCore.QTimer()
         QtCore.QTimer.singleShot(interval, self.measurement_ref.trigger_reference_measurement)

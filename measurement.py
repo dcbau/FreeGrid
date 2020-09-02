@@ -135,6 +135,8 @@ class Measurement():
             self.recorded_sweep_l = recorded[:, 0]
             self.recorded_sweep_r = recorded[:, 1]
             self.feedback_loop = recorded[:, 2]
+            #self.feedback_loop = self.excitation[:, 0]
+
 
         # make IR
         self.ir_l = deconv(self.feedback_loop, self.recorded_sweep_l)
