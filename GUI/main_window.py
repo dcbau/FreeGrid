@@ -143,20 +143,60 @@ class UiMainWindow(object):
         self.tab_measure.setObjectName("tab_measure")
         self.tab_measure.setLayout(QtWidgets.QVBoxLayout())
         self.tab_measure.layout().setAlignment(QtCore.Qt.AlignCenter)
-
         self.tabWidget.addTab(self.tab_measure, "")
 
         self.instructionsbox = QtWidgets.QLabel()
-        pixmap = QtGui.QPixmap("resources/tracker_setup.png")
-        pixmap = pixmap.scaledToHeight(int(self.tab_config.height()), QtCore.Qt.SmoothTransformation)
-        #pixmap = pixmap.scaledToWidth(500, QtCore.Qt.SmoothTransformation)
-        self.instructionsbox.setPixmap(pixmap)
-        #self.instructionsbox.setScaledContents(True)
-        #self.instructionsbox.show()
+        # pixmap = QtGui.QPixmap("resources/tracker_setup.png")
+        # pixmap = pixmap.scaledToHeight(int(self.tab_config.height()), QtCore.Qt.SmoothTransformation)
+        # #pixmap = pixmap.scaledToWidth(500, QtCore.Qt.SmoothTransformation)
+        # self.instructionsbox.setPixmap(pixmap)
+        # #self.instructionsbox.setScaledContents(True)
+        # #self.instructionsbox.show()
+        configText = \
+            "1. Mount tracker 1 on listener head\n\n" \
+            "2. Check if tracker roles are correct by rotating tracker 2. The angles shouldn't change since only the position of tracker 2 is used. Switch tracker roles if necessary\n\n" \
+            "3. Hold tracker 2 to both ears (bottom center on ear canal) and calibrate each ear. Tracker orientation does not matter here\n\n" \
+            "4. Hold tracker 2 to acoustical center of speaker and calibrate it. Tracker orientation does not matter here\n\n" \
+            "5. Put tracker 2 on a planar surface (eg. on top of speaker, floor) pointing towards the same direction as frontal view of listener. Translation does not matter here\n\n"\
+            "NOTE: If acoustical center is calibrated, this calibrated position stays fixed. If the speaker is moved the calibration has to be repeated."
+
+        self.instructionsbox.setText(configText)
+        self.instructionsbox.setWordWrap(True)
+        self.instructionsbox.setMaximumWidth(600)
         self.tab_config.layout().addWidget(self.instructionsbox)
 
-        self.offsetbox = QtWidgets.QGroupBox()
-        self.offsetbox.setLayout(QtWidgets.QFormLayout())
+
+        self.switchTrackersButton = QtWidgets.QPushButton(self.tab_measure)
+        self.switchTrackersButton.setText("Switch Trackers")
+        self.switchTrackersButton.setObjectName("switchTrackersButton")
+        self.switchTrackersButton.setMaximumWidth(200)
+        self.switchTrackersButton.clicked.connect(self.measurement_ref.tracker.switch_trackers)
+        self.tab_config.layout().addWidget(self.switchTrackersButton)
+
+        #self.spacer = QtWidgets.QSpacerItem(20, 50, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.tab_config.layout().addWidget(QtWidgets.QLabel(""))
+
+        self.offset_configuration_box = QtWidgets.QGroupBox("Source/Receiver Calibration")
+        self.offset_configuration_box.setLayout(QtWidgets.QVBoxLayout())
+        self.offset_configuration_box.setMaximumHeight(250)
+
+        self.tab_config.layout().addWidget(self.offset_configuration_box)
+
+        self.offset_configuration_widget = QtWidgets.QTabWidget()
+        self.offset_configuration_box.layout().addWidget(self.offset_configuration_widget)
+        self.offset_configuration_widget.setEnabled(True)
+        self.offset_configuration_widget.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.offset_configuration_widget.setTabPosition(QtWidgets.QTabWidget.North)
+        self.offset_configuration_widget.setTabShape(QtWidgets.QTabWidget.Rounded)
+        self.offset_configuration_widget.setIconSize(QtCore.QSize(32, 32))
+        self.offset_configuration_widget.setDocumentMode(True)
+        self.offset_configuration_widget.setTabsClosable(False)
+        self.offset_configuration_widget.setMovable(False)
+        self.offset_configuration_widget.setTabBarAutoHide(False)
+
+
+        self.manual_offsetbox = QtWidgets.QGroupBox()
+        self.manual_offsetbox.setLayout(QtWidgets.QFormLayout())
 
         self.offset_speaker_z = QtWidgets.QSpinBox()
         self.offset_speaker_y = QtWidgets.QSpinBox()
@@ -170,32 +210,62 @@ class UiMainWindow(object):
         self.offset_speaker_y.valueChanged.connect(self.set_offset_speaker_y)
         self.offset_head_y.valueChanged.connect(self.set_offset_head_y)
 
-        self.offsetbox.layout().addRow("Tracker - Speaker Z (cm): ", self.offset_speaker_z)
-        self.offsetbox.layout().addRow("Tracker - Speaker Y (cm): ", self.offset_speaker_y)
-        self.offsetbox.layout().addRow("Tracker - Head Y (cm): ", self.offset_head_y)
+        self.manual_offsetbox.layout().addRow("Tracker - Speaker Z (cm): ", self.offset_speaker_z)
+        self.manual_offsetbox.layout().addRow("Tracker - Speaker Y (cm): ", self.offset_speaker_y)
+        self.manual_offsetbox.layout().addRow("Tracker - Head Y (cm): ", self.offset_head_y)
 
-        self.tab_config.layout().addWidget(self.offsetbox)
+        self.calibrated_offsetbox = QtWidgets.QGroupBox()
+        self.calibrated_offsetbox.setLayout(QtWidgets.QFormLayout())
+        self.calibrated_offsetbox.layout().setLabelAlignment(QtCore.Qt.AlignLeft)
+
+        self.calibrate_ear_left = QtWidgets.QPushButton(text='Calibrate Left Ear')
+        self.calibrate_ear_left.clicked.connect(self.trigger_left_ear_calibration)
+        self.calibrate_ear_left_label = QtWidgets.QLabel(text="Uncalibrated, using manual offset")
+        self.calibrated_offsetbox.layout().addRow(self.calibrate_ear_left, self.calibrate_ear_left_label)
+
+        self.calibrate_ear_right = QtWidgets.QPushButton(text='Calibrate Right Ear')
+        self.calibrate_ear_right.clicked.connect(self.trigger_right_ear_calibration)
+        self.calibrate_ear_right_label = QtWidgets.QLabel(text="Uncalibrated, using manual offset")
+        self.calibrated_offsetbox.layout().addRow(self.calibrate_ear_right, self.calibrate_ear_right_label)
+
+        self.head_diameter_label = QtWidgets.QLabel(text="")
+        self.calibrated_offsetbox.layout().addRow(self.head_diameter_label)
+
+        self.calibrate_acoustical_center = QtWidgets.QPushButton(text='Calibrate Acoustical \nCentre of Speaker')
+        self.calibrate_acoustical_center.clicked.connect(self.trigger_acoustical_centre_calibration)
+        self.calibrate_acoustical_center_label = QtWidgets.QLabel(text="Uncalibrated, using manual offset")
+        self.calibrated_offsetbox.layout().addRow(self.calibrate_acoustical_center, self.calibrate_acoustical_center_label)
+
+        self.offset_configuration_widget.addTab(self.calibrated_offsetbox, "Calibrated Offset")
+        self.offset_configuration_widget.addTab(self.manual_offsetbox, "Manual Offset")
 
 
 
 
-        self.switchTrackersButton = QtWidgets.QPushButton(self.tab_measure)
-        self.switchTrackersButton.setText("Switch Trackers")
-        self.switchTrackersButton.setObjectName("switchTrackersButton")
-        self.switchTrackersButton.setMaximumWidth(200)
-        self.switchTrackersButton.clicked.connect(self.measurement_ref.tracker.switch_trackers)
-        self.tab_config.layout().addWidget(self.switchTrackersButton)
+
+
+        self.anglecalibration_box = QtWidgets.QGroupBox("Angular Calibration")
+        self.anglecalibration_box.setLayout(QtWidgets.QHBoxLayout())
+        self.anglecalibration_box.setMaximumHeight(100)
+        self.calibration_info_label = QtWidgets.QLabel("Delay in s")
+        self.calibration_info_label.setMaximumWidth(100)
 
         self.calibration_wait_time = QtWidgets.QSpinBox()
-        self.tab_config.layout().addWidget(self.calibration_wait_time)
+        self.calibration_wait_time.setMaximumWidth(50)
 
         self.calibrateButton = QtWidgets.QPushButton(self.tab_measure)
         self.calibrateButton.setText("Calibrate")
         self.calibrateButton.setObjectName("calibrateButton")
         self.calibrateButton.clicked.connect(self.trigger_calibration)
-        self.tab_config.layout().addWidget(self.calibrateButton)
+        self.anglecalibration_box.layout().addWidget(self.calibration_info_label)
+        self.anglecalibration_box.layout().addWidget(self.calibration_wait_time)
+        self.anglecalibration_box.layout().addWidget(self.calibrateButton)
+
+        self.tab_config.layout().addWidget(self.anglecalibration_box)
+
 
         self.output_folder_box = QtWidgets.QGroupBox("Select output folder for measured data")
+        self.output_folder_box.setMaximumHeight(100)
         self.output_folder_box.setLayout(QtWidgets.QHBoxLayout())
         path = os.getcwd()
         self.measurement_ref.set_output_path(path)
@@ -483,10 +553,31 @@ class UiMainWindow(object):
 
     def trigger_calibration(self):
         interval = self.calibration_wait_time.value() * 1000
-        timer = QtCore.QTimer()
-        QtCore.QTimer.singleShot(interval, self.measurement_ref.tracker.calibrate)
+        QtCore.QTimer.singleShot(interval, self.measurement_ref.tracker.calibrate_orientation)
 
     def trigger_ref_measurement(self):
         interval = 0.5 * 1000
-        timer = QtCore.QTimer()
         QtCore.QTimer.singleShot(interval, self.measurement_ref.trigger_reference_measurement)
+
+    def trigger_left_ear_calibration(self):
+        if self.measurement_ref.tracker.calibrate_ear('left'):
+            self.calibrate_ear_left_label.setText(f"Calibrated, {self.measurement_ref.tracker.ear_pos_l}")
+        elif hasattr(self.measurement_ref.tracker, 'ear_pos_l'):
+            self.calibrate_ear_left_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.ear_pos_l}")
+
+        if hasattr(self.measurement_ref.tracker, 'head_diameter'):
+            self.head_diameter_label.setText(str(self.measurement_ref.tracker.head_diameter))
+
+    def trigger_right_ear_calibration(self):
+
+        if self.measurement_ref.tracker.calibrate_ear('right'):
+            self.calibrate_ear_right_label.setText(f"Calibrated, {self.measurement_ref.tracker.ear_pos_r}")
+        elif hasattr(self.measurement_ref.tracker, 'ear_pos_r'):
+            self.calibrate_ear_right_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.ear_pos_l}")
+
+        if hasattr(self.measurement_ref.tracker, 'head_diameter'):
+            self.head_diameter_label.setText(str(self.measurement_ref.tracker.head_diameter))
+
+    def trigger_acoustical_centre_calibration(self):
+        if self.measurement_ref.tracker.calibrate_acoustical_center():
+            self.calibrate_acoustical_center_label.setText(f'Calibrated, {self.measurement_ref.tracker.acoustical_center_pos}')

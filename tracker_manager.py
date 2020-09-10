@@ -103,10 +103,16 @@ class TrackerManager():
 
 
             self.calibrationRotation = Quaternion()
-            self.calibrate()
+            self.calibrate_orientation()
 
+            self.ear_pos_l = None
+            self.ear_pos_r = None
+            self.ear_center = None
+            self.head_diameter = None
 
+            self.acoustical_center_pos = None
 
+            self.offset_mode = 'calibrated'
 
 
 
@@ -168,7 +174,7 @@ class TrackerManager():
                 self.vr_system.triggerHapticPulse(id, 1, 1000)
 
 
-        def calibrate(self):
+        def calibrate_orientation(self):
 
             print("Calibration")
 
@@ -181,6 +187,50 @@ class TrackerManager():
             reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
 
             self.calibrationRotation = head_tracker.inverse * reference_tracker
+
+
+        # Valid modes:
+        # - 'calibrated': use trackers to get the ear offset and acoustic center offset
+        # - 'manual': set the offset by hand using the number boxes in the gui
+        def set_offset_mode(self, mode):
+            self.offset_mode = mode
+
+
+        def calibrate_ear(self, ear):
+            print("Calibrate Ear")
+
+            try:
+                pose_head, pose_ear = self.get_tracker_data()
+            except:
+                return False
+
+            translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
+            translation_ear = np.array([pose_ear.m[0][3], pose_ear.m[1][3], pose_ear.m[2][3]])
+
+            if ear == 'left':
+                self.ear_pos_l = translation_head - translation_ear
+            if ear == 'right':
+                self.ear_pos_r = translation_head - translation_ear
+
+            if self.ear_pos_l is not None and self.ear_pos_r is not None:
+                # calculate center of head
+                self.ear_center = (self.ear_pos_r + self.ear_pos_l) / 2
+                self.head_diameter = np.linalg.norm(self.ear_pos_l - self.ear_pos_r)
+
+            return True
+
+        #this calibration assumes that the speaker is not moved after the calibration
+        def calibrate_acoustical_center(self):
+            print('Calibrate Acoustical Centre')
+            try:
+                pose_head, pose_acenter = self.get_tracker_data()
+            except:
+                return False
+
+            self.acoustical_center_pos = np.array([pose_acenter.m[0][3], pose_acenter.m[1][3], pose_acenter.m[2][3]])
+
+            return True
+
 
 
         def switch_trackers(self):
@@ -207,24 +257,29 @@ class TrackerManager():
                 translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
                 translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
 
-
-                # offset from ears to tracker
-                # true head center lies below the tracker (negative y direction), so we translate the pose matrix "down"
-                if mystery_flag:
-                    offset_y_vector = self.offset_cm['head_y'] * 0.01 * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
+                if self.offset_mode == 'calibrated' and self.ear_center is not None:
+                    translation_head = translation_head + self.ear_center
                 else:
-                    offset_y_vector = -self.offset_cm['head_y'] * 0.01 * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
+                    # offset from ears to tracker
+                    # true head center lies below the tracker (negative y direction), so we translate the pose matrix "down"
+                    if mystery_flag:
+                        offset_y_vector = self.offset_cm['head_y'] * 0.01 * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
+                    else:
+                        offset_y_vector = -self.offset_cm['head_y'] * 0.01 * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
 
-                translation_head = translation_head + offset_y_vector
+                    translation_head = translation_head + offset_y_vector
 
-                # offset from speaker center to tracker
-                if mystery_flag:
-                    offset_y_vector = self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
-                    offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
+                if self.offset_mode == 'calibrated' and self.acoustical_center_pos is not None:
+                    translation_speaker = self.acoustical_center_pos
                 else:
-                    offset_y_vector = -self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
-                    offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
-                translation_speaker = translation_speaker + offset_y_vector + offset_z_vector
+                    # offset from speaker center to tracker
+                    if mystery_flag:
+                        offset_y_vector = self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
+                        offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
+                    else:
+                        offset_y_vector = -self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
+                        offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
+                    translation_speaker = translation_speaker + offset_y_vector + offset_z_vector
 
 
                 # get vector pointing from head center to speaker center

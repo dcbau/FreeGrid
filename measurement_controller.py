@@ -87,7 +87,7 @@ class MeasurementController:
 
                 # start a measurement
                 if not self.measurements.any():
-                    self.tracker.calibrate()
+                    self.tracker.calibrate_orientation()
                 self.measurement_trigger = False
                 az, el, r = self.tracker.get_relative_position()
                 self.measurement_position = np.array([az, el, r])
