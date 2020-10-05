@@ -29,6 +29,7 @@ class UiMainWindow(object):
         #self.gridLayout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
         MainWindow.resize(1100, 900)
 
+        self.myMainWindow = MainWindow
 
         # VISPY WIDGET
 
@@ -145,25 +146,24 @@ class UiMainWindow(object):
         self.tab_measure.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.tabWidget.addTab(self.tab_measure, "")
 
-        self.instructionsbox = QtWidgets.QLabel()
-        # pixmap = QtGui.QPixmap("resources/tracker_setup.png")
-        # pixmap = pixmap.scaledToHeight(int(self.tab_config.height()), QtCore.Qt.SmoothTransformation)
-        # #pixmap = pixmap.scaledToWidth(500, QtCore.Qt.SmoothTransformation)
-        # self.instructionsbox.setPixmap(pixmap)
-        # #self.instructionsbox.setScaledContents(True)
-        # #self.instructionsbox.show()
-        configText = \
-            "1. Mount tracker 1 on listener head\n\n" \
-            "2. Check if tracker roles are correct by rotating tracker 2. The angles shouldn't change since only the position of tracker 2 is used. Switch tracker roles if necessary\n\n" \
-            "3. Hold tracker 2 to both ears (bottom center on ear canal) and calibrate each ear. Tracker orientation does not matter here\n\n" \
-            "4. Hold tracker 2 to acoustical center of speaker and calibrate it. Tracker orientation does not matter here\n\n" \
-            "5. Put tracker 2 on a planar surface (eg. on top of speaker, floor) pointing towards the same direction as frontal view of listener. Translation does not matter here\n\n"\
-            "NOTE: If acoustical center is calibrated, this calibrated position stays fixed. If the speaker is moved the calibration has to be repeated."
+        self.tab_data = QtWidgets.QWidget()
+        self.tab_data.setEnabled(True)
+        self.tab_data.setObjectName("tab_data")
+        self.tab_data.setLayout(QtWidgets.QVBoxLayout())
+        self.tab_data.layout().setAlignment(QtCore.Qt.AlignCenter)
+        self.tabWidget.addTab(self.tab_data, "")
 
-        self.instructionsbox.setText(configText)
-        self.instructionsbox.setWordWrap(True)
-        self.instructionsbox.setMaximumWidth(600)
-        self.tab_config.layout().addWidget(self.instructionsbox)
+
+
+        ## CONFIGURE TAB
+        #############################
+
+        self.dlg = InstructionsDialogBox()
+        self.show_instructions_button = QtWidgets.QPushButton(self.tab_measure)
+        self.show_instructions_button.setText("Show Calibration Instructions")
+        self.show_instructions_button.clicked.connect(self.dlg.show)
+        self.show_instructions_button.setMaximumWidth(200)
+        self.tab_config.layout().addWidget(self.show_instructions_button)
 
 
         self.switchTrackersButton = QtWidgets.QPushButton(self.tab_measure)
@@ -174,7 +174,7 @@ class UiMainWindow(object):
         self.tab_config.layout().addWidget(self.switchTrackersButton)
 
         #self.spacer = QtWidgets.QSpacerItem(20, 50, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.tab_config.layout().addWidget(QtWidgets.QLabel(""))
+        #self.tab_config.layout().addWidget(QtWidgets.QLabel(""))
 
         self.offset_configuration_box = QtWidgets.QGroupBox("Source/Receiver Calibration")
         self.offset_configuration_box.setLayout(QtWidgets.QVBoxLayout())
@@ -281,6 +281,9 @@ class UiMainWindow(object):
 
         self.tab_config.layout().addWidget(self.output_folder_box)
 
+        ## MEASURE TAB
+        #############################
+
         self.azimuthBox = QtWidgets.QSpinBox()
         self.azimuthBox.setMaximum(359)
         self.azimuthBox.valueChanged.connect(self.manual_update_az)
@@ -372,6 +375,9 @@ class UiMainWindow(object):
         self.plotgroupbox.layout().addWidget(self.plot_tab_widget)
         self.tab_measure.layout().addWidget(self.plotgroupbox)
 
+        ## DATA LIST TAB
+        #############################
+
 
 
 
@@ -409,6 +415,8 @@ class UiMainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_config), _translate("MainWindow", "Configure"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_measure), _translate("MainWindow", "Measure"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_data), _translate("MainWindow", "Data List"))
+
         self.plot_tab_widget.setTabText(self.plot_tab_widget.indexOf(self.tab_rec), _translate("MainWindow", "REC"))
         self.plot_tab_widget.setTabText(self.plot_tab_widget.indexOf(self.tab_ir), _translate("MainWindow", "IR"))
 
@@ -518,6 +526,10 @@ class UiMainWindow(object):
 
         self.plot2_canvas.draw()
 
+    def updateMeasurementList(self, measurement_data):
+        pass
+
+
     def update_tracker_status(self, status):
         self.label_tr1 = QtWidgets.QLabel(status["tracker1"])
         self.label_tr2 = QtWidgets.QLabel(status["tracker2"])
@@ -581,3 +593,37 @@ class UiMainWindow(object):
     def trigger_acoustical_centre_calibration(self):
         if self.measurement_ref.tracker.calibrate_acoustical_center():
             self.calibrate_acoustical_center_label.setText(f'Calibrated, {self.measurement_ref.tracker.acoustical_center_pos}')
+
+
+class InstructionsDialogBox(QtWidgets.QDialog):
+
+    def __init__(self, *args, **kwargs):
+
+        instruction_text = \
+            "1. Mount tracker 1 on listener head\n\n" \
+            "2. Check if tracker roles are correct by rotating tracker 2. The angles shouldn't change since only the position of tracker 2 is used. Switch tracker roles if necessary\n\n" \
+            "3. Hold tracker 2 to both ears (bottom center on ear canal) and calibrate each ear. Tracker orientation does not matter here\n\n" \
+            "4. Hold tracker 2 to acoustical center of speaker and calibrate it. Tracker orientation does not matter here\n\n" \
+            "5. Put tracker 2 on a planar surface (eg. on top of speaker, floor) pointing towards the same direction as frontal view of listener. Translation does not matter here\n\n" \
+            "NOTE: If acoustical center is calibrated, this calibrated position stays fixed. If the speaker is moved the calibration has to be repeated."
+
+
+        super(InstructionsDialogBox, self).__init__(*args, **kwargs)
+
+        self.setModal(False)
+        self.setWindowTitle("Calibration Instructions")
+
+        self.instructionsbox = QtWidgets.QLabel()
+        self.instructionsbox.setText(instruction_text)
+        self.instructionsbox.setWordWrap(True)
+
+        Btn = QtWidgets.QDialogButtonBox.Close
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(Btn)
+        self.buttonBox.clicked.connect(self.close)
+
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addWidget(self.instructionsbox)
+        self.layout.addWidget(self.buttonBox)
+
+        self.setLayout(self.layout)
