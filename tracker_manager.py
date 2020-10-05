@@ -197,8 +197,6 @@ class TrackerManager():
 
 
         def calibrate_ear(self, ear):
-            print("Calibrate Ear")
-
             try:
                 pose_head, pose_ear = self.get_tracker_data()
             except:
@@ -207,10 +205,18 @@ class TrackerManager():
             translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
             translation_ear = np.array([pose_ear.m[0][3], pose_ear.m[1][3], pose_ear.m[2][3]])
 
+            transvec = translation_ear - translation_head
+
+            fwd = np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
+            up = np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
+            side = np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
+
+            direction_vector = np.array([np.inner(transvec, side), np.inner(transvec, up), np.inner(transvec, fwd)])
+
             if ear == 'left':
-                self.ear_pos_l = translation_head - translation_ear
+                self.ear_pos_l = direction_vector
             if ear == 'right':
-                self.ear_pos_r = translation_head - translation_ear
+                self.ear_pos_r = direction_vector
 
             if self.ear_pos_l is not None and self.ear_pos_r is not None:
                 # calculate center of head
@@ -258,7 +264,11 @@ class TrackerManager():
                 translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
 
                 if self.offset_mode == 'calibrated' and self.ear_center is not None:
-                    translation_head = translation_head + self.ear_center
+                    offset_x = self.ear_center[0] * np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
+                    offset_y = self.ear_center[1] * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
+                    offset_z = self.ear_center[2] * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
+
+                    translation_head = translation_head + offset_x + offset_y + offset_z
                 else:
                     # offset from ears to tracker
                     # true head center lies below the tracker (negative y direction), so we translate the pose matrix "down"
@@ -341,8 +351,8 @@ class TrackerManager():
             #poseMatrix1 = []
             #poseMatrix2 = []
 
-            pose = self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseStanding,
-                                                                  0,
+            pose = self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseRawAndUncalibrated,
+                                                                  1,
                                                                   k_unMaxTrackedDeviceCount)
             pose1 = pose[self.tracker1.id]
             if pose1.bDeviceIsConnected:

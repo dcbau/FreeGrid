@@ -578,7 +578,8 @@ class UiMainWindow(object):
             self.calibrate_ear_left_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.ear_pos_l}")
 
         if hasattr(self.measurement_ref.tracker, 'head_diameter'):
-            self.head_diameter_label.setText(str(self.measurement_ref.tracker.head_diameter))
+            if self.measurement_ref.tracker.head_diameter is not None:
+                self.head_diameter_label.setText(f'Head Diameter: {self.measurement_ref.tracker.head_diameter:.3f}, {self.measurement_ref.tracker.ear_center}')
 
     def trigger_right_ear_calibration(self):
 
@@ -588,7 +589,9 @@ class UiMainWindow(object):
             self.calibrate_ear_right_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.ear_pos_l}")
 
         if hasattr(self.measurement_ref.tracker, 'head_diameter'):
-            self.head_diameter_label.setText(str(self.measurement_ref.tracker.head_diameter))
+            if self.measurement_ref.tracker.head_diameter is not None:
+                self.head_diameter_label.setText(
+                    f'Head Diameter: {self.measurement_ref.tracker.head_diameter:.3f}, {self.measurement_ref.tracker.ear_center}')
 
     def trigger_acoustical_centre_calibration(self):
         if self.measurement_ref.tracker.calibrate_acoustical_center():
@@ -600,11 +603,11 @@ class InstructionsDialogBox(QtWidgets.QDialog):
     def __init__(self, *args, **kwargs):
 
         instruction_text = \
-            "1. Mount tracker 1 on listener head\n\n" \
-            "2. Check if tracker roles are correct by rotating tracker 2. The angles shouldn't change since only the position of tracker 2 is used. Switch tracker roles if necessary\n\n" \
-            "3. Hold tracker 2 to both ears (bottom center on ear canal) and calibrate each ear. Tracker orientation does not matter here\n\n" \
-            "4. Hold tracker 2 to acoustical center of speaker and calibrate it. Tracker orientation does not matter here\n\n" \
-            "5. Put tracker 2 on a planar surface (eg. on top of speaker, floor) pointing towards the same direction as frontal view of listener. Translation does not matter here\n\n" \
+            "1. Mount tracker T1 on listener head. The orientation and exact position are not important, as long as it stays fixed. \n\n" \
+            "2. Check if tracker roles are correct by rotating tracker T2. The angles shouldn't change since only the position of tracker T2 is used. Switch tracker roles if necessary\n\n" \
+            "3. Hold tracker T2 to both ears (bottom center on ear canal) and calibrate each ear. Tracker T2 orientation does not matter here, but from now on tracker T1 on the listeners has to stay fixed & stable on the head.\n\n" \
+            "4. Hold tracker T2 to acoustical center of speaker and calibrate it. Tracker orientation does not matter here\n\n" \
+            "5. Put tracker T2 on a planar surface (eg. on top of speaker, floor) pointing towards the same direction as frontal view of listener. Translation does not matter here\n\n" \
             "NOTE: If acoustical center is calibrated, this calibrated position stays fixed. If the speaker is moved the calibration has to be repeated."
 
 
