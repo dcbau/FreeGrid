@@ -254,10 +254,15 @@ class SpherePoints():
         self.point_angles = []
         self.vertices = np.array([[],[],[]], dtype=np.float32).reshape(0, 3)
         self.colors = np.array([[],[],[], []], dtype=np.float32).reshape(0, 4)
+
+        self.point_angles_recommended = []
+        self.vertices_recommended = np.array([[], [], []], dtype=np.float32).reshape(0, 3)
+        self.colors_recommended = np.array([[], [], [], []], dtype=np.float32).reshape(0, 4)
+
         self.radius = radius
 
 
-    def add_point(self, az, el):
+    def add_point(self, az, el, pointtype='measurement_point'):
 
         print("Point: ", az, "  ", el)
         #x -> -z  y -> x z -> y
@@ -273,12 +278,14 @@ class SpherePoints():
                                -r * np.cos(el) * np.cos(az)],
                               dtype=np.float32).reshape(1, 3)
 
-        new_color = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)
-
-
-        self.vertices = np.append(self.vertices, new_vertex, 0)
-        self.colors = np.append(self.colors, new_color, 0)
-
+        if pointtype =='measurement_point':
+            new_color = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)
+            self.vertices = np.append(self.vertices, new_vertex, 0)
+            self.colors = np.append(self.colors, new_color, 0)
+        elif pointtype =='recommended_point':
+            new_color = np.array([0.0, 1.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)
+            self.vertices_recommended = np.append(self.vertices_recommended, new_vertex, 0)
+            self.colors_recommended = np.append(self.colors_recommended, new_color, 0)
 
     def add_reference_measurement_point(self):
 
@@ -287,6 +294,13 @@ class SpherePoints():
 
         self.vertices = np.append(self.vertices, new_vertex, 0)
         self.colors = np.append(self.colors, new_color, 0)
+
+    def add_recommended_point(self, az, el):
+        self.add_point(az, el, pointtype='recommended_point')
+
+    def remove_recommended_points(self):
+        self.vertices_recommended = np.array([[], [], []], dtype=np.float32).reshape(0, 3)
+        self.colors_recommended = np.array([[], [], [], []], dtype=np.float32).reshape(0, 4)
 
 
     def draw(self, program):
@@ -298,6 +312,13 @@ class SpherePoints():
 
         program['a_position'] = self.vertices
         program['a_sourceColour'] = self.colors
+        program.draw('points')
+
+        if len(self.vertices_recommended) == 0:
+            return
+
+        program['a_position'] = self.vertices_recommended
+        program['a_sourceColour'] = self.colors_recommended
         program.draw('points')
 
 

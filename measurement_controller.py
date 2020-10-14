@@ -6,6 +6,7 @@ import numpy as np
 import scipy.io
 from grid_improving.grid_filling import angularDistance
 import os
+import pointrecommender
 
 class MeasurementController:
 
@@ -44,6 +45,10 @@ class MeasurementController:
 
         self.positions = np.array([])
 
+        self.numMeasurements = 0
+
+        self.recommendation_mode = False
+
 
 
     def register_gui_handler(self, handle):
@@ -70,7 +75,7 @@ class MeasurementController:
             az, el, r = self.tracker.get_relative_position()
             variance = angularDistance(az, el, self.measurement_position[0],
                                        self.measurement_position[1]) * 180 / np.pi
-            print(variance)
+            #print(variance)
             if (variance > tolerance_angle
                     or abs(r - self.measurement_position[2]) > tolerance_radius):
                 self.measurement_valid = False
@@ -79,6 +84,12 @@ class MeasurementController:
         else:
             # check for tracker status
             self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
+
+            if self.recommendation_mode:
+                az, el, r = self.tracker.get_relative_position()
+                if self.point_recommender.update_position(az, el):
+                    self.measurement_trigger = True
+
 
             # check for measurement triggers
             if self.tracker.checkForTriggerEvent() \
@@ -102,9 +113,9 @@ class MeasurementController:
                 run_measurement = StartReferenceMeasurementAsync(self)
                 run_measurement.start()
 
-    def check_for_trigger_by_headmovement(self):
+    def check_for_trigger_by_headmovement(self, ignore_autotriggermode = False):
 
-        if not self.auto_trigger_by_headmovement:
+        if not self.auto_trigger_by_headmovement and not ignore_autotriggermode:
             return False
         # this function has to be called by a periodic timer callback and checks if the user´s head has remained still for a defined time interval
 
@@ -180,6 +191,11 @@ class MeasurementController:
             filepath = os.path.join(self.output_path, "measured_points_20_08.mat")
             scipy.io.savemat(filepath, export)
 
+            #enable point recommendation after 6 measurements
+            self.numMeasurements += 1
+            if self.numMeasurements >= 6:
+                self.gui_handle.enable_point_recommendation()
+
         else:
             self.measurement.play_sound(False)
             print("ERROR, Measurement not valid")
@@ -222,6 +238,18 @@ class MeasurementController:
     def set_output_path(self, path):
         self.output_path = path
 
+    def start_recommendation_mode(self, num_points):
+
+
+
+        if self.positions.any():
+            self.point_recommender = pointrecommender.PointRecommender(self.tracker)
+            self.recommendation_mode = True
+            az_target, el_target = self.point_recommender.recommend_new_points(self.positions[:, 0:2], num_points)
+            self.point_recommender.start_guided_measurement(az_target, el_target)
+            return az_target, el_target
+        else:
+            return [], []
 
 
 class StartSingleMeasurementAsync(threading.Thread):

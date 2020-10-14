@@ -54,11 +54,17 @@ class Measurement():
         f_start = 100
         f_end = 20000
 
+        self.dummy_debugging = True
+        if self.dummy_debugging:
+            sweeplength_sec = 0.01
+
         # make sweep
         t_sweep = np.linspace(0, sweeplength_sec, sweeplength_sec * fs)
         sweep = amplitude_lin * chirp(t_sweep, f0=f_start, t1=sweeplength_sec, f1=f_end, method='logarithmic', phi=90)
 
         silence = np.zeros(fs * silencelength_sec)
+        if self.dummy_debugging:
+            silence = np.zeros(2000)
 
         self.excitation = np.append(sweep, silence)
         self.excitation = np.array([self.excitation, self.excitation])  # make stereo, for out channels 1 & 2
@@ -99,7 +105,8 @@ class Measurement():
         self.ir_l = []
         self.ir_r = []
 
-        time.sleep(2)
+        if not self.dummy_debugging:
+            time.sleep(2)
 
         available_in_channels = sd.query_devices(sd.default.device[0])['max_input_channels']
 

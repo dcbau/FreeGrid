@@ -8,6 +8,7 @@ import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib
+import pointrecommender
 
 import os
 
@@ -305,27 +306,18 @@ class UiMainWindow(object):
 
         self.referenceTriggerButton = QtWidgets.QPushButton('Reference Measurement')
         self.referenceTriggerButton.setObjectName("Reference Measurement")
-        #self.referenceTriggerButton.setFixedSize(QtCore.QSize(100, 100))
         self.referenceTriggerButton.clicked.connect(self.trigger_ref_measurement)
 
-        #pixmap = QtGui.QPixmap("resources/start_button_x2.png")
-        #pixmap_mouseover = QtGui.QPixmap("resources/start_button_x2_mouseover.png")
-        #pixmap_pressed = QtGui.QPixmap("resources/start_button_x2_pressed.png")
-        #self.measurementTriggerButton = PicButton(pixmap, pixmap_mouseover, pixmap_pressed)
         self.measurementTriggerButton = QtWidgets.QPushButton('Single Measurement')
-        #self.measurementTriggerButton.setEnabled(False)
         self.measurementTriggerButton.setObjectName("Single Measurement")
         self.measurementTriggerButton.setFixedSize(QtCore.QSize(200, 100))
         self.measurementTriggerButton.clicked.connect(self.measurement_ref.trigger_measurement)
 
         self.autoTriggerButton = QtWidgets.QPushButton('Auto Measurement')
-        #self.autoTriggerButton.setEnabled(False)
         self.autoTriggerButton.clicked.connect(self.measurement_ref.trigger_auto_measurement)
 
         self.autoTriggerStopButton = QtWidgets.QPushButton('Stop Auto Measurement')
-        #self.autoTriggerStopButton.setEnabled(False)
         self.autoTriggerStopButton.clicked.connect(self.measurement_ref.stop_auto_measurement)
-
 
         self.startMeasurementGroupBox.layout().addStretch()
         self.startMeasurementGroupBox.layout().addWidget(self.referenceTriggerButton)
@@ -334,6 +326,27 @@ class UiMainWindow(object):
         self.startMeasurementGroupBox.layout().addWidget(self.autoTriggerStopButton)
         self.startMeasurementGroupBox.layout().addStretch()
         self.tab_measure.layout().addWidget(self.startMeasurementGroupBox)
+
+
+
+        self.point_recommender_groupbox = QtWidgets.QGroupBox('Point Recommender')
+        self.point_recommender_groupbox.setLayout(QtWidgets.QHBoxLayout())
+        #self.point_recommender_groupbox.setEnabled(False)
+
+        self.recommend_point_button = QtWidgets.QPushButton('Recommend Point')
+        self.recommend_point_button.clicked.connect(self.trigger_point_recommendation)
+
+        self.point_recommender_groupbox.layout().addStretch()
+        self.point_recommender_groupbox.layout().addWidget(self.recommend_point_button)
+        self.tab_measure.layout().addWidget(self.point_recommender_groupbox)
+
+
+
+
+
+
+
+
 
 
 
@@ -596,6 +609,18 @@ class UiMainWindow(object):
     def trigger_acoustical_centre_calibration(self):
         if self.measurement_ref.tracker.calibrate_acoustical_center():
             self.calibrate_acoustical_center_label.setText(f'Calibrated, {self.measurement_ref.tracker.acoustical_center_pos}')
+
+    def trigger_point_recommendation(self):
+        az, el = self.measurement_ref.start_recommendation_mode(1)
+
+        for i in range(np.size(az)):
+            self.vispy_canvas.meas_points.add_recommended_point(az[i], el[i])
+
+
+
+    def enable_point_recommendation(self):
+        self.point_recommender_groupbox.setEnabled(True)
+
 
 
 class InstructionsDialogBox(QtWidgets.QDialog):

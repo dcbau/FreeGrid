@@ -3,8 +3,14 @@ from scipy import special as sp
 from grid_improving.grid_creation import *
 import itertools
 import time
+import sound_field_analysis.lebedev
 
 def sph2cart(_az, _el, ra):
+
+    #convention: - el = 0...180°,
+    #            - x-axis = (0°|90°)
+    #            - y-axis = (90°|90°)
+
     a = _az * np.pi / 180
     e = _el * np.pi / 180
 
@@ -16,6 +22,23 @@ def sph2cart(_az, _el, ra):
     # array = np.round(array * 1000) / 1000
 
     return x, y, z
+
+def cart2sph(x, y, z):
+
+    # convention: - el = 0...180°,
+    #            - x-axis = (0°|90°)
+    #            - y-axis = (90°|90°)
+
+    az = np.arctan2(y, x)
+
+    vec = np.array([x, y, z])
+    r = np.linalg.norm(vec, 2, 0)
+    el = np.arccos(z/r)
+
+    az = az * 180 / np.pi
+    el = el * 180 / np.pi
+
+    return az, el
 
 def getDistances(p_az, p_el, grid_az, grid_el):
     x1, y1, z1 = sph2cart(p_az, p_el, 1);
@@ -116,22 +139,27 @@ def calculateDensityAreas(inputGrid, resolution):
 
 def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None, force_sh_order=None):
 
+    #convention: el = 0..180°
+
     d2r = np.pi / 180
     r2d = 1 / d2r
 
     if _correctionGrid is None:
-        _correctionGrid = makeGaussGrid(10, 10) * d2r
+        lebedev_grid = sound_field_analysis.lebedev.genGrid(86)
+        az, el = cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
+        _correctionGrid = np.transpose(np.array([az, el]))
 
     inputGrid = _inputGrid * d2r
     correctionGrid = _correctionGrid * d2r
 
     nInputPoints = np.size(inputGrid, 0)
     nCorrectionPoints = np.size(correctionGrid, 0)
-    #print("nINputPoints: ", nInputPoints, "  nCorrectionPoints: ", nCorrectionPoints)
 
-    bestmatch = np.zeros(nNewPoints)
+    bestmatch = np.zeros(nNewPoints).astype(dtype=int)
     if force_sh_order is None:
         sh_order = np.floor(np.sqrt((nNewPoints + nInputPoints)) - 2)
+        if sh_order < 1:
+            sh_order = 1
     else:
         sh_order = force_sh_order
 
@@ -169,3 +197,6 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
     print("Best condition value found was ", condition, " for SH Order ", sh_order)
 
     return correction_points * r2d
+
+
+
