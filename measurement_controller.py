@@ -89,6 +89,7 @@ class MeasurementController:
                 az, el, r = self.tracker.get_relative_position()
                 if self.point_recommender.update_position(az, el):
                     self.measurement_trigger = True
+                    self.gui_handle.vispy_canvas.meas_points.remove_recommended_points()
 
 
             # check for measurement triggers
@@ -240,16 +241,18 @@ class MeasurementController:
 
     def start_recommendation_mode(self, num_points):
 
-
-
         if self.positions.any():
             self.point_recommender = pointrecommender.PointRecommender(self.tracker)
             self.recommendation_mode = True
             az_target, el_target = self.point_recommender.recommend_new_points(self.positions[:, 0:2], num_points)
-            self.point_recommender.start_guided_measurement(az_target, el_target)
-            return az_target, el_target
+            if abs(az_target) > 0 or abs(el_target) > 0:
+                print("Recommend Point: " + str(az_target) + " | " + str(el_target))
+                self.point_recommender.start_guided_measurement(az_target[0], el_target[0])
+                return az_target, el_target
+            else:
+                raise Exception
         else:
-            return [], []
+            raise Exception
 
 
 class StartSingleMeasurementAsync(threading.Thread):

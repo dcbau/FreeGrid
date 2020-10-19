@@ -506,6 +506,8 @@ class UiMainWindow(object):
         #self.autoTriggerStopButton.setEnabled(True)
         self.vispy_canvas.meas_points.add_reference_measurement_point()
 
+    #def remove_measurement_point(self, az, el):
+
     def plot_recordings(self, rec_l, rec_r, fb_loop):
         matplotlib.rcParams.update({'font.size': 5})
 
@@ -611,10 +613,13 @@ class UiMainWindow(object):
             self.calibrate_acoustical_center_label.setText(f'Calibrated, {self.measurement_ref.tracker.acoustical_center_pos}')
 
     def trigger_point_recommendation(self):
-        az, el = self.measurement_ref.start_recommendation_mode(1)
+        try:
+            az, el = self.measurement_ref.start_recommendation_mode(1)
 
-        for i in range(np.size(az)):
-            self.vispy_canvas.meas_points.add_recommended_point(az[i], el[i])
+            for i in range(np.size(az)):
+                self.vispy_canvas.meas_points.add_recommended_point(az[i], el[i])
+        except:
+            print("No point could be recommended")
 
 
 

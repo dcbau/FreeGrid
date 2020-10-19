@@ -2,78 +2,237 @@ import sounddevice as sd
 import grid_improving.grid_filling
 import numpy as np
 from enum import Enum
+import scipy.io.wavfile as wave
 
 class GuidingPhase(Enum):
     no_guiding = 0
     guiding_horizontal = 1
     guiding_vertical = 2
 
+class VoiceInstruction():
+    def __init__(self):
+
+        self.angles = {}
+        for i in range(18):
+            angle = (i+1)*10
+            filename = str(angle) + "deg.wav"
+            self.angles[angle] = self.loadfile(filename)
+
+        self.turn_left = self.loadfile("turn_left.wav")
+        self.turn_right = self.loadfile("turn_right.wav")
+        self.tilt_left = self.loadfile("tilt_left.wav")
+        self.tilt_right = self.loadfile("tilt_right.wav")
+        self.tilt_down = self.loadfile("tilt_down.wav")
+        self.tilt_up = self.loadfile("tilt_up.wav")
+
+        self.intermediate_point_reached = self.loadfile("ok.wav")
+        self.final_point_reached = self.loadfile("well_done.wav")
+
+        self.fs = 48000
+
+
+
+    def loadfile(self, filename, normalize=True):
+        directory = 'Resources/voice_samples/'
+
+        try:
+            fs, file = wave.read(directory + filename)
+        except FileNotFoundError:
+            print("Resource file missing: " + filename)
+            return []
+
+        if fs != 48000:
+            print("Samplerate of " + " is not supported. Only 48kH")
+            return []
+
+        if normalize:
+            file = file * 0.5 / 32768 #devide by integer sample type and attenuate by -6dB
+        return file
+
+    def play_angle_instruction(self, rotation, angle):
+
+        raster = 10
+        rasterized_angle = int(abs(angle) - np.mod(abs(angle), raster/2) + raster/2)
+        rasterized_angle = rasterized_angle - np.mod(rasterized_angle, raster)
+
+        if rotation == 'yaw':
+            if angle >= 0:
+                sound = np.append(self.turn_left, self.angles[rasterized_angle])
+            else:
+                sound = np.append(self.turn_right, self.angles[rasterized_angle])
+
+        elif rotation == 'pitch':
+            if angle >=0:
+                sound = np.append(self.tilt_up, self.angles[rasterized_angle])
+            else:
+                sound = np.append(self.tilt_down, self.angles[rasterized_angle])
+
+        elif rotation == 'roll':
+            if angle >=0:
+                sound = np.append(self.tilt_right, self.angles[rasterized_angle])
+            else:
+                sound = np.append(self.tilt_left, self.angles[rasterized_angle])
+
+        sd.play(sound, self.fs)
+        sd.wait()
+
+    def play_event(self, event):
+
+        if event == 'intermediate_point_reached':
+            sd.play(self.intermediate_point_reached, self.fs)
+        elif event == 'final_point_reached':
+            sd.play(self.final_point_reached, self.fs)
+
+        sd.wait()
+
+class GuidingTone():
+    def __init__(self, angular_accuracy=1, fs=48000):
+
+        self.distance = angular_accuracy
+        self.angular_accuracy = angular_accuracy
+
+        # characteristics
+        frequency = 300  # Hz
+        amplitude = 0.1 # mag
+        pulse_duration = 10  # cycles
+        fade_length = 400  # samples
+        self.gap_multi = 10  # angular distance -> gapwidt in ms * gap_multi (1° -> 1ms * gap_multi)
+
+        # other stuff
+        self.start_idx = 0
+        self.fs = fs
+        self.pulse = np.array([])
+        self.stream = sd.OutputStream(samplerate=self.fs,
+                                      channels=1,
+                                      callback=self.audio_callback)
+
+        # precalculate sinepulse
+        T_sine = int(fs / frequency)
+        t = np.arange(T_sine * pulse_duration)
+        self.sine = amplitude * np.sin(2 * np.pi * t / T_sine)
+        fade = np.arange(fade_length) / fade_length
+        self.sine [:fade_length] = self.sine [:fade_length] * fade
+        self.sine [-fade_length:] = self.sine [-fade_length:] * np.flip(fade)
+
+
+    def start(self):
+        self.stream.start()
+
+    def stop(self):
+        self.stream.stop()
+
+    def update_distance(self, distance):
+        self.distance = distance
+
+    def audio_callback(self, outdata, frames, time, status):
+
+        out = np.zeros(frames)
+        for sample in range(frames):
+
+            if self.start_idx <= 0:
+
+                # at the beginning of every pulse, make the whole pulse cycle
+                dist = self.distance - self.angular_accuracy
+                if dist < 0:
+                    dist = 0
+                pulse_gap = dist * self.gap_multi * self.fs / 1000
+                gap = np.zeros(int(pulse_gap))
+                self.pulse = np.append(self.sine, gap)
+
+                self.start_idx = np.size(self.pulse)
+
+            # read out the pulse wave
+            out[sample] = self.pulse[-self.start_idx]
+
+            self.start_idx -= 1
+
+        out = out.reshape(-1, 1)
+        outdata[:] = out
+
 class PointRecommender():
     def __init__(self, tracker_ref):
         self.tracker = tracker_ref
         self.guiding_phase = GuidingPhase.no_guiding
         self.current_guiding_point = 0
-        self.angular_accurancy = 5;
-        self.target_view = []
-        self.target_angle = []
+        self.angular_accuracy = 5
+        self.target_view ={}
+        self.target_angle = {}
 
+        self.distance = 0
 
-    ## existing_pointset: Mx2 numpy array with angles az=0..360, el= -90..+90
+        self.voice_instructions = VoiceInstruction()
+
+        self.guiding_tone = GuidingTone(self.distance)
 
     def start_guided_measurement(self, az_target, el_target):
-        az_target = np.reshape(np.array([0, 60, 120, 180, 240, 300]), (6, 1))
-        el_target = np.reshape(np.array([30, 0, -30]), (3, 1))
+        # az_target = np.reshape(np.array([0, 60, 120, 180, 240, 300]), (6, 1))
+        # el_target = np.reshape(np.array([30, 0, -30]), (3, 1))
+        #
+        # az_target = np.tile(az_target, (3, 1))
+        # el_target = np.repeat(el_target, 6, axis=0)
 
-        az_target = np.tile(az_target, (3, 1))
-        el_target = np.repeat(el_target, 6, axis=0)
-
-        self.target_angle['az'] = az_target
+        az_target = az_target % 360
+        self.target_angle['az'] = az_target % 360
         self.target_angle['el'] = el_target
 
         self.target_view['yaw'], self.target_view['pitch'], self.target_view['roll'] = self.get_head_rotation_to_point(az_target, el_target)
-        self.guiding_phase = GuidingPhase.guiding_horizontal_angle
-        self.playsound(event='guide_yaw', angle = self.target_view['yaw'])
+        self.guiding_phase = GuidingPhase.guiding_horizontal
+        self.voice_instructions.play_angle_instruction(rotation='yaw', angle=self.target_view['yaw'])
+        self.guiding_tone.start()
 
     def update_position(self, current_az, current_el):
 
+        current_yaw_view = current_az if current_az < 180 else current_az - 360
+
         if self.guiding_phase == GuidingPhase.guiding_horizontal:
 
-            if abs(current_az - self.target_view['yaw']) < self.angular_accurancy:
+            self.distance = abs(current_yaw_view + self.target_view['yaw'])
+            self.guiding_tone.update_distance(self.distance)
+
+            if self.distance < self.angular_accuracy:
+                self.guiding_tone.stop()
 
                 if self.target_view['pitch'] != 0:
-                    self.playsound(event='guide_pitch', angle=self.target_view['pitch'])
+                    self.voice_instructions.play_event(event='intermediate_point_reached')
+                    self.voice_instructions.play_angle_instruction(rotation='pitch', angle=self.target_view['pitch'])
                     self.guiding_phase = GuidingPhase.guiding_vertical
+                    self.guiding_tone.start()
                 elif self.target_view['roll'] != 0:
-                    self.playsound(event='guide_roll', angle=self.target_view['roll'])
+                    self.voice_instructions.play_event(event='intermediate_point_reached')
+                    self.voice_instructions.play_angle_instruction(rotation='roll', angle=self.target_view['roll'])
                     self.guiding_phase = GuidingPhase.guiding_vertical
+                    self.guiding_tone.start()
                 else:
-                    self.playsound(event='point_reached')
+                    self.guiding_tone.stop()
+                    self.voice_instructions.play_event(event='final_point_reached')
                     self.guiding_phase = GuidingPhase.no_guiding
+
                     return True
 
         if self.guiding_phase == GuidingPhase.guiding_vertical:
 
-            if abs(current_az - self.target_angle['az']) < self.angular_accurancy \
-                    and abs(current_el - self.target_angle['el']) < self.angular_accurancy:
-                self.playsound(event='point_reached')
+            self.distance = grid_improving.grid_filling.angularDistance(current_az,
+                                                                   current_el,
+                                                                   self.target_angle['az'],
+                                                                   self.target_angle['el'])
+            # TODO: check angularDistance!!!
+            self.distance = self.distance * 180
+
+            self.guiding_tone.update_distance(self.distance)
+            if self.distance < self.angular_accuracy:
+                self.guiding_tone.stop()
+                self.voice_instructions.play_event(event='final_point_reached')
                 self.guiding_phase = GuidingPhase.no_guiding
                 return True
 
         return False
-
-
-
-
-
-    def playsound(self, event, angle=0):
-        pass
 
     def recommend_new_points(self, existing_pointset, num_new_points):
 
         existing_pointset[:, 1] = 90 - existing_pointset[:, 1]
         newpoints = grid_improving.grid_filling.addSamplepoints(existing_pointset, 1)
 
-        az = newpoints[:, 0]
+        az = newpoints[:, 0] % 360
         el = 90 - newpoints[:, 1]
 
         return az, el

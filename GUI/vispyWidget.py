@@ -264,7 +264,7 @@ class SpherePoints():
 
     def add_point(self, az, el, pointtype='measurement_point'):
 
-        print("Point: ", az, "  ", el)
+        print("Paint Point: ", az, "  ", el)
         #x -> -z  y -> x z -> y
 
 
