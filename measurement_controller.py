@@ -7,6 +7,7 @@ import scipy.io
 from grid_improving.grid_filling import angularDistance
 import os
 import pointrecommender
+from datetime import date
 
 class MeasurementController:
 
@@ -48,6 +49,9 @@ class MeasurementController:
         self.numMeasurements = 0
 
         self.recommendation_mode = False
+
+        today = date.today()
+        self.current_date = today.strftime("%d_%m_%Y")
 
 
 
@@ -189,7 +193,8 @@ class MeasurementController:
                       'sourcePositions': self.positions,
                       'fs': 48000}
 
-            filepath = os.path.join(self.output_path, "measured_points_20_08.mat")
+            filename = "measured_points_" + self.current_date + ".mat"
+            filepath = os.path.join(self.output_path, filename)
             scipy.io.savemat(filepath, export)
 
             #enable point recommendation after 6 measurements
@@ -230,10 +235,8 @@ class MeasurementController:
                   'referenceIR': self.measurements_reference,
                   'fs': 48000}
 
-
-
-
-        filepath = os.path.join(self.output_path, "reference_measurement_20_08.mat")
+        filename = "reference_measurement_" + self.current_date + ".mat"
+        filepath = os.path.join(self.output_path, filename)
         scipy.io.savemat(filepath, export)
 
     def set_output_path(self, path):
