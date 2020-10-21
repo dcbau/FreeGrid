@@ -40,7 +40,7 @@ def cart2sph(x, y, z):
 
     return az, el
 
-def getDistances(p_az, p_el, grid_az, grid_el):
+def getDistances(p_az, p_el, grid_az, grid_el, return_format='rad'):
     x1, y1, z1 = sph2cart(p_az, p_el, 1);
     x2, y2, z2 = sph2cart(grid_az, grid_el, 1);
 
@@ -51,20 +51,32 @@ def getDistances(p_az, p_el, grid_az, grid_el):
 
     dotProduct = np.einsum('ji,ji->i', [x1, y1, z1], [x2, y2, z2])
 
-    distances = np.arccos(np.clip(dotProduct, -1.0, 1.0)) / np.pi;
+    distances = np.arccos(np.clip(dotProduct, -1.0, 1.0));
+
+    if return_format == 'deg':
+        distances = distances * 180 / np.pi
 
     return distances
 
-def angularDistance(az1, el1, az2, el2):
+def angularDistance(az1, el1, az2, el2, input_format='deg', return_format='rad'):
     # el1 = el1 - 90;
     # el2 = el2 - 90;
+
+    if input_format == 'rad':
+        az1 = az1 * np.pi / 180
+        az2 = az2 * np.pi / 180
+        el1 = el1 * np.pi / 180
+        el2 = el2 * np.pi / 180
 
     x1, y1, z1 = sph2cart(az1, el1, 1);
     x2, y2, z2 = sph2cart(az2, el2, 1);
 
     # distance = np.arctan2(np.linalg.norm(np.cross(xyz1, xyz2)), np.dot(xyz1, xyz2)) / 180;
-    distance = np.arccos(np.clip(np.dot([x1, y1, z1], [x2, y2, z2]), -1.0, 1.0)) / np.pi;
+    distance = np.arccos(np.clip(np.dot([x1, y1, z1], [x2, y2, z2]), -1.0, 1.0));
     # distance = np.arccos(np.clip(0.5, -1.0, 1.0)) / np.pi;
+
+    if return_format == 'deg':
+        distance = distance * 180 / np.pi
 
     return distance
 
@@ -145,7 +157,7 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
     r2d = 1 / d2r
 
     if _correctionGrid is None:
-        lebedev_grid = sound_field_analysis.lebedev.genGrid(86)
+        lebedev_grid = sound_field_analysis.lebedev.genGrid(194)
         az, el = cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
         _correctionGrid = np.transpose(np.array([az, el]))
 
@@ -199,4 +211,65 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
     return correction_points * r2d
 
 
+def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
+
+    #convention: el = 0..180°
+
+    d2r = np.pi / 180
+    r2d = 1 / d2r
+
+    if _correctionGrid is None:
+        lebedev_grid = sound_field_analysis.lebedev.genGrid(194)
+        az, el = cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
+        az = az % 360
+        _correctionGrid = np.transpose(np.array([az, el]))
+
+    inputGrid = _inputGrid# * d2r
+    correctionGrid = _correctionGrid# * d2r
+
+    nInputPoints = np.size(inputGrid, 0)
+    nCorrectionPoints = np.size(correctionGrid, 0)
+
+
+
+    # get all combinations of n points
+    combinations = itertools.combinations(range(nCorrectionPoints), nNewPoints)
+    combinations = np.array(list(combinations))
+
+    print("\nSearching through ", np.size(combinations, 0), " possible combinations of ", nCorrectionPoints, " points")
+    start_time = time.time()
+
+    highest_min_distance = 0
+    bestmatch = np.zeros(nNewPoints).astype(dtype=int)
+
+    for row in combinations:
+        min_distance = 180
+
+        grid = correctionGrid[row, :]
+
+        for i in range(nNewPoints):
+            for j in range(np.size(inputGrid, 0)):
+                d = angularDistance(inputGrid[j, 0], inputGrid[j, 1], grid[i, 0], grid[i, 1], return_format='deg')
+                if d < min_distance:
+                    min_distance = d
+
+
+
+        new_point_combis = itertools.combinations(range(nNewPoints), 2)
+        for c in new_point_combis:
+            p1 = grid[c[0], :]
+            p2 = grid[c[1], :]
+            d = angularDistance(p1[0], p1[1], p2[0], p2[1], return_format='deg')
+            if d < min_distance:
+                min_distance = d
+
+        if min_distance > highest_min_distance:
+            highest_min_distance = min_distance
+            bestmatch = row
+
+    correction_points = correctionGrid[bestmatch]
+
+    print("Took ", time.time() - start_time, " seconds")
+
+    return correction_points
 

@@ -331,13 +331,22 @@ class UiMainWindow(object):
 
         self.point_recommender_groupbox = QtWidgets.QGroupBox('Point Recommender')
         self.point_recommender_groupbox.setLayout(QtWidgets.QHBoxLayout())
-        #self.point_recommender_groupbox.setEnabled(False)
+        self.point_recommender_groupbox.setEnabled(False)
 
         self.recommend_point_button = QtWidgets.QPushButton('Recommend Point')
         self.recommend_point_button.clicked.connect(self.trigger_point_recommendation)
 
+        self.start_guiding_button = QtWidgets.QPushButton('Start Guidance')
+        self.start_guiding_button.clicked.connect(self.trigger_guided_measurement)
+
+        self.clear_recommended_points_button = QtWidgets.QPushButton('Clear Recommendations')
+        self.clear_recommended_points_button.clicked.connect(self.clear_recommended_points)
+
+
         self.point_recommender_groupbox.layout().addStretch()
         self.point_recommender_groupbox.layout().addWidget(self.recommend_point_button)
+        self.point_recommender_groupbox.layout().addWidget(self.start_guiding_button)
+        self.point_recommender_groupbox.layout().addWidget(self.clear_recommended_points_button)
         self.tab_measure.layout().addWidget(self.point_recommender_groupbox)
 
 
@@ -613,15 +622,13 @@ class UiMainWindow(object):
             self.calibrate_acoustical_center_label.setText(f'Calibrated, {self.measurement_ref.tracker.acoustical_center_pos}')
 
     def trigger_point_recommendation(self):
-        try:
-            az, el = self.measurement_ref.start_recommendation_mode(1)
+            az, el = self.measurement_ref.recommend_points(1)
 
-            for i in range(np.size(az)):
-                self.vispy_canvas.meas_points.add_recommended_point(az[i], el[i])
-        except:
-            print("No point could be recommended")
+    def trigger_guided_measurement(self):
+        self.measurement_ref.start_guided_measurement()
 
-
+    def clear_recommended_points(self):
+        self.measurement_ref.clear_recommended_points()
 
     def enable_point_recommendation(self):
         self.point_recommender_groupbox.setEnabled(True)

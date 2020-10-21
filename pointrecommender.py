@@ -55,6 +55,8 @@ class VoiceInstruction():
         rasterized_angle = int(abs(angle) - np.mod(abs(angle), raster/2) + raster/2)
         rasterized_angle = rasterized_angle - np.mod(rasterized_angle, raster)
 
+        if rasterized_angle == 0:
+            return
         if rotation == 'yaw':
             if angle >= 0:
                 sound = np.append(self.turn_left, self.angles[rasterized_angle])
@@ -62,13 +64,13 @@ class VoiceInstruction():
                 sound = np.append(self.turn_right, self.angles[rasterized_angle])
 
         elif rotation == 'pitch':
-            if angle >=0:
+            if angle >= 0:
                 sound = np.append(self.tilt_up, self.angles[rasterized_angle])
             else:
                 sound = np.append(self.tilt_down, self.angles[rasterized_angle])
 
         elif rotation == 'roll':
-            if angle >=0:
+            if angle >= 0:
                 sound = np.append(self.tilt_right, self.angles[rasterized_angle])
             else:
                 sound = np.append(self.tilt_left, self.angles[rasterized_angle])
@@ -176,9 +178,26 @@ class PointRecommender():
         self.target_angle['el'] = el_target
 
         self.target_view['yaw'], self.target_view['pitch'], self.target_view['roll'] = self.get_head_rotation_to_point(az_target, el_target)
-        self.guiding_phase = GuidingPhase.guiding_horizontal
-        self.voice_instructions.play_angle_instruction(rotation='yaw', angle=self.target_view['yaw'])
-        self.guiding_tone.start()
+        if abs(self.target_view['yaw']) > self.angular_accuracy:
+            self.guiding_phase = GuidingPhase.guiding_horizontal
+            self.voice_instructions.play_angle_instruction(rotation='yaw', angle=self.target_view['yaw'])
+            self.guiding_tone.start()
+        else:
+            self.guiding_phase = GuidingPhase.guiding_vertical
+            if abs(self.target_view['pitch']) > self.angular_accuracy:
+                self.voice_instructions.play_angle_instruction(rotation='pitch', angle=self.target_view['pitch'])
+                self.guiding_phase = GuidingPhase.guiding_vertical
+                self.guiding_tone.start()
+            elif abs(self.target_view['roll']) > self.angular_accuracy:
+                self.voice_instructions.play_angle_instruction(rotation='roll', angle=self.target_view['roll'])
+                self.guiding_phase = GuidingPhase.guiding_vertical
+                self.guiding_tone.start()
+            else:
+                self.guiding_phase = GuidingPhase.guiding_vertical
+
+    def stop(self):
+        self.guiding_tone.stop()
+        self.guiding_phase = GuidingPhase.no_guiding
 
     def update_position(self, current_az, current_el):
 
@@ -192,20 +211,19 @@ class PointRecommender():
             if self.distance < self.angular_accuracy:
                 self.guiding_tone.stop()
 
-                if self.target_view['pitch'] != 0:
+                if abs(self.target_view['pitch']) > self.angular_accuracy:
                     self.voice_instructions.play_event(event='intermediate_point_reached')
                     self.voice_instructions.play_angle_instruction(rotation='pitch', angle=self.target_view['pitch'])
                     self.guiding_phase = GuidingPhase.guiding_vertical
                     self.guiding_tone.start()
-                elif self.target_view['roll'] != 0:
+                elif abs(self.target_view['roll']) > self.angular_accuracy:
                     self.voice_instructions.play_event(event='intermediate_point_reached')
                     self.voice_instructions.play_angle_instruction(rotation='roll', angle=self.target_view['roll'])
                     self.guiding_phase = GuidingPhase.guiding_vertical
                     self.guiding_tone.start()
                 else:
-                    self.guiding_tone.stop()
+                    self.stop()
                     self.voice_instructions.play_event(event='final_point_reached')
-                    self.guiding_phase = GuidingPhase.no_guiding
 
                     return True
 
@@ -215,25 +233,31 @@ class PointRecommender():
                                                                    current_el,
                                                                    self.target_angle['az'],
                                                                    self.target_angle['el'])
-            # TODO: check angularDistance!!!
-            self.distance = self.distance * 180
+            self.distance = self.distance * 180 / np.pi
 
             self.guiding_tone.update_distance(self.distance)
             if self.distance < self.angular_accuracy:
-                self.guiding_tone.stop()
+                self.stop()
                 self.voice_instructions.play_event(event='final_point_reached')
-                self.guiding_phase = GuidingPhase.no_guiding
                 return True
 
         return False
 
-    def recommend_new_points(self, existing_pointset, num_new_points):
+    def recommend_new_points(self, _existing_pointset, num_new_points):
+
+        existing_pointset = np.array(_existing_pointset, copy=True)
 
         existing_pointset[:, 1] = 90 - existing_pointset[:, 1]
         newpoints = grid_improving.grid_filling.addSamplepoints(existing_pointset, 1)
+        newpoints2 = grid_improving.grid_filling.addSamplepoints_geometric(existing_pointset, 1)
 
-        az = newpoints[:, 0] % 360
-        el = 90 - newpoints[:, 1]
+        print("NewPoints1: ")
+        print(newpoints)
+        print("NewPoints2: ")
+        print(newpoints2)
+
+        az = newpoints2[:, 0] % 360
+        el = 90 - newpoints2[:, 1]
 
         return az, el
 
@@ -320,7 +344,7 @@ class PointRecommender():
         el = np.deg2rad(el)
         az = np.deg2rad(az)
 
-        el_frontal = np.arctan(np.tan(el) / np.sin(az))
+        el_frontal = np.arctan2(np.tan(el), np.sin(az))
         az_frontal = np.arcsin(np.cos(el) * np.cos(az))
 
         az_frontal = np.rad2deg(az_frontal)

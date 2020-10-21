@@ -16,11 +16,9 @@ class MeasurementController:
         self.measurement = Measurement()
         self.devices = self.measurement.get_names_of_defualt_devices()
 
-
         self.headmovement_trigger_counter = 0
         self.headmovement_ref_position = [0, 0, 1]
         self.auto_trigger_by_headmovement = False
-
 
         self._timer = QtCore.QTimer()
         self._timer.timeout.connect(self.timer_callback)
@@ -48,7 +46,9 @@ class MeasurementController:
 
         self.numMeasurements = 0
 
-        self.recommendation_mode = False
+        self.guidance_running = False
+        self.recommended_points = {}
+        self.point_recommender = pointrecommender.PointRecommender(self.tracker)
 
         today = date.today()
         self.current_date = today.strftime("%d_%m_%Y")
@@ -74,7 +74,7 @@ class MeasurementController:
         if self.measurement_running_flag:
 
             # check for variance
-            tolerance_angle = 1  # (degree)
+            tolerance_angle = 2  # (degree)
             tolerance_radius = 0.1  # (meter)
             az, el, r = self.tracker.get_relative_position()
             variance = angularDistance(az, el, self.measurement_position[0],
@@ -89,7 +89,7 @@ class MeasurementController:
             # check for tracker status
             self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
 
-            if self.recommendation_mode:
+            if self.guidance_running:
                 az, el, r = self.tracker.get_relative_position()
                 if self.point_recommender.update_position(az, el):
                     self.measurement_trigger = True
@@ -127,7 +127,7 @@ class MeasurementController:
         hold_still_interval_sec = 2
         hold_still_num_callbacks = hold_still_interval_sec*1000 / self.timer_interval_ms
 
-        tolerance_angle = 1  # (degree)
+        tolerance_angle = 2  # (degree)
         tolerance_radius = 0.1  # (meter)
         az, el, r = self.tracker.get_relative_position()
         variance = angularDistance(az, el, self.headmovement_ref_position[0],
@@ -242,20 +242,43 @@ class MeasurementController:
     def set_output_path(self, path):
         self.output_path = path
 
-    def start_recommendation_mode(self, num_points):
+    def recommend_points(self, num_points):
 
         if self.positions.any():
-            self.point_recommender = pointrecommender.PointRecommender(self.tracker)
-            self.recommendation_mode = True
-            az_target, el_target = self.point_recommender.recommend_new_points(self.positions[:, 0:2], num_points)
-            if abs(az_target) > 0 or abs(el_target) > 0:
-                print("Recommend Point: " + str(az_target) + " | " + str(el_target))
-                self.point_recommender.start_guided_measurement(az_target[0], el_target[0])
-                return az_target, el_target
-            else:
-                raise Exception
-        else:
-            raise Exception
+
+            self.clear_recommended_points()
+
+            az, el = self.point_recommender.recommend_new_points(self.positions[:, 0:2], num_points)
+
+            if abs(az) > 0 or abs(el) > 0:
+                self.recommended_points['az'] = az
+                self.recommended_points['el'] = el
+                print("Recommend Point: " + str(az) + " | " + str(el))
+                for i in range(np.size(az)):
+                    self.gui_handle.vispy_canvas.meas_points.add_recommended_point(az[i], el[i])
+
+                return az, el
+
+        print("No point could be recommended")
+
+    def clear_recommended_points(self):
+
+        if bool(self.recommended_points):
+
+            self.recommended_points = {}
+            self.gui_handle.vispy_canvas.meas_points.remove_recommended_points()
+            self.point_recommender.stop()
+            self.guidance_running = False
+
+    def start_guided_measurement(self):
+
+        if bool(self.recommended_points):
+
+            self.guidance_running = True
+
+            # (currently fixed to only a single point)
+            self.point_recommender.start_guided_measurement(self.recommended_points['az'][0], self.recommended_points['el'][0])
+
 
 
 class StartSingleMeasurementAsync(threading.Thread):
