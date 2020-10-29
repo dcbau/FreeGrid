@@ -132,6 +132,7 @@ class UiMainWindow(object):
         self.tabWidget.setMovable(False)
         self.tabWidget.setTabBarAutoHide(False)
         self.tabWidget.setObjectName("tabWidget")
+        self.tabWidget.currentChanged.connect(self.tab_changed)
 
         self.tab_config = QtWidgets.QWidget()
         self.tab_config.setEnabled(True)
@@ -150,9 +151,10 @@ class UiMainWindow(object):
         self.tab_data = QtWidgets.QWidget()
         self.tab_data.setEnabled(True)
         self.tab_data.setObjectName("tab_data")
-        self.tab_data.setLayout(QtWidgets.QVBoxLayout())
-        self.tab_data.layout().setAlignment(QtCore.Qt.AlignCenter)
+        self.tab_data.setLayout(QtWidgets.QGridLayout())
+        #self.tab_data.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.tabWidget.addTab(self.tab_data, "")
+        self.tab_data_index = self.tabWidget.count()-1
 
 
 
@@ -349,59 +351,45 @@ class UiMainWindow(object):
         self.point_recommender_groupbox.layout().addWidget(self.clear_recommended_points_button)
         self.tab_measure.layout().addWidget(self.point_recommender_groupbox)
 
-
-
-
-
-
-
-
-
-
-
         self.plotgroupbox = QtWidgets.QGroupBox('Measurement Plots')
         self.plotgroupbox.setLayout(QtWidgets.QVBoxLayout())
 
-        self.plot_tab_widget = QtWidgets.QTabWidget()
-        self.plot_tab_widget.setEnabled(True)
-        self.plot_tab_widget.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.plot_tab_widget.setTabPosition(QtWidgets.QTabWidget.South)
-        self.plot_tab_widget.setTabShape(QtWidgets.QTabWidget.Rounded)
-        self.plot_tab_widget.setIconSize(QtCore.QSize(32, 32))
-        self.plot_tab_widget.setDocumentMode(True)
-        self.plot_tab_widget.setTabsClosable(False)
-        self.plot_tab_widget.setMovable(False)
-        self.plot_tab_widget.setTabBarAutoHide(False)
-        self.plot_tab_widget.setObjectName("plot_tab_widget")
+        self.plot_widget = PlotWidget()
 
-        self.tab_rec = QtWidgets.QWidget()
-        self.tab_rec.setEnabled(True)
-        self.tab_rec.setObjectName("tab_rec")
-        self.tab_rec.setLayout(QtWidgets.QVBoxLayout())
-        self.plot_tab_widget.addTab(self.tab_rec, "")
-
-        self.tab_ir = QtWidgets.QWidget()
-        self.tab_ir.setEnabled(True)
-        self.tab_ir.setObjectName("tab_ir")
-        self.tab_ir.setLayout(QtWidgets.QVBoxLayout())
-        self.plot_tab_widget.addTab(self.tab_ir, "")
-
-        self.plot1 = Figure()
-        self.plot1_canvas = FigureCanvas(self.plot1)
-        self.tab_rec.layout().addWidget(self.plot1_canvas)
-
-        self.plot2 = Figure()
-        self.plot2_canvas = FigureCanvas(self.plot2)
-        self.tab_ir.layout().addWidget(self.plot2_canvas)
-
-        self.plotgroupbox.layout().addWidget(self.plot_tab_widget)
+        self.plotgroupbox.layout().addWidget(self.plot_widget)
         self.tab_measure.layout().addWidget(self.plotgroupbox)
 
         ## DATA LIST TAB
         #############################
+        self.positions_table = QtWidgets.QTableView()
+        self.positions_table.setModel(self.measurement_ref.positions_table_model)
+        self.positions_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.positions_table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.positions_table.verticalHeader().show()
+        self.positions_table.horizontalHeader().setSectionResizeMode(1)
+        self.positions_table.verticalHeader().setSectionResizeMode(3)
+        self.positions_table.setFont(QtGui.QFont('Helvetica', 13))
+        self.positions_table.setShowGrid(False)
+        #self.positions_table.setMaximumWidth(300)
 
 
 
+        self.positions_table_selection = self.positions_table.selectionModel()
+        self.positions_table_selection.currentRowChanged.connect(self.data_table_selection)
+
+        self.tab_data.layout().addWidget(self.positions_table, 0, 0, 1, 1)
+
+        self.remove_measurement_button = QtWidgets.QPushButton("Delete Selected Measurement")
+        self.remove_measurement_button.clicked.connect(self.remove_measurement)
+        self.tab_data.layout().addWidget(self.remove_measurement_button, 1, 0, 1, 1)
+
+        self.plot_widget2 = PlotWidget()
+        #self.plot_widget2.setMaximumWidth(200)
+        self.tab_data.layout().addWidget(self.plot_widget2, 0, 1, 1, 1)
+
+
+
+        ## Layout finalilzation
 
         self.gridLayout.addWidget(self.tabWidget, 0, 1, 3, 1)
         self.gridLayout.addWidget(self.vpWidget, 0, 0, 1, 1)
@@ -429,9 +417,6 @@ class UiMainWindow(object):
         print('FINISH SETUP')
 
 
-
-
-
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
@@ -439,65 +424,11 @@ class UiMainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_measure), _translate("MainWindow", "Measure"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_data), _translate("MainWindow", "Data List"))
 
-        self.plot_tab_widget.setTabText(self.plot_tab_widget.indexOf(self.tab_rec), _translate("MainWindow", "REC"))
-        self.plot_tab_widget.setTabText(self.plot_tab_widget.indexOf(self.tab_ir), _translate("MainWindow", "IR"))
+        self.positions_table.setColumnWidth(0, self.positions_table.width() / 3)
+        self.positions_table.setColumnWidth(1, self.positions_table.width() / 3)
+        self.positions_table.setColumnWidth(2, self.positions_table.width() / 3)
 
-
-        # bounds = QtCore.QRect(self.tabWidget.geometry())
-        # leftpane = QtCore.QRect(bounds)
-        # leftpane.setWidth(bounds.width() / 2)
-        # rightpane = leftpane.translated(bounds.width() / 2, 0)
-        # leftpane.adjust(20, 20, -40, -40)
-        # rightpane.adjust(20, 20, -40, -40)
-        #
-        # vispybox = QtCore.QRect(leftpane)
-        # size = leftpane.width() if leftpane.width() < leftpane.height() else leftpane.height()
-        # vispybox.setHeight(size)
-        #
-        # plotbox = QtCore.QRect(rightpane)
-        # size = rightpane.width() if rightpane.width() < rightpane.height() else rightpane.height()
-        # plotbox.setHeight(size)
-        #
-        # size = 80
-        # self.pushButton.setGeometry(plotbox.x(),
-        #                             plotbox.bottom() + 30,
-        #                             80,
-        #                             80)
-        #
-        # size = vispybox.width()*0.6
-        # self.calibrateButton.setGeometry(vispybox.center().x() - size/2,
-        #                                  self.sliderTheta.geometry().bottom(),
-        #                                  size,
-        #                                  40)
-        # self.switchTrackersButton.setGeometry(vispybox.center().x() - size / 2,
-        #                                       self.calibrateButton.geometry().bottom() + 5,
-        #                                       size,
-        #                                       40)
-        # self.az_label.setGeometry(vispybox.x(),
-        #                           self.switchTrackersButton.geometry().bottom() + 5,
-        #                           80,
-        #                           20)
-        #
-        # self.el_label.setGeometry(vispybox.x(),
-        #                           self.az_label.geometry().bottom() + 5,
-        #                           80,
-        #                           20)
-        #
-        # self.azimuthBox.setGeometry(self.az_label.geometry().right() + 5,
-        #                             self.az_label.geometry().y(),
-        #                             80,
-        #                             20)
-        #
-        # self.elevationBox.setGeometry(self.el_label.geometry().right() + 5,
-        #                             self.el_label.geometry().y(),
-        #                             80,
-        #                             20)
-        #
-        # self.plot_tab_widget.setGeometry(plotbox)
-        # self.plotWidget1.setGeometry(10,10, plotbox.width()-20, plotbox.height()-20)
-        # self.plotWidget2.setGeometry(10,10, plotbox.width()-20, plotbox.height()-20)
-
-
+        print("Width: " + str(self.positions_table.width()))
 
 
     def manual_update_az(self):
@@ -513,42 +444,15 @@ class UiMainWindow(object):
         #self.measurementTriggerButton.setEnabled(True)
         #self.autoTriggerButton.setEnabled(True)
         #self.autoTriggerStopButton.setEnabled(True)
-        self.vispy_canvas.meas_points.add_reference_measurement_point()
+        self.vispy_canvas.ref_points.add_point(0, 0)
 
     #def remove_measurement_point(self, az, el):
 
     def plot_recordings(self, rec_l, rec_r, fb_loop):
-        matplotlib.rcParams.update({'font.size': 5})
-
-        #[rec_l, rec_r, fb_loop] = self.measurement_ref.get_latest_recordings()
-        self.plot1.clf()
-        ax1 = self.plot1.add_subplot(311)
-        ax1.clear()
-        ax1.plot(rec_l)
-
-        ax2 = self.plot1.add_subplot(312)
-        ax2.clear()
-        ax2.plot(rec_r)
-
-        ax3 = self.plot1.add_subplot(313)
-        ax3.clear()
-        ax3.plot(fb_loop)
-        self.plot1_canvas.draw()
+        self.plot_widget.plot_recordings(rec_l, rec_r, fb_loop)
 
     def plot_IRs(self, ir_l, ir_r):
-        matplotlib.rcParams.update({'font.size': 5})
-
-        # [rec_l, rec_r, fb_loop] = self.measurement_ref.get_latest_recordings()
-        self.plot2.clf()
-        ax1 = self.plot2.add_subplot(211)
-        ax1.clear()
-        ax1.plot(ir_l)
-
-        ax2 = self.plot2.add_subplot(212)
-        ax2.clear()
-        ax2.plot(ir_r)
-
-        self.plot2_canvas.draw()
+        self.plot_widget.plot_IRs(ir_l, ir_r)
 
     def updateMeasurementList(self, measurement_data):
         pass
@@ -633,6 +537,48 @@ class UiMainWindow(object):
     def enable_point_recommendation(self):
         self.point_recommender_groupbox.setEnabled(True)
 
+    def data_table_selection(self, selected, deselected):
+        self.vispy_canvas.meas_points.deselect_points(deselected.row())
+        self.vispy_canvas.meas_points.select_point(selected.row())
+
+        print("Data Table Selection: " + str(selected.row()))
+        idx = selected.row()
+        try:
+            ir_l = self.measurement_ref.measurements[idx, 0, :]
+            ir_r = self.measurement_ref.measurements[idx, 1, :]
+            raw_l = self.measurement_ref.raw_signals[idx, 0, :]
+            raw_r = self.measurement_ref.raw_signals[idx, 1, :]
+            fb = self.measurement_ref.raw_feedbackloop[idx, 0, :]
+
+            self.plot_widget2.plot_IRs(ir_l, ir_r, plot='spectrogram')
+            self.plot_widget2.plot_recordings(raw_l, raw_r, fb, plot='spectrogram')
+
+        except IndexError:
+            print("Could not plot data: Invalid id")
+
+
+    def tab_changed(self, index):
+        try:
+            if index is not self.tab_data_index:
+                self.vispy_canvas.meas_points.deselect_points()
+            else:
+                numRows = self.positions_table.model().rowCount(QtCore.QModelIndex())
+                self.positions_table.selectRow(numRows-1)
+
+        except:
+            pass
+
+    def remove_measurement(self):
+        indexes = self.positions_table_selection.selectedRows()
+        for index in indexes:
+            id = index.row()
+            dialog = QtWidgets.QMessageBox
+            ret = dialog.question(self.myMainWindow,'', "Are you sure you want to delete this measurement?", dialog.Yes | dialog.No)
+
+            if ret == dialog.Yes:
+                print("Deleting Measurement " + str(id))
+                self.measurement_ref.delete_measurement(id)
+
 
 
 class InstructionsDialogBox(QtWidgets.QDialog):
@@ -667,3 +613,113 @@ class InstructionsDialogBox(QtWidgets.QDialog):
         self.layout.addWidget(self.buttonBox)
 
         self.setLayout(self.layout)
+
+class PlotWidget(QtWidgets.QWidget):
+
+    def __init__(self, *args, **kwargs):
+        super(PlotWidget, self).__init__(*args, **kwargs)
+
+        layout = QtWidgets.QVBoxLayout()
+        self.setLayout(layout)
+
+        self.plot_tab_widget = QtWidgets.QTabWidget()
+        self.plot_tab_widget.setEnabled(True)
+        self.plot_tab_widget.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.plot_tab_widget.setTabPosition(QtWidgets.QTabWidget.South)
+        self.plot_tab_widget.setTabShape(QtWidgets.QTabWidget.Rounded)
+        self.plot_tab_widget.setIconSize(QtCore.QSize(32, 32))
+        self.plot_tab_widget.setDocumentMode(True)
+        self.plot_tab_widget.setTabsClosable(False)
+        self.plot_tab_widget.setMovable(False)
+        self.plot_tab_widget.setTabBarAutoHide(False)
+        self.plot_tab_widget.setObjectName("plot_tab_widget")
+
+        self.tab_rec = QtWidgets.QWidget()
+        self.tab_rec.setEnabled(True)
+        self.tab_rec.setObjectName("tab_rec")
+        self.tab_rec.setLayout(QtWidgets.QVBoxLayout())
+        self.plot_tab_widget.addTab(self.tab_rec, "")
+
+        self.tab_ir = QtWidgets.QWidget()
+        self.tab_ir.setEnabled(True)
+        self.tab_ir.setObjectName("tab_ir")
+        self.tab_ir.setLayout(QtWidgets.QVBoxLayout())
+        self.plot_tab_widget.addTab(self.tab_ir, "")
+
+        self.plot1 = Figure()
+        self.plot1.set_facecolor("none")
+        self.plot1_canvas = FigureCanvas(self.plot1)
+        self.plot1_canvas.setStyleSheet("background-color:transparent;")
+        self.tab_rec.layout().addWidget(self.plot1_canvas)
+
+        self.plot2 = Figure()
+        self.plot2.set_facecolor("none")
+        self.plot2_canvas = FigureCanvas(self.plot2)
+        self.plot2_canvas.setStyleSheet("background-color:transparent;")
+        self.tab_ir.layout().addWidget(self.plot2_canvas)
+
+        self.layout().addWidget(self.plot_tab_widget)
+
+        self.plot_tab_widget.setTabText(0, "REC")
+        self.plot_tab_widget.setTabText(1, "IR")
+
+        self.spec_nfft = 512
+
+        self.spec_noverlap = 300
+
+    def plot_recordings(self, rec_l, rec_r, fb_loop, fs=48000, plot='waveform'):
+        matplotlib.rcParams.update({'font.size': 5})
+
+        self.plot1.clf()
+
+        ax1 = self.plot1.add_subplot(311)
+        ax1.clear()
+        if plot == 'waveform':
+            ax1.plot(rec_l)
+        elif plot == 'spectrogram':
+            _,_,_, cax  = ax1.specgram(rec_l, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
+            self.plot1.colorbar(cax)
+
+        ax2 = self.plot1.add_subplot(312)
+        ax2.clear()
+        if plot == 'waveform':
+            ax2.plot(rec_r)
+        elif plot == 'spectrogram':
+            _,_,_, cax2  = ax2.specgram(rec_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
+            self.plot1.colorbar(cax2)
+
+        ax3 = self.plot1.add_subplot(313)
+        ax3.clear()
+        if plot == 'waveform':
+            ax3.plot(fb_loop)
+        elif plot == 'spectrogram':
+            _,_,_, cax3  = ax3.specgram(fb_loop, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
+            self.plot1.colorbar(cax3)
+
+        self.plot1_canvas.draw()
+
+    def plot_IRs(self, ir_l, ir_r, fs=48000, plot='waveform'):
+        matplotlib.rcParams.update({'font.size': 5})
+
+        self.plot2.clf()
+
+        ax1 = self.plot2.add_subplot(211)
+        ax1.clear()
+
+        if plot=='waveform':
+            ax1.plot(ir_l)
+        elif plot=='spectrogram':
+            _,_,_, cax = ax1.specgram(ir_l, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
+            self.plot2.colorbar(cax).set_label('dB')
+
+        ax2 = self.plot2.add_subplot(212)
+        ax2.clear()
+
+        if plot=='waveform':
+            ax2.plot(ir_r)
+        elif plot=='spectrogram':
+            _,_,_, cax2 = ax2.specgram(ir_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
+            self.plot2.colorbar(cax2).set_label('dB')
+
+            self.plot2_canvas.draw()
+

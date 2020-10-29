@@ -250,24 +250,18 @@ class ElevationAngleDisplay():
         program.draw('triangle_strip', indices=indices)
 
 class SpherePoints():
-    def __init__(self, radius=1):
-        self.point_angles = []
-        self.vertices = np.array([[],[],[]], dtype=np.float32).reshape(0, 3)
-        self.colors = np.array([[],[],[], []], dtype=np.float32).reshape(0, 4)
+    def __init__(self, radius=1, pointcolor=np.array([1.0, 0.0, 0.0, 1.0])):
 
-        self.point_angles_recommended = []
-        self.vertices_recommended = np.array([[], [], []], dtype=np.float32).reshape(0, 3)
-        self.colors_recommended = np.array([[], [], [], []], dtype=np.float32).reshape(0, 4)
+        self.pixel_color = pointcolor.astype(np.float32).reshape(1, 4)
+        self.selection_color = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)
+        self.vertices = np.array([[], [], []], dtype=np.float32).reshape(0, 3)
+        self.colors = np.array([[], [], [], []], dtype=np.float32).reshape(0, 4)
 
         self.radius = radius
 
-
-    def add_point(self, az, el, pointtype='measurement_point'):
+    def add_point(self, az, el):
 
         print("Paint Point: ", az, "  ", el)
-        #x -> -z  y -> x z -> y
-
-
         r = self.radius
 
         az = az * np.pi / 180.0
@@ -278,30 +272,34 @@ class SpherePoints():
                                -r * np.cos(el) * np.cos(az)],
                               dtype=np.float32).reshape(1, 3)
 
-        if pointtype =='measurement_point':
-            new_color = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)
-            self.vertices = np.append(self.vertices, new_vertex, 0)
-            self.colors = np.append(self.colors, new_color, 0)
-        elif pointtype =='recommended_point':
-            new_color = np.array([0.0, 1.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)
-            self.vertices_recommended = np.append(self.vertices_recommended, new_vertex, 0)
-            self.colors_recommended = np.append(self.colors_recommended, new_color, 0)
-
-    def add_reference_measurement_point(self):
-
-        new_vertex = np.array([0.0, 0.0, 0.0], dtype=np.float32).reshape(1, 3)
-        new_color = np.array([0.0, 0.0, 1.0, 1.0], dtype=np.float32).reshape(1, 4)
-
         self.vertices = np.append(self.vertices, new_vertex, 0)
-        self.colors = np.append(self.colors, new_color, 0)
+        self.colors = np.append(self.colors, self.pixel_color, 0)
 
-    def add_recommended_point(self, az, el):
-        self.add_point(az, el, pointtype='recommended_point')
+    def clear_all_points(self):
+        self.vertices = np.array([[], [], []], dtype=np.float32).reshape(0, 3)
+        self.colors = np.array([[], [], [], []], dtype=np.float32).reshape(0, 4)
 
-    def remove_recommended_points(self):
-        self.vertices_recommended = np.array([[], [], []], dtype=np.float32).reshape(0, 3)
-        self.colors_recommended = np.array([[], [], [], []], dtype=np.float32).reshape(0, 4)
+    def select_point(self, idx):
+        try:
+            self.colors[idx] = self.selection_color
+        except IndexError:
+            print("Could not select point: Invalid id")
 
+    def deselect_points(self, idx=None):
+        if idx == None:
+            self.colors[:] = self.pixel_color
+        else:
+            try:
+                self.colors[idx] = self.pixel_color
+            except IndexError:
+                print("Could not select point: Invalid id")
+
+    def remove_point(self, idx):
+        try:
+            self.vertices = np.delete(self.vertices, idx, 0)
+            self.colors = np.delete(self.colors, idx, 0)
+        except IndexError:
+            print("Couldn´t remove point: Invalid id")
 
     def draw(self, program):
 
@@ -314,12 +312,6 @@ class SpherePoints():
         program['a_sourceColour'] = self.colors
         program.draw('points')
 
-        if len(self.vertices_recommended) == 0:
-            return
-
-        program['a_position'] = self.vertices_recommended
-        program['a_sourceColour'] = self.colors_recommended
-        program.draw('points')
 
 
 class VispyCanvas(app.Canvas):
@@ -344,7 +336,9 @@ class VispyCanvas(app.Canvas):
         self.sphere = Sphere(self.sphereradius, 15, 20)
         self.speaker = Speaker(self.boxsize)
 
-        self.meas_points = SpherePoints(self.sphereradius)
+        self.meas_points = SpherePoints(radius=self.sphereradius, pointcolor=np.array([1.0, 0.0, 0.0, 1.0]))
+        self.ref_points = SpherePoints(radius=0, pointcolor=np.array([0.0, 0.0, 1.0, 1.0]))
+        self.recommendation_points = SpherePoints(radius=self.sphereradius, pointcolor=np.array([0.0, 1.0, 0.0, 1.0]))
 
 
 
@@ -414,6 +408,8 @@ class VispyCanvas(app.Canvas):
         self.speaker.draw(self.program, az, el, self.sphereradius)
 
         self.meas_points.draw(self.program)
+        self.recommendation_points.draw(self.program)
+        self.ref_points.draw(self.program)
 
         self.azimuthdisplay.draw(self.program, az)
         self.elevationdisplay.draw(self.program, az, el)

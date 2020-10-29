@@ -9,6 +9,67 @@ import os
 import pointrecommender
 from datetime import date
 
+class PositionTableModel(QtCore.QAbstractTableModel):
+    def __init__(self):
+        super(PositionTableModel, self).__init__()
+        self._data = np.array([])
+        self.header = ["Az", "El", "Radius"]
+
+    def set_data(self, data):
+        self.layoutAboutToBeChanged.emit()
+        self._data = data
+        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rowCount(0), self.columnCount(0)))
+        self.layoutChanged.emit()
+
+    def add_position(self, row_value):
+
+        if self._data.any():
+            new_row = self._data.shape[0] + 1
+            self.beginInsertRows(QtCore.QModelIndex(), new_row, new_row)
+            self._data = np.append(self._data, row_value, axis=0)
+            self.endInsertRows()
+
+        else:
+            self.beginResetModel()
+            self._data = np.array(row_value, copy=True)
+            self.endResetModel()
+
+    def remove_position(self, id):
+        try:
+            self.beginRemoveRows(QtCore.QModelIndex(), id, id)
+            self._data = np.delete(self._data, id, axis=0)
+            self.endRemoveRows()
+        except IndexError:
+            print("Could not remove measurement from data list: Invalid Id")
+
+
+    def data(self, index, role):
+        if role == QtCore.Qt.DisplayRole:
+            if self._data.any():
+                value = self._data[index.row(), index.column()]
+                return str(value)
+
+    def rowCount(self, index):
+        try:
+            return self._data.shape[0]
+        except IndexError:
+            return 0
+
+    def columnCount(self, index):
+        try:
+            return self._data.shape[1]
+        except IndexError:
+            return 0
+
+    def headerData(self, col, orientation, role):
+        if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
+            return self.header[col]
+
+        if orientation == QtCore.Qt.Vertical and role == QtCore.Qt.DisplayRole:
+            return col + 1
+        return None
+
+
 class MeasurementController:
 
     def __init__(self):
@@ -43,6 +104,7 @@ class MeasurementController:
         self.raw_feedbackloop_reference = np.array([])
 
         self.positions = np.array([])
+        self.positions_table_model = PositionTableModel()
 
         self.numMeasurements = 0
 
@@ -79,6 +141,12 @@ class MeasurementController:
             az, el, r = self.tracker.get_relative_position()
             variance = angularDistance(az, el, self.measurement_position[0],
                                        self.measurement_position[1]) * 180 / np.pi
+
+            # widen up tolerance angle for extreme elevations, since they are hard to hold
+            if abs(self.measurement_position[1]) > 45:
+                w = abs(self.measurement_position[1]) - 45
+                tolerance_angle += w/4
+
             #print(variance)
             if (variance > tolerance_angle
                     or abs(r - self.measurement_position[2]) > tolerance_radius):
@@ -93,7 +161,7 @@ class MeasurementController:
                 az, el, r = self.tracker.get_relative_position()
                 if self.point_recommender.update_position(az, el):
                     self.measurement_trigger = True
-                    self.gui_handle.vispy_canvas.meas_points.remove_recommended_points()
+                    self.gui_handle.vispy_canvas.recommendation_points.clear_all_points()
 
 
             # check for measurement triggers
@@ -179,32 +247,38 @@ class MeasurementController:
                 self.raw_signals = raw_rec
                 self.raw_feedbackloop = raw_fb
 
-
-
-
             if self.positions.any():
                 self.positions = np.concatenate((self.positions, self.measurement_position.reshape(1, 3)))
             else:
                 self.positions = self.measurement_position.reshape(1, 3)
 
-            export = {'rawRecorded': self.raw_signals,
-                      'rawFeedbackLoop': self.raw_feedbackloop,
-                      'dataIR': self.measurements,
-                      'sourcePositions': self.positions,
-                      'fs': 48000}
-
-            filename = "measured_points_" + self.current_date + ".mat"
-            filepath = os.path.join(self.output_path, filename)
-            scipy.io.savemat(filepath, export)
+            self.save_to_file()
 
             #enable point recommendation after 6 measurements
             self.numMeasurements += 1
             if self.numMeasurements >= 6:
                 self.gui_handle.enable_point_recommendation()
 
+            # add to data list
+            #data_entry = np.append(self.numMeasurements, self.measurement_position)
+            data_entry = self.measurement_position.reshape(1, 3)
+            self.positions_table_model.add_position(data_entry)
+
         else:
             self.measurement.play_sound(False)
             print("ERROR, Measurement not valid")
+
+    def save_to_file(self):
+
+        export = {'rawRecorded': self.raw_signals,
+                  'rawFeedbackLoop': self.raw_feedbackloop,
+                  'dataIR': self.measurements,
+                  'sourcePositions': self.positions,
+                  'fs': 48000}
+
+        filename = "measured_points_" + self.current_date + ".mat"
+        filepath = os.path.join(self.output_path, filename)
+        scipy.io.savemat(filepath, export)
 
     def done_measurement_reference(self):
 
@@ -255,7 +329,7 @@ class MeasurementController:
                 self.recommended_points['el'] = el
                 print("Recommend Point: " + str(az) + " | " + str(el))
                 for i in range(np.size(az)):
-                    self.gui_handle.vispy_canvas.meas_points.add_recommended_point(az[i], el[i])
+                    self.gui_handle.vispy_canvas.recommendation_points.add_point(az[i], el[i])
 
                 return az, el
 
@@ -266,7 +340,7 @@ class MeasurementController:
         if bool(self.recommended_points):
 
             self.recommended_points = {}
-            self.gui_handle.vispy_canvas.meas_points.remove_recommended_points()
+            self.gui_handle.vispy_canvas.recommendation_points.clear_all_points()
             self.point_recommender.stop()
             self.guidance_running = False
 
@@ -278,6 +352,26 @@ class MeasurementController:
 
             # (currently fixed to only a single point)
             self.point_recommender.start_guided_measurement(self.recommended_points['az'][0], self.recommended_points['el'][0])
+
+    def delete_measurement(self, id):
+
+        try:
+            self.measurements = np.delete(self.measurements, id, 0)
+            self.raw_signals = np.delete(self.raw_signals, id, 0)
+            self.raw_feedbackloop = np.delete(self.raw_feedbackloop, id, 0)
+
+            self.positions = np.delete(self.positions, id, 0)
+
+            self.positions_table_model.remove_position(id)
+
+            self.gui_handle.vispy_canvas.meas_points.remove_point(id)
+
+
+            self.save_to_file()
+
+        except IndexError:
+            print("Could not delete measurement: Invalid id")
+
 
 
 

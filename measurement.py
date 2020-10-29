@@ -54,7 +54,7 @@ class Measurement():
         f_start = 100
         f_end = 20000
 
-        self.dummy_debugging = True
+        self.dummy_debugging = False
         if self.dummy_debugging:
             sweeplength_sec = 0.01
 
@@ -106,7 +106,7 @@ class Measurement():
         self.ir_r = []
 
         if not self.dummy_debugging:
-            time.sleep(2)
+            time.sleep(0.3)
 
         available_in_channels = sd.query_devices(sd.default.device[0])['max_input_channels']
 
