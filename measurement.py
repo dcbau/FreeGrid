@@ -44,33 +44,28 @@ class Measurement():
 
         self.get_names_of_defualt_devices()
 
-        fs = 48000
+        self.fs = sd.default.samplerate
+        if self.fs is None:
+            sd.default.samplerate = 48000
+            self.fs = sd.default.samplerate
+
+
+        print(sd.default.samplerate)
 
         # define sweep parameters
-        sweeplength_sec = 1
+        sweeplength_sec = 3
         silencelength_sec = 1
         amplitude_db = -20
-        amplitude_lin = 10 ** (amplitude_db / 20)
-        f_start = 100
+        f_start = 20
         f_end = 20000
 
         self.dummy_debugging = False
-        if self.dummy_debugging:
-            sweeplength_sec = 0.01
 
-        # make sweep
-        t_sweep = np.linspace(0, sweeplength_sec, sweeplength_sec * fs)
-        sweep = amplitude_lin * chirp(t_sweep, f0=f_start, t1=sweeplength_sec, f1=f_end, method='logarithmic', phi=90)
-
-        silence = np.zeros(fs * silencelength_sec)
-        if self.dummy_debugging:
-            silence = np.zeros(2000)
-
-        self.excitation = np.append(sweep, silence)
-        self.excitation = np.array([self.excitation, self.excitation])  # make stereo, for out channels 1 & 2
-        self.excitation = np.transpose(self.excitation).astype(np.float32)
-
-        self.fs = fs
+        #make sweep
+        self.excitation = self.make_excitation_sweep(f_start=100)
+        self.excitation_3ch = self.make_excitation_sweep(num_channels=3, f_start=100)
+        self.excitation_hpc = self.make_excitation_sweep(d_sweep_sec=0.5)
+        self.excitation_hpc_3ch = self.make_excitation_sweep(num_channels=3, d_sweep_sec=0.5)
 
         #read sound files
         self.sound_success_fs, self.sound_success = wave.read('Resources/soundfx_success.wav')
@@ -88,6 +83,29 @@ class Measurement():
         self.ir_l = []
         self.ir_r = []
 
+    def make_excitation_sweep(self, num_channels=2, d_sweep_sec=3, d_post_silence_sec=1, f_start=20, f_end=20000, amp_db=-20):
+
+        amplitude_lin = 10 ** (amp_db / 20)
+
+        if self.dummy_debugging:
+            d_sweep_sec = 0.01
+
+        # make sweep
+        t_sweep = np.linspace(0, d_sweep_sec, d_sweep_sec * self.fs)
+        sweep = amplitude_lin * chirp(t_sweep, f0=f_start, t1=d_sweep_sec, f1=f_end, method='logarithmic', phi=90)
+
+        silence = np.zeros(self.fs * d_post_silence_sec)
+        if self.dummy_debugging:
+            silence = np.zeros(2000)
+
+        excitation = np.append(sweep, silence)
+
+        excitation = np.tile(excitation, (num_channels, 1))  # make stereo or more, for out channels 1 & 2
+        excitation = np.transpose(excitation).astype(np.float32)
+
+        return excitation
+
+
 
 
     def play_sound(self, success):
@@ -97,13 +115,20 @@ class Measurement():
             sd.play(self.sound_failed, self.sound_failed_fs)
         sd.wait()
 
-    def single_measurement(self):
+    def single_measurement(self, type=None):
 
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
         self.ir_l = []
         self.ir_r = []
+
+        excitation = self.excitation
+        excitation_3ch = self.excitation_3ch
+
+        if type is 'hpc':
+            excitation = self.excitation_hpc
+            excitation_3ch = self.excitation_hpc_3ch
 
         if not self.dummy_debugging:
             time.sleep(0.3)
@@ -113,36 +138,35 @@ class Measurement():
         # do measurement
         if(available_in_channels == 1):
             # ch1 = left & right
-            recorded = sd.playrec(self.excitation, self.fs, channels=1)
+            recorded = sd.playrec(excitation, self.fs, channels=1)
             sd.wait()
 
             self.recorded_sweep_l = recorded[:, 0]
             self.recorded_sweep_r = recorded[:, 0]
-            self.feedback_loop = self.excitation[:, 0]
+            self.feedback_loop = excitation[:, 0]
 
         elif(available_in_channels == 2):
 
             # ch1 = left
             # ch2 = right
-            recorded = sd.playrec(self.excitation, self.fs, channels=2)
+            recorded = sd.playrec(excitation, self.fs, channels=2)
             sd.wait()
 
             self.recorded_sweep_l = recorded[:, 0]
             self.recorded_sweep_r = recorded[:, 1]
-            self.feedback_loop = self.excitation[:, 0]
+            self.feedback_loop = excitation[:, 0]
 
         elif(available_in_channels > 2):
 
             # ch1 = left
             # ch2 = right
             # ch3 = feedback loop
-            recorded = sd.playrec(self.excitation, self.fs, channels=3)
+            recorded = sd.playrec(excitation_3ch, self.fs, channels=3)
             sd.wait()
 
             self.recorded_sweep_l = recorded[:, 0]
             self.recorded_sweep_r = recorded[:, 1]
             self.feedback_loop = recorded[:, 2]
-            #self.feedback_loop = self.excitation[:, 0]
 
 
         # make IR
@@ -160,6 +184,7 @@ class Measurement():
 
         device_strings = {
             "out_excitation": "Unavailable",
+            "out_excitation_2": "Unavailable",
             "out_feedback": "Unavailable/Disabled",
             "in_left": "Unavailable",
             "in_right": "Unavailable",
@@ -167,13 +192,15 @@ class Measurement():
         }
         if num_out_ch > 0:
             device_strings["out_excitation"] = output_dev['name'] + ", Ch1"
+        if num_out_ch > 1:
+            device_strings["out_excitation_2"] = output_dev['name'] + ", Ch2"
         if num_in_ch > 0:
             device_strings["in_left"] = input_dev['name'] + ", Ch1"
         if num_in_ch > 1:
             device_strings["in_right"] = input_dev['name'] + ", Ch2"
-        if num_in_ch > 2 and num_out_ch > 1:
+        if num_in_ch > 2 and num_out_ch > 2:
             device_strings["in_feedback"] = input_dev['name'] + ", Ch3"
-            device_strings["out_feedback"] = output_dev['name'] + ", Ch2"
+            device_strings["out_feedback"] = output_dev['name'] + ", Ch3"
 
         return device_strings
 

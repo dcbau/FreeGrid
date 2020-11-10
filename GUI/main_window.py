@@ -8,6 +8,8 @@ import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib
+from scipy.signal import resample
+
 import pointrecommender
 
 import os
@@ -86,6 +88,7 @@ class UiMainWindow(object):
         devs = self.measurement_ref.devices
 
         self.label_out_exc = QtWidgets.QLabel(devs['out_excitation'])
+        self.label_out_exc_2 = QtWidgets.QLabel(devs['out_excitation_2'])
         self.label_out_fb = QtWidgets.QLabel(devs['out_feedback'])
         self.label_in_left = QtWidgets.QLabel(devs['in_left'])
         self.label_in_right = QtWidgets.QLabel(devs['in_right'])
@@ -93,6 +96,7 @@ class UiMainWindow(object):
 
         self.device_status_widget.setLayout(QtWidgets.QFormLayout())
         self.device_status_widget.layout().addRow(QtWidgets.QLabel("Output Excitation:"), self.label_out_exc)
+        self.device_status_widget.layout().addRow(QtWidgets.QLabel("Output Excitation 2:"), self.label_out_exc_2)
         self.device_status_widget.layout().addRow(QtWidgets.QLabel("Output Feedback Loop:"), self.label_out_fb)
         self.device_status_widget.layout().addRow(QtWidgets.QLabel("Input Left Ear Mic:"), self.label_in_left)
         self.device_status_widget.layout().addRow(QtWidgets.QLabel("Input Right Ear Mic:"), self.label_in_right)
@@ -155,6 +159,12 @@ class UiMainWindow(object):
         #self.tab_data.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.tabWidget.addTab(self.tab_data, "")
         self.tab_data_index = self.tabWidget.count()-1
+
+        self.tab_hpc = QtWidgets.QWidget()
+        self.tab_hpc.setEnabled(True)
+        self.tab_hpc.setLayout(QtWidgets.QVBoxLayout())
+        self.tab_hpc.layout().setAlignment(QtCore.Qt.AlignCenter)
+        self.tabWidget.addTab(self.tab_hpc, "")
 
 
 
@@ -296,10 +306,20 @@ class UiMainWindow(object):
         self.elevationBox.setMinimum(-90)
         self.elevationBox.valueChanged.connect(self.manual_update_el)
 
+        self.radiusBox = QtWidgets.QSpinBox()
+        self.radiusBox.setMinimum(20)
+        self.radiusBox.setMaximum(999)
+        self.radiusBox.valueChanged.connect(self.manual_update_radius)
+
         self.manualAngleBox = QtWidgets.QGroupBox("Set angle manually")
-        layout = QtWidgets.QFormLayout()
-        layout.addRow(QtWidgets.QLabel("Azimuth °"), self.azimuthBox)
-        layout.addRow(QtWidgets.QLabel("Elevation °"), self.elevationBox)
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(QtWidgets.QLabel("Azimuth °"))
+        layout.addWidget(self.azimuthBox)
+        layout.addWidget(QtWidgets.QLabel("Elevation °"))
+        layout.addWidget(self.elevationBox)
+        layout.addWidget(QtWidgets.QLabel("Radius cm"))
+        layout.addWidget(self.radiusBox)
+
         self.manualAngleBox.setLayout(layout)
         self.tab_measure.layout().addWidget(self.manualAngleBox)
 
@@ -379,7 +399,7 @@ class UiMainWindow(object):
 
         self.tab_data.layout().addWidget(self.positions_table, 0, 0, 1, 1)
 
-        self.remove_measurement_button = QtWidgets.QPushButton("Delete Selected Measurement")
+        self.remove_measurement_button = QtWidgets.QPushButton("Delete Selected")
         self.remove_measurement_button.clicked.connect(self.remove_measurement)
         self.tab_data.layout().addWidget(self.remove_measurement_button, 1, 0, 1, 1)
 
@@ -387,6 +407,70 @@ class UiMainWindow(object):
         #self.plot_widget2.setMaximumWidth(200)
         self.tab_data.layout().addWidget(self.plot_widget2, 0, 1, 1, 1)
 
+
+        ## HEADPHONE COMPENSATION TAB
+        #############################
+        self.hp_main_group = QtWidgets.QGroupBox()
+        self.hp_main_group.setLayout(QtWidgets.QHBoxLayout())
+
+        self.hp_main_group.layout().addWidget(QtWidgets.QLabel("Headphone Name:"))
+        self.headphone_name = QtWidgets.QLineEdit()
+        self.hp_main_group.layout().addWidget(self.headphone_name)
+
+        self.hp_main_group.layout().addStretch()
+
+        self.clear_hp_measurements_button = QtWidgets.QPushButton("Clear / Start New")
+        self.clear_hp_measurements_button.clicked.connect(self.clear_hp_measurements)
+        self.hp_main_group.layout().addWidget(self.clear_hp_measurements_button)
+
+        self.tab_hpc.layout().addWidget(self.hp_main_group)
+
+
+        self.hp_controls_group = QtWidgets.QGroupBox()
+        self.hp_controls_group.setLayout(QtWidgets.QHBoxLayout())
+
+        self.trigger_hp_measurement_button = QtWidgets.QPushButton("Trigger Headphone  \n Measurement")
+        self.trigger_hp_measurement_button.clicked.connect(self.trigger_hp_measurement)
+        self.trigger_hp_measurement_button.setFixedSize(QtCore.QSize(200, 100))
+        self.hp_controls_group.layout().addWidget(self.trigger_hp_measurement_button)
+
+        self.remove_hp_measurement_button = QtWidgets.QPushButton("Remove Last \n HP Measurement")
+        self.remove_hp_measurement_button.clicked.connect(self.remove_hp_measurement)
+        self.remove_measurement_button.setFixedSize(QtCore.QSize(200, 50))
+        self.hp_controls_group.layout().addWidget(self.remove_hp_measurement_button)
+
+        self.hp_controls_group.layout().addStretch()
+        self.hp_controls_group.layout().addWidget(QtWidgets.QLabel("Reg Beta:"))
+
+        self.regularization_beta_box = QtWidgets.QDoubleSpinBox()
+        self.regularization_beta_box.setMaximum(1.0)
+        self.regularization_beta_box.setSingleStep(0.05)
+        self.regularization_beta_box.setValue(0.4)
+        self.regularization_beta_box.setFixedWidth(100)
+        self.regularization_beta_box.valueChanged.connect(self.set_regularization_beta)
+        self.hp_controls_group.layout().addWidget(self.regularization_beta_box)
+
+        self.tab_hpc.layout().addWidget(self.hp_controls_group)
+        #self.plot_hpc_widget = PlotWidget()
+        #self.tab_hpc.layout().addWidget(self.plot_hpc_widget)
+
+
+        self.plot_hpirs = Figure()
+        self.plot_hpirs.set_facecolor("none")
+        self.plot_hpirs_canvas = FigureCanvas(self.plot_hpirs)
+        self.plot_hpirs_canvas.setStyleSheet("background-color:transparent;")
+        self.tab_hpc.layout().addWidget(self.plot_hpirs_canvas)
+
+
+
+        self.plot_hpc = Figure()
+        self.plot_hpc.set_facecolor('none')
+        self.plot_hpc_canvas = FigureCanvas(self.plot_hpc)
+        self.plot_hpc_canvas.setStyleSheet("background-color:transparent;")
+        self.tab_hpc.layout().addWidget(self.plot_hpc_canvas)
+
+        self.plot_hptf(np.array([]))
+        self.plot_hpc_estimate(np.array([]), np.array([]))
 
 
         ## Layout finalilzation
@@ -423,6 +507,8 @@ class UiMainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_config), _translate("MainWindow", "Configure"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_measure), _translate("MainWindow", "Measure"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_data), _translate("MainWindow", "Data List"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_hpc), _translate("MainWindow", "Headphone Compensation"))
+
 
         self.positions_table.setColumnWidth(0, self.positions_table.width() / 3)
         self.positions_table.setColumnWidth(1, self.positions_table.width() / 3)
@@ -436,6 +522,8 @@ class UiMainWindow(object):
 
     def manual_update_el(self):
         self.measurement_ref.tracker.fallback_angle[1] = self.elevationBox.value()
+    def manual_update_radius(self):
+        self.measurement_ref.tracker.fallback_angle[2] = self.radiusBox.value() / 100
 
     def add_measurement_point(self, az, el):
         self.vispy_canvas.meas_points.add_point(az, el)
@@ -579,7 +667,143 @@ class UiMainWindow(object):
                 print("Deleting Measurement " + str(id))
                 self.measurement_ref.delete_measurement(id)
 
+    def update_dev_status(self):
+        devs = self.measurement_ref.devices
 
+        self.label_out_exc.setText(devs['out_excitation'])
+        self.label_out_exc_2.setText(devs['out_excitation_2'])
+        self.label_out_fb.setText(devs['out_feedback'])
+        self.label_in_left.setText(devs['in_left'])
+        self.label_in_right.setText(devs['in_right'])
+        self.label_in_fb.setText(devs['in_feedback'])
+
+    def trigger_hp_measurement(self):
+        self.measurement_ref.hp_measurement()
+
+    def remove_hp_measurement(self):
+        self.measurement_ref.remove_hp_measurement()
+
+    # def plot_hpc_recordings(self, rec_l, rec_r, fb_loop):
+    #    self.plot_hpc_widget.plot_recordings(rec_l, rec_r, fb_loop)
+
+    def plot_hptf(self, hpc_irs, hpc_average=None, fs=48000):
+
+        try:
+            M = np.size(hpc_irs, 0)
+            N = np.size(hpc_irs, 2)
+        except IndexError:
+            M = 0
+            N = 0
+
+        plot_resolution = 1025
+        nyquist = int(N / 2 + 1)
+
+        f_vals = np.linspace(0, fs/2, plot_resolution)
+
+        matplotlib.rcParams.update({'font.size': 5})
+
+        self.plot_hpirs.clf()
+
+        ax1 = self.plot_hpirs.add_subplot(211)
+        ax1.clear()
+        ax1.set_title("Headphone IR L")
+        ax1.set_xscale('log')
+        #ax1.set_ylim(-12, 12)
+        ax1.set_xlim(20, 20000)
+        ax1.set_xticks([20, 100, 1000, 10000, 20000])
+
+        ax2 = self.plot_hpirs.add_subplot(212)
+        ax2.clear()
+        ax2.set_title("Headphone IR R")
+        ax2.set_xscale('log')
+        ax2.set_xlim(20, 20000)
+        ax2.set_xticks([20, 100, 1000, 10000, 20000])
+
+        for i in range(M):
+            ir = hpc_irs[i, 0, :]
+            magFilter = np.abs(np.fft.fft(ir))
+            magFilter = magFilter[:nyquist]
+            magFilter = 20 * np.log10(abs(magFilter))
+            magFilter = resample(magFilter, plot_resolution)
+            ax1.plot(f_vals, magFilter, linewidth=0.5)
+
+            ir = hpc_irs[i, 1, :]
+            magFilter = np.abs(np.fft.fft(ir))
+            magFilter = magFilter[:nyquist]
+            magFilter = 20 * np.log10(abs(magFilter))
+            magFilter = resample(magFilter, plot_resolution)
+            ax2.plot(f_vals, magFilter, linewidth=0.5)
+
+        y_low1, y_high1 = ax1.get_ylim()
+        y_low2, y_high2 = ax2.get_ylim()
+        y_low = min(y_low1, y_low2)
+        y_high = min(y_high1, y_high2)
+        ax1.set_ylim(y_low, y_high)
+        ax2.set_ylim(y_low, y_high)
+
+        # ax2 = self.plot_hpc.add_subplot(212)
+        # ax2.clear()
+        # ax2.set_title("Headphone IR R")
+        # ax2.set_xscale('log')
+        #
+        # for hpc in hpc_list['r']:
+        #     #ax2.plot(hpc)
+        #     ax2.magnitude_spectrum(hpc, Fs=fs, scale='dB')
+
+
+        self.plot_hpirs_canvas.draw()
+
+    def plot_hpc_estimate(self, H_l, H_r, fs=48000):
+
+        matplotlib.rcParams.update({'font.size': 5})
+
+        ax = self.plot_hpc.gca()
+
+        ax.clear()
+        ax.set_title("Headphone Compensation (Preview)")
+        ax.set_xscale('log')
+        ax.set_xlim(20, 20000)
+        ax.set_ylim(-30, 10)
+        ax.set_xticks([20, 100, 1000, 10000, 20000])
+
+        nq = int(np.size(H_l) / 2 + 1)
+        f_vals = np.linspace(0, 24000, nq)
+
+        try:
+            magFilter_l = H_l
+            magFilter_l = magFilter_l[:nq]
+            magFilter_l = 20 * np.log10(abs(magFilter_l))
+            l, = ax.plot(f_vals, magFilter_l, linewidth=2)
+            l.set_label("Left Ear")
+
+            magFilter_r = H_r
+            magFilter_r = magFilter_r[:nq]
+            magFilter_r = 20 * np.log10(abs(magFilter_r))
+            r, = ax.plot(f_vals, magFilter_r, linewidth=2)
+            r.set_label("Right Ear")
+
+            ax.legend()
+
+        except ValueError:
+            pass
+
+
+        # # set y limits according to displayed values
+        # low, high = ax.get_xlim()
+        # plotted_bin_ids = np.where((f_vals > low) & (f_vals < high))
+        #
+        # low_y = np.array([magFilter_l[plotted_bin_ids], magFilter_l[plotted_bin_ids]]).min()
+        # high_y = np.array([magFilter_r[plotted_bin_ids], magFilter_r[plotted_bin_ids]]).max()
+        #
+        # ax.set_ylim((low_y+5) + (5-np.mod((a+5), 5)), high_y)
+
+        self.plot_hpc_canvas.draw()
+
+    def set_regularization_beta(self):
+        self.measurement_ref.estimate_hpcf(self.regularization_beta_box.value())
+
+    def clear_hp_measurements(self):
+        self.measurement_ref.remove_all_hp_measurements()
 
 class InstructionsDialogBox(QtWidgets.QDialog):
 
@@ -721,5 +945,5 @@ class PlotWidget(QtWidgets.QWidget):
             _,_,_, cax2 = ax2.specgram(ir_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
             self.plot2.colorbar(cax2).set_label('dB')
 
-            self.plot2_canvas.draw()
+        self.plot2_canvas.draw()
 

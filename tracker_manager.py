@@ -381,12 +381,6 @@ class TrackerManager():
             else:
                  return poseMatrix1, poseMatrix2
 
-
-        def set_angle_manually(self, azimuth, elevation):
-            self.fallback_angle[0] = float(azimuth)
-            self.fallback_angle[1] = float(elevation)
-
-
         def check_tracker_availability(self):
             tracker_status = {
                 "tracker1": "Unavailable",

@@ -4,6 +4,7 @@ from PyQt5 import QtCore
 from measurement import Measurement
 import numpy as np
 import scipy.io
+import scipy.signal.windows
 from grid_improving.grid_filling import angularDistance
 import os
 import pointrecommender
@@ -106,6 +107,10 @@ class MeasurementController:
         self.positions = np.array([])
         self.positions_table_model = PositionTableModel()
 
+        self.hp_irs = np.array([])
+        self.raw_signals_hp = np.array([])
+        self.raw_feedbackloop_hp = np.array([])
+
         self.numMeasurements = 0
 
         self.guidance_running = False
@@ -114,6 +119,16 @@ class MeasurementController:
 
         today = date.today()
         self.current_date = today.strftime("%d_%m_%Y")
+
+
+        self.test_with_loaded_hpirs = False
+        if self.test_with_loaded_hpirs:
+            self.output_path = os.getcwd()
+            filename = "headphone_ir_" + self.current_date + ".mat"
+            filepath = os.path.join(self.output_path, filename)
+            self.loaded_hpirs = scipy.io.loadmat(filepath)
+            self.load_hpir_id = 0
+
 
 
 
@@ -371,6 +386,170 @@ class MeasurementController:
 
         except IndexError:
             print("Could not delete measurement: Invalid id")
+
+    def hp_measurement(self):
+        self.measurement.single_measurement(type='hpc')
+
+        self.measurement.play_sound(True)
+
+        [rec_l, rec_r, fb_loop] = self.measurement.get_recordings()
+
+        if self.test_with_loaded_hpirs:
+            ir_l = self.loaded_hpirs['hpir'][self.load_hpir_id, 0, :]
+            ir_r = self.loaded_hpirs['hpir'][self.load_hpir_id, 1, :]
+            self.load_hpir_id += 1
+        else:
+            [ir_l, ir_r] = self.measurement.get_irs()
+
+        ir = np.array([[ir_l, ir_r]]).astype(np.float32)
+        raw_rec = np.array([[rec_l, rec_r]]).astype(np.float32)
+        raw_fb = np.array([[fb_loop]]).astype(np.float32)
+
+        if self.hp_irs.any():
+            self.hp_irs = np.concatenate((self.hp_irs, ir))
+            self.raw_signals_hp = np.concatenate((self.raw_signals_hp, raw_rec))
+            self.raw_feedbackloop_hp = np.concatenate((self.raw_feedbackloop_hp, raw_fb))
+        else:
+            self.hp_irs = ir
+            self.raw_signals_hp = raw_rec
+            self.raw_feedbackloop_hp = raw_fb
+
+        if self.test_with_loaded_hpirs:
+            if self.load_hpir_id > 0:
+                self.estimate_hpcf()
+        else:
+            self.estimate_hpcf()
+
+        self.gui_handle.plot_hptf(self.hp_irs, fs=48000)
+
+        self.export_hp_measurement()
+
+    def remove_all_hp_measurements(self):
+        self.hp_irs = np.array([])
+        self.raw_signals_hp = np.array([])
+        self.raw_feedbackloop_hp = np.array([])
+
+        self.gui_handle.plot_hptf(self.hp_irs, fs=48000)
+        self.estimate_hpcf()
+
+    def export_hp_measurement(self):
+        try:
+            beta = self.gui_handle.regularization_beta_box.value()
+        except:
+            print("Could not get beta value, not saving it")
+            beta = 0.0
+
+        export = {'hpir_rawRecorded': self.raw_signals_hp,
+                  'hpir_rawFeedbackLoop': self.raw_feedbackloop_hp,
+                  'hpir': self.hp_irs,
+                  'beta': beta,
+                  'fs': 48000}
+
+        if not self.test_with_loaded_hpirs:
+            hp_name = self.gui_handle.headphone_name.text()
+            filename = "headphone_ir_" + hp_name + "_" + self.current_date + ".mat"
+            filepath = os.path.join(self.output_path, filename)
+            scipy.io.savemat(filepath, export)
+
+    def remove_hp_measurement(self):
+        try:
+            self.hp_irs = np.delete(self.hp_irs, -1, 0)
+            self.raw_signals_hp = np.delete(self.raw_signals_hp, -1, 0)
+            self.raw_feedbackloop_hp = np.delete(self.raw_feedbackloop_hp, -1, 0)
+        except:
+            return
+
+        self.gui_handle.plot_hptf(self.hp_irs, fs=48000)
+        # self.gui_handle.plot_hpc_recordings(rec_l, rec_r, fb_loop)
+
+        self.export_hp_measurement()
+        self.estimate_hpcf()
+
+    def estimate_hpcf(self, beta_regularization=None):
+        # algorithm taken in modified form from
+        # https://github.com/spatialaudio/hptf-compensation-filters/blob/master/Calc_HpTF_compensation_filter.m
+        # Copyright (c) 2016 Vera Erbes
+        # licensed undet MIT license
+
+        if beta_regularization is None:
+            try:
+                beta_regularization = self.gui_handle.regularization_beta_box.value()
+            except:
+                beta_regularization = 0.4
+
+        if not self.hp_irs.any():
+            self.gui_handle.plot_hpc_estimate(np.array([]), np.array([]))
+            return
+
+        # parameters
+        ####################
+        filter_length = 4096
+        window_length = 1024
+
+        #regularization parameters
+        fc_highshelf = 6000
+        beta = beta_regularization
+
+        M = np.size(self.hp_irs, 0)
+        fs = 48000
+
+        # algorithm
+        #######################
+        # create normalized working copies
+        hl_raw = self.hp_irs[:, 0, :] / self.hp_irs.max()
+        hr_raw = self.hp_irs[:, 1, :] / self.hp_irs.max()
+
+        # window IRs and truncate
+        win = scipy.signal.windows.blackmanharris(window_length)
+        win[:int(window_length/2)] = 1
+        win = np.pad(win, (0, filter_length-window_length))
+
+        hl_win = hl_raw[:, : filter_length] * win
+        hr_win = hr_raw[:, : filter_length] * win
+
+        # complex mean of HpTFs
+        Hl = np.fft.fft(hl_win, axis=1)
+        Hr = np.fft.fft(hr_win, axis=1)
+
+        Hl_mean = np.mean(Hl, axis=0)
+        Hr_mean = np.mean(Hr, axis=0)
+
+        # bandpass
+        f_low = 20 / (fs/2)
+        f_high = 20000 / (fs/2)
+        stopatt = 60
+        beta_kaiser = .1102*(stopatt-8.7)
+
+        b = scipy.signal.firwin(filter_length,
+                                [f_low, f_high],
+                                pass_zero='bandpass',
+                                window=('kaiser', beta_kaiser))
+        BP = np.fft.fft(b)
+
+        # regularization filter
+        freq = np.array([0, 2000 / (fs/2), fc_highshelf / (fs/2), 1])
+        G = np.array([-20, -20, 0, 0])
+        g = 10**(G/20)
+        b = scipy.signal.firwin2(51, freq, g)
+        b = np.pad(b, (0, filter_length-np.size(b)))
+        RF = np.fft.fft(b)
+
+        # calculate complex filter
+        Hcl = BP * np.conj(Hl_mean) / (Hl_mean * np.conj(Hl_mean) + beta * RF * np.conj(RF))
+        Hcr = BP * np.conj(Hr_mean) / (Hr_mean * np.conj(Hr_mean) + beta * RF * np.conj(RF))
+
+        self.gui_handle.plot_hpc_estimate(Hcl, Hcr)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
