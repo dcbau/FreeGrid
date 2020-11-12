@@ -323,8 +323,28 @@ class UiMainWindow(object):
         self.manualAngleBox.setLayout(layout)
         self.tab_measure.layout().addWidget(self.manualAngleBox)
 
+
+
+
+        self.measurements_main_group = QtWidgets.QGroupBox()
+        self.measurements_main_group.setLayout(QtWidgets.QHBoxLayout())
+
+        self.measurements_main_group.layout().addWidget(QtWidgets.QLabel("Session Name:"))
+        self.session_name = QtWidgets.QLineEdit()
+        self.measurements_main_group.layout().addWidget(self.session_name)
+
+        self.measurements_main_group.layout().addStretch()
+
+        self.clear_measurements_button = QtWidgets.QPushButton("Clear / Start New")
+        self.clear_measurements_button.clicked.connect(self.clear_measurements)
+        self.measurements_main_group.layout().addWidget(self.clear_measurements_button)
+
+        self.tab_measure.layout().addWidget(self.measurements_main_group)
+
+
+
         self.startMeasurementGroupBox = QtWidgets.QGroupBox('Start Measurement')
-        self.startMeasurementGroupBox.setLayout(QtWidgets.QHBoxLayout())
+        self.startMeasurementGroupBox.setLayout(QtWidgets.QGridLayout())
 
         self.referenceTriggerButton = QtWidgets.QPushButton('Reference Measurement')
         self.referenceTriggerButton.setObjectName("Reference Measurement")
@@ -338,15 +358,19 @@ class UiMainWindow(object):
         self.autoTriggerButton = QtWidgets.QPushButton('Auto Measurement')
         self.autoTriggerButton.clicked.connect(self.measurement_ref.trigger_auto_measurement)
 
+        self.autoMeasurementTriggerProgress = QtWidgets.QProgressBar()
+        self.autoMeasurementTriggerProgress.setVisible(False)
+
         self.autoTriggerStopButton = QtWidgets.QPushButton('Stop Auto Measurement')
         self.autoTriggerStopButton.clicked.connect(self.measurement_ref.stop_auto_measurement)
 
-        self.startMeasurementGroupBox.layout().addStretch()
-        self.startMeasurementGroupBox.layout().addWidget(self.referenceTriggerButton)
-        self.startMeasurementGroupBox.layout().addWidget(self.measurementTriggerButton)
-        self.startMeasurementGroupBox.layout().addWidget(self.autoTriggerButton)
-        self.startMeasurementGroupBox.layout().addWidget(self.autoTriggerStopButton)
-        self.startMeasurementGroupBox.layout().addStretch()
+        #self.startMeasurementGroupBox.layout().addStretch()
+        self.startMeasurementGroupBox.layout().addWidget(self.referenceTriggerButton, 1, 0, 1, 1)
+        self.startMeasurementGroupBox.layout().addWidget(self.measurementTriggerButton, 0, 1, 3, 1)
+        self.startMeasurementGroupBox.layout().addWidget(self.autoTriggerButton, 1, 2, 1, 1)
+        self.startMeasurementGroupBox.layout().addWidget(self.autoMeasurementTriggerProgress, 2, 2, 1, 1)
+        self.startMeasurementGroupBox.layout().addWidget(self.autoTriggerStopButton, 1, 3, 1, 1)
+        #self.startMeasurementGroupBox.layout().addStretch()
         self.tab_measure.layout().addWidget(self.startMeasurementGroupBox)
 
 
@@ -410,6 +434,7 @@ class UiMainWindow(object):
 
         ## HEADPHONE COMPENSATION TAB
         #############################
+
         self.hp_main_group = QtWidgets.QGroupBox()
         self.hp_main_group.setLayout(QtWidgets.QHBoxLayout())
 
@@ -425,9 +450,12 @@ class UiMainWindow(object):
 
         self.tab_hpc.layout().addWidget(self.hp_main_group)
 
-
         self.hp_controls_group = QtWidgets.QGroupBox()
         self.hp_controls_group.setLayout(QtWidgets.QHBoxLayout())
+
+        self.hp_measurement_count = QtWidgets.QLabel("")
+        self.hp_measurement_count.setFixedWidth(16)
+        self.hp_controls_group.layout().addWidget(self.hp_measurement_count)
 
         self.trigger_hp_measurement_button = QtWidgets.QPushButton("Trigger Headphone  \n Measurement")
         self.trigger_hp_measurement_button.clicked.connect(self.trigger_hp_measurement)
@@ -551,9 +579,9 @@ class UiMainWindow(object):
         self.label_tr2 = QtWidgets.QLabel(status["tracker2"])
 
         if status["tracker1"] == "Tracking" and status["tracker2"] == "Tracking":
-            self.manualAngleBox.setEnabled(False)
+            self.manualAngleBox.setVisible(False)
         else:
-            self.manualAngleBox.setEnabled(True)
+            self.manualAngleBox.setVisible(True)
 
     def updateCurrentAngle(self, az, el, r):
         r = r*100
@@ -655,6 +683,9 @@ class UiMainWindow(object):
 
         except:
             pass
+
+    def clear_measurements(self):
+        self.measurement_ref.delete_all_measurements()
 
     def remove_measurement(self):
         indexes = self.positions_table_selection.selectedRows()
@@ -804,6 +835,8 @@ class UiMainWindow(object):
 
     def clear_hp_measurements(self):
         self.measurement_ref.remove_all_hp_measurements()
+        self.session_name.clear()
+
 
 class InstructionsDialogBox(QtWidgets.QDialog):
 

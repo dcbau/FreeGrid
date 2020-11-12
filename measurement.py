@@ -62,10 +62,10 @@ class Measurement():
         self.dummy_debugging = False
 
         #make sweep
-        self.excitation = self.make_excitation_sweep(f_start=100)
-        self.excitation_3ch = self.make_excitation_sweep(num_channels=3, f_start=100)
-        self.excitation_hpc = self.make_excitation_sweep(d_sweep_sec=0.5)
-        self.excitation_hpc_3ch = self.make_excitation_sweep(num_channels=3, d_sweep_sec=0.5)
+        self.excitation = self.make_excitation_sweep(f_start=100, d_sweep_sec=2)
+        self.excitation_3ch = self.make_excitation_sweep(num_channels=3, f_start=100, d_sweep_sec=2)
+        self.excitation_hpc = self.make_excitation_sweep(d_sweep_sec=2)
+        self.excitation_hpc_3ch = self.make_excitation_sweep(num_channels=3, d_sweep_sec=2)
 
         #read sound files
         self.sound_success_fs, self.sound_success = wave.read('Resources/soundfx_success.wav')

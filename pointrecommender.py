@@ -271,7 +271,6 @@ class PointRecommender():
         @param el: Elevation angle -90° ... - + 90°
         @return yaw, pitch, roll: View direction, either [yaw, pitch, 0] or [yaw, 0, roll]
         '''
-
         ## First angle version (yaw/pitch)
 
         # calculate angle
@@ -289,6 +288,8 @@ class PointRecommender():
         pitch1 *= -1
 
         ## Second angle version (yaw/roll)
+        '@todo: for some angles the roll movements are ridiculous. eg. az=260, el=30 -> roll over 90°!' \
+        'roll should always be below 90° '
 
         # calculate angle
         [yaw2, roll2] = self.vertical2frontalCoordinates(az, el)

@@ -36,12 +36,22 @@ class PositionTableModel(QtCore.QAbstractTableModel):
             self.endResetModel()
 
     def remove_position(self, id):
+
         try:
-            self.beginRemoveRows(QtCore.QModelIndex(), id, id)
+            try:
+                start = id.min()
+                end = id.max()
+            except AttributeError:
+                start = id
+                end = id
+            except ValueError:
+                raise IndexError
+            self.beginRemoveRows(QtCore.QModelIndex(), start, end)
             self._data = np.delete(self._data, id, axis=0)
             self.endRemoveRows()
         except IndexError:
             print("Could not remove measurement from data list: Invalid Id")
+
 
 
     def data(self, index, role):
@@ -110,12 +120,14 @@ class MeasurementController:
         self.hp_irs = np.array([])
         self.raw_signals_hp = np.array([])
         self.raw_feedbackloop_hp = np.array([])
+        self.numHPMeasurements = 0
 
         self.numMeasurements = 0
 
         self.guidance_running = False
         self.recommended_points = {}
         self.point_recommender = pointrecommender.PointRecommender(self.tracker)
+        self.point_recommender.get_head_rotation_to_point(260, 40)
 
         today = date.today()
         self.current_date = today.strftime("%d_%m_%Y")
@@ -125,6 +137,7 @@ class MeasurementController:
         if self.test_with_loaded_hpirs:
             self.output_path = os.getcwd()
             filename = "headphone_ir_" + self.current_date + ".mat"
+            filename = "headphone_ir_HD6XX_10_11_2020.mat"
             filepath = os.path.join(self.output_path, filename)
             self.loaded_hpirs = scipy.io.loadmat(filepath)
             self.load_hpir_id = 0
@@ -142,9 +155,11 @@ class MeasurementController:
         self.reference_measurement_trigger = True
 
     def trigger_auto_measurement(self):
+        self.gui_handle.autoMeasurementTriggerProgress.setVisible(True)
         self.auto_trigger_by_headmovement = True
 
     def stop_auto_measurement(self):
+        self.gui_handle.autoMeasurementTriggerProgress.setVisible(False)
         self.auto_trigger_by_headmovement = False
 
     def timer_callback(self):
@@ -185,8 +200,6 @@ class MeasurementController:
                     or self.check_for_trigger_by_headmovement():
 
                 # start a measurement
-                if not self.measurements.any():
-                    self.tracker.calibrate_orientation()
                 self.measurement_trigger = False
                 az, el, r = self.tracker.get_relative_position()
                 self.measurement_position = np.array([az, el, r])
@@ -223,7 +236,13 @@ class MeasurementController:
             self.headmovement_trigger_counter += 1
             if self.headmovement_trigger_counter > hold_still_num_callbacks:
                 self.headmovement_trigger_counter = 0
+                self.gui_handle.autoMeasurementTriggerProgress.setRange(0,0)
                 return True
+
+        progress = self.headmovement_trigger_counter / hold_still_num_callbacks
+        self.gui_handle.autoMeasurementTriggerProgress.setRange(0, 100)
+        self.gui_handle.autoMeasurementTriggerProgress.setValue(progress * 100)
+
 
         return False
 
@@ -291,7 +310,8 @@ class MeasurementController:
                   'sourcePositions': self.positions,
                   'fs': 48000}
 
-        filename = "measured_points_" + self.current_date + ".mat"
+        session_name = self.gui_handle.session_name.text()
+        filename = "measured_points_" + session_name + "_" + self.current_date + ".mat"
         filepath = os.path.join(self.output_path, filename)
         scipy.io.savemat(filepath, export)
 
@@ -387,6 +407,19 @@ class MeasurementController:
         except IndexError:
             print("Could not delete measurement: Invalid id")
 
+    def delete_all_measurements(self):
+        all_ids = np.arange(0, np.size(self.measurements, 0))
+
+        self.measurements = np.array([])
+        self.raw_signals = np.array([])
+        self.raw_feedbackloop = np.array([])
+        self.positions = np.array([])
+
+        self.gui_handle.vispy_canvas.meas_points.clear_all_points()
+        self.positions_table_model.remove_position(all_ids)
+
+
+
     def hp_measurement(self):
         self.measurement.single_measurement(type='hpc')
 
@@ -421,7 +454,8 @@ class MeasurementController:
             self.estimate_hpcf()
 
         self.gui_handle.plot_hptf(self.hp_irs, fs=48000)
-
+        self.numHPMeasurements += 1
+        self.gui_handle.hp_measurement_count.setText(str(self.numHPMeasurements))
         self.export_hp_measurement()
 
     def remove_all_hp_measurements(self):
@@ -430,7 +464,11 @@ class MeasurementController:
         self.raw_feedbackloop_hp = np.array([])
 
         self.gui_handle.plot_hptf(self.hp_irs, fs=48000)
+        self.numHPMeasurements = 0
+
+        self.gui_handle.hp_measurement_count.setText(" ")
         self.estimate_hpcf()
+
 
     def export_hp_measurement(self):
         try:
@@ -460,6 +498,13 @@ class MeasurementController:
             return
 
         self.gui_handle.plot_hptf(self.hp_irs, fs=48000)
+        self.numHPMeasurements -= 1
+
+        if self.numHPMeasurements:
+            self.gui_handle.hp_measurement_count.setText(str(self.numHPMeasurements))
+        else:
+            self.gui_handle.hp_measurement_count.setText(" ")
+
         # self.gui_handle.plot_hpc_recordings(rec_l, rec_r, fb_loop)
 
         self.export_hp_measurement()
@@ -498,6 +543,15 @@ class MeasurementController:
         # create normalized working copies
         hl_raw = self.hp_irs[:, 0, :] / self.hp_irs.max()
         hr_raw = self.hp_irs[:, 1, :] / self.hp_irs.max()
+
+        # approximate onsets and shift IRs to compensate delay
+        onsets_l = np.argmax(hl_raw, axis=1)
+        onsets_r = np.argmax(hr_raw, axis=1)
+
+        for m in range(M):
+            hl_raw[m, :] = np.roll(hl_raw[m, :], -(onsets_l[m]-50))
+            hr_raw[m, :] = np.roll(hr_raw[m, :], -(onsets_r[m]-50))
+
 
         # window IRs and truncate
         win = scipy.signal.windows.blackmanharris(window_length)
