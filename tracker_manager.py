@@ -55,13 +55,17 @@ class TrackerManager():
                 'head_y': 15
             }
 
+            self.offset_mode = 'calibrated'
+
+            self.vr_system_initialized = False
+
             # initialize open VR
             try:
                 self.vr_system = init(VRApplication_Background)
             except:
-                print("Hell NO!")
                 return
 
+            self.vr_system_initialized = True
             # get available trackers and controllers
 
 
@@ -112,7 +116,6 @@ class TrackerManager():
 
             self.acoustical_center_pos = None
 
-            self.offset_mode = 'calibrated'
 
 
 
@@ -189,13 +192,6 @@ class TrackerManager():
             self.calibrationRotation = head_tracker.inverse * reference_tracker
 
 
-        # Valid modes:
-        # - 'calibrated': use trackers to get the ear offset and acoustic center offset
-        # - 'manual': set the offset by hand using the number boxes in the gui
-        def set_offset_mode(self, mode):
-            self.offset_mode = mode
-
-
         def calibrate_ear(self, ear):
             try:
                 pose_head, pose_ear = self.get_tracker_data()
@@ -245,10 +241,14 @@ class TrackerManager():
             else:
                 self.trackers_switched = True
 
+
         def get_relative_position(self):
 
             try:
-                pose_head, pose_speaker = self.get_tracker_data()
+                if self.offset_mode == 'calibrated':
+                    pose_head = self.get_tracker_data(only_tracker_1=True)
+                else:
+                    pose_head, pose_speaker = self.get_tracker_data()
 
             except:
                 return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
@@ -346,7 +346,7 @@ class TrackerManager():
                 #print(az, el, radius)
                 return az, el, radius
 
-        def get_tracker_data(self):
+        def get_tracker_data(self, only_tracker_1=False):
 
             #poseMatrix1 = []
             #poseMatrix2 = []
@@ -376,10 +376,15 @@ class TrackerManager():
             else:
                 self.tracker1.isAvailable = False
 
+
             if self.trackers_switched:
+                if only_tracker_1:
+                    poseMatrix1 = []
                 return poseMatrix2, poseMatrix1
             else:
-                 return poseMatrix1, poseMatrix2
+                if only_tracker_1:
+                    poseMatrix2 = []
+                return poseMatrix1, poseMatrix2
 
         def check_tracker_availability(self):
             tracker_status = {
@@ -400,6 +405,15 @@ class TrackerManager():
 
             return tracker_status
 
-
-
-
+        def check_if_tracking_is_valid(self):
+            if self.vr_system_initialized:
+                if self.offset_mode == 'calibrated':
+                    if not self.trackers_switched:
+                        return self.tracker1.isActive
+                    else:
+                        return self.tracker2.isActive
+                else:
+                    if self.tracker1.isActive and self.tracker2.isActive:
+                        return True
+                    else:
+                        return False

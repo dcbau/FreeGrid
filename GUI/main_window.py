@@ -109,12 +109,15 @@ class UiMainWindow(object):
         self.tracker_status_widget = QtWidgets.QGroupBox("Vive Tracker Status")
         tracker_status = self.measurement_ref.tracker.check_tracker_availability()
 
-        self.label_tr1 = QtWidgets.QLabel(tracker_status["tracker1"])
-        self.label_tr2 = QtWidgets.QLabel(tracker_status["tracker2"])
+        self.tracker1_status_label = QtWidgets.QLabel(tracker_status["tracker1"])
+        self.tracker2_status_label = QtWidgets.QLabel(tracker_status["tracker2"])
+
+        self.tracker1_label = QtWidgets.QLabel("(Head) Tracker 1:")
+        self.tracker2_label = QtWidgets.QLabel("Tracker 2:")
 
         self.tracker_status_widget.setLayout(QtWidgets.QFormLayout())
-        self.tracker_status_widget.layout().addRow(QtWidgets.QLabel("Tracker 1:"), self.label_tr1)
-        self.tracker_status_widget.layout().addRow(QtWidgets.QLabel("Tracker 2:"), self.label_tr2)
+        self.tracker_status_widget.layout().addRow(self.tracker1_label, self.tracker1_status_label)
+        self.tracker_status_widget.layout().addRow(self.tracker2_label, self.tracker2_status_label)
 
         self.tracker_status_widget.setMaximumHeight(100)
 
@@ -183,7 +186,7 @@ class UiMainWindow(object):
         self.switchTrackersButton.setText("Switch Trackers")
         self.switchTrackersButton.setObjectName("switchTrackersButton")
         self.switchTrackersButton.setMaximumWidth(200)
-        self.switchTrackersButton.clicked.connect(self.measurement_ref.tracker.switch_trackers)
+        self.switchTrackersButton.clicked.connect(self.switch_trackers)
         self.tab_config.layout().addWidget(self.switchTrackersButton)
 
         #self.spacer = QtWidgets.QSpacerItem(20, 50, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
@@ -573,10 +576,19 @@ class UiMainWindow(object):
     def updateMeasurementList(self, measurement_data):
         pass
 
+    def switch_trackers(self):
+        self.measurement_ref.tracker.switch_trackers()
+        if self.measurement_ref.tracker.trackers_switched:
+            self.tracker1_label = QtWidgets.QLabel("Tracker 1:")
+            self.tracker2_label = QtWidgets.QLabel("(Head) Tracker 2:")
+        else:
+            self.tracker1_label = QtWidgets.QLabel("(Head) Tracker 1:")
+            self.tracker2_label = QtWidgets.QLabel("Tracker 2:")
+
 
     def update_tracker_status(self, status):
-        self.label_tr1 = QtWidgets.QLabel(status["tracker1"])
-        self.label_tr2 = QtWidgets.QLabel(status["tracker2"])
+        self.tracker1_status_label = QtWidgets.QLabel(status["tracker1"])
+        self.tracker2_status_label = QtWidgets.QLabel(status["tracker2"])
 
         if status["tracker1"] == "Tracking" and status["tracker2"] == "Tracking":
             self.manualAngleBox.setVisible(False)
@@ -686,6 +698,7 @@ class UiMainWindow(object):
 
     def clear_measurements(self):
         self.measurement_ref.delete_all_measurements()
+        self.session_name.clear()
 
     def remove_measurement(self):
         indexes = self.positions_table_selection.selectedRows()
@@ -835,7 +848,20 @@ class UiMainWindow(object):
 
     def clear_hp_measurements(self):
         self.measurement_ref.remove_all_hp_measurements()
-        self.session_name.clear()
+        self.headphone_name.clear()
+
+    def warning_invalid_tracking(self, warning=True):
+        palette = self.tracker_status_widget.palette()
+        if warning:
+            palette.setColor(QtGui.QPalette.Window, QtGui.QColor('red'))
+        else:
+            palette.setColor(QtGui.QPalette.Window, QtGui.QColor('grey'))
+
+
+        self.tracker_status_widget.setPalette(palette)
+        self.tracker_status_widget.setAutoFillBackground(True)
+        self.tracker_status_widget.repaint()
+
 
 
 class InstructionsDialogBox(QtWidgets.QDialog):
