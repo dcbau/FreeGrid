@@ -217,23 +217,15 @@ class MeasurementController:
     def check_for_trigger_by_headmovement(self, ignore_autotriggermode = False):
 
         # the warning should only be raised when auto_measurement, turning the warning off should always be possible
-        if self.tracker.vr_system_initialized:
-            if not self.tracker.check_if_tracking_is_valid():
-                self.gui_handle.warning_invalid_tracking(True)
-            else:
-                self.gui_handle.warning_invalid_tracking(False)
-                return False
+        # if self.tracker.vr_system_initialized:
+        #     if not self.tracker.check_if_tracking_is_valid():
+        #         self.gui_handle.warning_invalid_tracking(True)
+        #     else:
+        #         self.gui_handle.warning_invalid_tracking(False)
+        #         return False
 
         if not self.auto_trigger_by_headmovement and not ignore_autotriggermode:
             return False
-
-        # the warning should only be raised when auto_measurement, turning the warning off should always be possible
-        if self.tracker.vr_system_initialized:
-            if not self.tracker.check_if_tracking_is_valid():
-                self.gui_handle.warning_invalid_tracking(True)
-            else:
-                self.gui_handle.warning_invalid_tracking(False)
-                return False
 
         # this function has to be called by a periodic timer callback and checks if the user´s head has remained still for a defined time interval
 

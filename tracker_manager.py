@@ -245,15 +245,15 @@ class TrackerManager():
         def get_relative_position(self):
 
             try:
-                if self.offset_mode == 'calibrated':
-                    pose_head = self.get_tracker_data(only_tracker_1=True)
+                if self.offset_mode == 'calibrated' and self.acoustical_center_pos is not None:
+                    pose_head, pose_speaker = self.get_tracker_data(only_tracker_1=True)
                 else:
                     pose_head, pose_speaker = self.get_tracker_data()
 
             except:
                 return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
 
-            if pose_head != False and pose_speaker != False:
+            if pose_head != False:
 
                 # MYSTERIOUS PROBLEM: The Y and Z Axis are flipped in the TrackerPose from openVR most of the times.
                 mystery_flag = True #for testing debugging
@@ -261,7 +261,6 @@ class TrackerManager():
                 # STEP1: get the correct translation between head and speaker
 
                 translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
-                translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
 
                 if self.offset_mode == 'calibrated' and self.ear_center is not None:
                     offset_x = self.ear_center[0] * np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
@@ -280,8 +279,11 @@ class TrackerManager():
                     translation_head = translation_head + offset_y_vector
 
                 if self.offset_mode == 'calibrated' and self.acoustical_center_pos is not None:
+
                     translation_speaker = self.acoustical_center_pos
                 else:
+                    translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
+
                     # offset from speaker center to tracker
                     if mystery_flag:
                         offset_y_vector = self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
