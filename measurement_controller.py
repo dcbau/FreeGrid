@@ -7,8 +7,9 @@ import scipy.io
 import scipy.signal.windows
 from grid_improving.grid_filling import angularDistance
 import os
-import pointrecommender
+from grid_improving import pointrecommender
 from datetime import date
+from Reproduction import ir_player
 
 class PositionTableModel(QtCore.QAbstractTableModel):
     def __init__(self):
@@ -142,6 +143,9 @@ class MeasurementController:
             self.loaded_hpirs = scipy.io.loadmat(filepath)
             self.load_hpir_id = 0
 
+        self.reproduction_mode = False
+        self.reproduction_running = False
+        self.reproduction_player = None
 
 
 
@@ -278,6 +282,7 @@ class MeasurementController:
             raw_rec = np.array([[rec_l, rec_r]]).astype(np.float32)
             raw_fb = np.array([[fb_loop]]).astype(np.float32)
 
+            #todo: rewrite this. if measurements are done but only contain zeros, .any() also returns false, so the output is overwritten!!!
             if self.measurements.any():
                 self.measurements = np.concatenate((self.measurements, ir))
             else:
@@ -319,10 +324,15 @@ class MeasurementController:
                   'sourcePositions': self.positions,
                   'fs': 48000}
 
+        scipy.io.savemat(self.get_current_file_path(), export)
+
+    def get_current_file_path(self):
+
         session_name = self.gui_handle.session_name.text()
         filename = "measured_points_" + session_name + "_" + self.current_date + ".mat"
         filepath = os.path.join(self.output_path, filename)
-        scipy.io.savemat(filepath, export)
+
+        return filepath
 
     def done_measurement_reference(self):
 
@@ -603,6 +613,40 @@ class MeasurementController:
 
         self.gui_handle.plot_hpc_estimate(Hcl, Hcr)
 
+    def init_reproduction(self):
+        if not self.reproduction_mode:
+            print("init")
+            try:
+                self.reproduction_player = ir_player.IR_player(IR_filepath=self.get_current_file_path())
+                self.reproduction_mode = True
+
+            except FileNotFoundError:
+                print("No measurements found")
+        else:
+            pass
+
+
+    def close_reproduction(self):
+        if self.reproduction_mode:
+            print("Close")
+            self.reproduction_mode = False
+            self.stop_reproduction()
+            del self.reproduction_player
+        else:
+            pass
+
+
+    def start_reproduction(self):
+        if not self.reproduction_running:
+            print("Start")
+            self.reproduction_running = True
+            self.reproduction_player.start()
+
+    def stop_reproduction(self):
+        if self.reproduction_running:
+            print("Stop")
+            self.reproduction_player.stop()
+            self.reproduction_running = False
 
 
 
