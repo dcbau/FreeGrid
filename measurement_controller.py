@@ -167,6 +167,8 @@ class MeasurementController:
         self.auto_trigger_by_headmovement = False
 
     def timer_callback(self):
+        #todo rewrite the timer callback since it has become the main timing thread. should focus more on case/mode selection
+
         if self.measurement_running_flag:
 
             # check for variance
@@ -188,6 +190,12 @@ class MeasurementController:
                 self.tracker.trigger_haptic_impulse()
 
         else:
+
+            if self.reproduction_mode:
+                if self.reproduction_running:
+                    az, el, r = self.tracker.get_relative_position()
+                    self.reproduction_player.update_position(az, el)
+
             # check for tracker status
             self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
 
@@ -637,10 +645,11 @@ class MeasurementController:
 
 
     def start_reproduction(self):
-        if not self.reproduction_running:
-            print("Start")
-            self.reproduction_running = True
-            self.reproduction_player.start()
+        if self.reproduction_mode:
+            if not self.reproduction_running:
+                print("Start")
+                self.reproduction_running = True
+                self.reproduction_player.start()
 
     def stop_reproduction(self):
         if self.reproduction_running:
