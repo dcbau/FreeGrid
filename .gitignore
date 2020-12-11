@@ -5,3 +5,4 @@ __pycache__
 /measured_points.mat
 /reference_measurement.mat
 /Measurements/*
+/Reproduction/pybinsim_resources/BRIRs_CIRC360_pbs/

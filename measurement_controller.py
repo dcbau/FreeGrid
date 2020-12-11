@@ -10,6 +10,8 @@ import os
 from grid_improving import pointrecommender
 from datetime import date
 from Reproduction import ir_player
+from Reproduction import pybinsim_player
+
 
 class PositionTableModel(QtCore.QAbstractTableModel):
     def __init__(self):
@@ -149,6 +151,7 @@ class MeasurementController:
 
 
 
+
     def register_gui_handler(self, handle):
         self.gui_handle = handle
 
@@ -192,9 +195,12 @@ class MeasurementController:
         else:
 
             if self.reproduction_mode:
+                az, el, r = self.tracker.get_relative_position()
+
                 if self.reproduction_running:
-                    az, el, r = self.tracker.get_relative_position()
                     self.reproduction_player.update_position(az, el)
+
+
 
             # check for tracker status
             self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
@@ -625,7 +631,9 @@ class MeasurementController:
         if not self.reproduction_mode:
             print("init")
             try:
-                self.reproduction_player = ir_player.IR_player(IR_filepath=self.get_current_file_path())
+
+                #self.reproduction_player = ir_player.IR_player(IR_filepath=self.get_current_file_path())
+                self.reproduction_player = pybinsim_player.PyBinSim_Player()
                 self.reproduction_mode = True
 
             except FileNotFoundError:
@@ -635,10 +643,12 @@ class MeasurementController:
 
 
     def close_reproduction(self):
+        return
         if self.reproduction_mode:
             print("Close")
             self.reproduction_mode = False
             self.stop_reproduction()
+            self.reproduction_player.close()
             del self.reproduction_player
         else:
             pass
@@ -652,6 +662,7 @@ class MeasurementController:
                 self.reproduction_player.start()
 
     def stop_reproduction(self):
+        return
         if self.reproduction_running:
             print("Stop")
             self.reproduction_player.stop()
