@@ -633,7 +633,7 @@ class MeasurementController:
             try:
 
                 #self.reproduction_player = ir_player.IR_player(IR_filepath=self.get_current_file_path())
-                self.reproduction_player = pybinsim_player.PyBinSim_Player()
+                self.reproduction_player = pybinsim_player.PyBinSim_Player(IR_filepath=self.get_current_file_path())
                 self.reproduction_mode = True
 
             except FileNotFoundError:
@@ -643,7 +643,6 @@ class MeasurementController:
 
 
     def close_reproduction(self):
-        return
         if self.reproduction_mode:
             print("Close")
             self.reproduction_mode = False
@@ -662,7 +661,6 @@ class MeasurementController:
                 self.reproduction_player.start()
 
     def stop_reproduction(self):
-        return
         if self.reproduction_running:
             print("Stop")
             self.reproduction_player.stop()

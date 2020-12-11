@@ -11,6 +11,7 @@ import shutil
 class PyBinSim_Player():
     def __init__(self, IR_filepath='Measurements/measured_points_david_02_09.mat', audiofile_path='Resources/evaluation_samples/epiano2.wav', interpolate_circular=False):
 
+        #IR_filepath= 'Measurements/measured_points_david_brirs_11_12_2020.mat'
         self.loadDataset(IR_filepath)
 
 
@@ -44,7 +45,7 @@ class PyBinSim_Player():
     def stop(self):
         self.binsim.stream_close()
 
-    def loadDataset(self, path, only_circ=True, max_elevation=3, blocksize=512, request_filter_length=24000):
+    def loadDataset(self, path, only_circ=True, max_elevation=5, blocksize=512, request_filter_length=24000):
 
         self.irs = scipy.io.loadmat(path)['dataIR']
         self.sourcePositions = scipy.io.loadmat(path)['sourcePositions']
@@ -182,13 +183,32 @@ class PyBinSim_Player():
                 filename_full = os.path.join(ir_folder, filename)
 
                 ir = np.transpose(dense_irs[m, :, :])
-                ir = np.flip(ir, axis=1) # flip L R channels... somehow scipy wants the channels in reverse order???
+                #ir = np.flip(ir, axis=1) # flip L R channels... somehow scipy wants the channels in reverse order???
 
                 scipy.io.wavfile.write(filename_full, 48000, ir)
 
                 filterlist.write(f'{az_vals[m]} {el_vals[m]} 0 0 0 0 {filename_full}\n')
 
+            # add headphone compesation filter
+            hpcf_path = 'Reproduction/pybinsim_resources/hpirs/HPCF_David_HD660.wav'
+            filterlist.write(f'HPFILTER {hpcf_path}\n')
             filterlist.close()
+
+            # make the config file
+            config_file_path = 'Reproduction/pybinsim_resources/config/config.cfg'
+            if os.path.isfile(config_file_path):
+                os.unlink(config_file_path)
+
+            configfile = open(config_file_path, 'w')
+            configfile.write(f'soundfile Reproduction/pybinsim_resources/signal/test_48k.wav\n')
+            configfile.write(f'blockSize {blocksize}\n')
+            configfile.write(f'filterSize {filter_length}\n')
+            configfile.write(f'filterList Reproduction/pybinsim_resources/BRIRs_CIRC360_pbs/filterlist.txt\n')
+            configfile.write(f'maxChannels 2\n')
+            configfile.write(f'samplingRate 48000\n')
+            configfile.write(f'enableCrossfading False\n')
+            configfile.write(f'useHeadphoneFilter False\n')
+            configfile.write(f'loudnessFactor 1\n')
 
     def detect_onset(self, irs, onset_threshold_db=-6):
         #irs : [M C N] measurements x channels x samples
