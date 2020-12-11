@@ -4,3 +4,4 @@ __pycache__
 /reference_measurement
 /measured_points.mat
 /reference_measurement.mat
+/Measurements/*
