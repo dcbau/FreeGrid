@@ -55,6 +55,18 @@ class TrackerManager():
                 'head_y': 15
             }
 
+            self.head_dimensions = {
+                'ear_pos_l': None,
+                'ear_pos_r': None,
+                'ear_center': None,
+                'head_diameter': None,
+                'front_pos': None,
+                'back_pos': None,
+                'head_length': None
+            }
+
+            self.acoustical_center_pos = None
+
             self.offset_mode = 'calibrated'
 
             self.vr_system_initialized = False
@@ -109,12 +121,8 @@ class TrackerManager():
             self.calibrationRotation = Quaternion()
             self.calibrate_orientation()
 
-            self.ear_pos_l = None
-            self.ear_pos_r = None
-            self.ear_center = None
-            self.head_diameter = None
 
-            self.acoustical_center_pos = None
+
 
 
 
@@ -191,12 +199,42 @@ class TrackerManager():
 
             self.calibrationRotation = head_tracker.inverse * reference_tracker
 
+        def calibrate_headdimensions(self, pos, multiple_calls=True):
 
-        def calibrate_ear(self, ear):
-            try:
-                pose_head, pose_ear = self.get_tracker_data()
-            except:
-                return False
+            if multiple_calls:
+                num_calls = 3
+                time_window_s = 1
+                sleep_interval = time_window_s / num_calls
+
+                pose_head_list = np.zeros([3, 4, num_calls])
+                pose_ear_list = np.zeros([3, 4, num_calls])
+
+                valid_ids = np.full(num_calls, True, dtype=bool)
+
+                for i in range(num_calls):
+                    try:
+                        pose_head, pose_ear = self.get_tracker_data()
+                        pose_head_list[:, :, i] = pose_head.m
+                        pose_ear_list[:, :, i] = pose_ear.m
+                    except:
+                        valid_ids[i] = False
+
+                    time.sleep(sleep_interval)
+
+                if valid_ids.max() == False:
+                    return False
+                try:
+                    # use the last used pose object and store the averaged pose in it
+                    pose_head.m = np.mean(pose_head_list, axis=2)
+                    pose_ear.m = np.mean(pose_ear_list, axis=2)
+                except:
+                    return False
+
+            else:
+                try:
+                    pose_head, pose_ear = self.get_tracker_data()
+                except:
+                    return False
 
             translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
             translation_ear = np.array([pose_ear.m[0][3], pose_ear.m[1][3], pose_ear.m[2][3]])
@@ -209,15 +247,22 @@ class TrackerManager():
 
             direction_vector = np.array([np.inner(transvec, side), np.inner(transvec, up), np.inner(transvec, fwd)])
 
-            if ear == 'left':
-                self.ear_pos_l = direction_vector
-            if ear == 'right':
-                self.ear_pos_r = direction_vector
+            if pos == 'left':
+                self.head_dimensions['ear_pos_l'] = direction_vector
+            if pos == 'right':
+                self.head_dimensions['ear_pos_r'] = direction_vector
+            if pos == 'front':
+                self.head_dimensions['front_pos'] = direction_vector
+            if pos == 'back':
+                self.head_dimensions['back_pos'] = direction_vector
 
-            if self.ear_pos_l is not None and self.ear_pos_r is not None:
+            if self.head_dimensions['ear_pos_l'] is not None and self.head_dimensions['ear_pos_r'] is not None:
                 # calculate center of head
-                self.ear_center = (self.ear_pos_r + self.ear_pos_l) / 2
-                self.head_diameter = np.linalg.norm(self.ear_pos_l - self.ear_pos_r)
+                self.head_dimensions['ear_center'] = (self.head_dimensions['ear_pos_r'] + self.head_dimensions['ear_pos_l']) / 2
+                self.head_dimensions['head_diameter'] = np.linalg.norm(self.head_dimensions['ear_pos_l'] - self.head_dimensions['ear_pos_r'])
+
+            if self.head_dimensions['front_pos'] is not None and self.head_dimensions['back_pos'] is not None:
+                self.head_dimensions['head_length'] = np.linalg.norm(self.head_dimensions['front_pos'] - self.head_dimensions['back_pos'])
 
             return True
 
@@ -262,10 +307,10 @@ class TrackerManager():
 
                 translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
 
-                if self.offset_mode == 'calibrated' and self.ear_center is not None:
-                    offset_x = self.ear_center[0] * np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
-                    offset_y = self.ear_center[1] * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
-                    offset_z = self.ear_center[2] * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
+                if self.offset_mode == 'calibrated' and self.head_dimensions['ear_center'] is not None:
+                    offset_x = self.head_dimensions['ear_center'][0] * np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
+                    offset_y = self.head_dimensions['ear_center'][1] * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
+                    offset_z = self.head_dimensions['ear_center'][2] * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
 
                     translation_head = translation_head + offset_x + offset_y + offset_z
                 else:

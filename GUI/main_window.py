@@ -175,11 +175,13 @@ class UiMainWindow(object):
 
         self.tab_reproduction_index = self.tabWidget.count()-1
 
-
-
-
-        ## CONFIGURE TAB
+        # Config Tab
         #############################
+        #############################
+
+        # Config Tab
+        #   Show Instructions Dialog Box:
+        ###########################
 
         self.dlg = InstructionsDialogBox()
         self.show_instructions_button = QtWidgets.QPushButton(self.tab_measure)
@@ -188,6 +190,9 @@ class UiMainWindow(object):
         self.show_instructions_button.setMaximumWidth(200)
         self.tab_config.layout().addWidget(self.show_instructions_button)
 
+        # Config Tab
+        #   Switch Trackers Box:
+        ###########################
 
         self.switchTrackersButton = QtWidgets.QPushButton(self.tab_measure)
         self.switchTrackersButton.setText("Switch Trackers")
@@ -196,8 +201,9 @@ class UiMainWindow(object):
         self.switchTrackersButton.clicked.connect(self.switch_trackers)
         self.tab_config.layout().addWidget(self.switchTrackersButton)
 
-        #self.spacer = QtWidgets.QSpacerItem(20, 50, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        #self.tab_config.layout().addWidget(QtWidgets.QLabel(""))
+        # Config Tab
+        #   Offset Calibration Box:
+        ###########################
 
         self.offset_configuration_box = QtWidgets.QGroupBox("Source/Receiver Calibration")
         self.offset_configuration_box.setLayout(QtWidgets.QVBoxLayout())
@@ -217,6 +223,9 @@ class UiMainWindow(object):
         self.offset_configuration_widget.setMovable(False)
         self.offset_configuration_widget.setTabBarAutoHide(False)
 
+        # Config Tab
+        #   Offset Calibration Box:
+        #       Manual Offset Tab
 
         self.manual_offsetbox = QtWidgets.QGroupBox()
         self.manual_offsetbox.setLayout(QtWidgets.QFormLayout())
@@ -236,6 +245,10 @@ class UiMainWindow(object):
         self.manual_offsetbox.layout().addRow("Tracker - Speaker Z (cm): ", self.offset_speaker_z)
         self.manual_offsetbox.layout().addRow("Tracker - Speaker Y (cm): ", self.offset_speaker_y)
         self.manual_offsetbox.layout().addRow("Tracker - Head Y (cm): ", self.offset_head_y)
+
+        # Config Tab
+        #   Offset Calibration Box:
+        #       Calibrated Offset Tab
 
         self.calibrated_offsetbox = QtWidgets.QGroupBox()
         self.calibrated_offsetbox.setLayout(QtWidgets.QFormLayout())
@@ -259,13 +272,40 @@ class UiMainWindow(object):
         self.calibrate_acoustical_center_label = QtWidgets.QLabel(text="Uncalibrated, using manual offset")
         self.calibrated_offsetbox.layout().addRow(self.calibrate_acoustical_center, self.calibrate_acoustical_center_label)
 
+        # Config Tab
+        #   Offset Calibration Box:
+        #       Head Dimensions Tab
+
+        self.head_dimensions_box = QtWidgets.QGroupBox()
+        self.head_dimensions_box.setLayout(QtWidgets.QVBoxLayout())
+
+        self.head_length_info = QtWidgets.QLabel("Optional: Measure and save head length for later use")
+        self.head_dimensions_box.layout().addWidget(self.head_length_info)
+
+        self.calibrate_front_head = QtWidgets.QPushButton(text='Calibrate Front Of Head')
+        self.calibrate_front_head.setMaximumWidth(200)
+        self.calibrate_front_head.clicked.connect(self.trigger_head_front_calibration)
+        self.head_dimensions_box.layout().addWidget(self.calibrate_front_head)
+
+        self.calibrate_back_head = QtWidgets.QPushButton(text='Calibrate Back Of Head')
+        self.calibrate_back_head.setMaximumWidth(200)
+        self.calibrate_back_head.clicked.connect(self.trigger_head_back_calibration)
+        self.head_dimensions_box.layout().addWidget(self.calibrate_back_head)
+
+        self.head_length_label = QtWidgets.QLabel(text="")
+        self.head_dimensions_box.layout().addWidget(self.head_length_label)
+
+        # Config Tab
+        #   Offset Calibration Box:
+        #       Adding Widgets
+
         self.offset_configuration_widget.addTab(self.calibrated_offsetbox, "Calibrated Offset")
         self.offset_configuration_widget.addTab(self.manual_offsetbox, "Manual Offset")
+        self.offset_configuration_widget.addTab(self.head_dimensions_box, "Head Length")
 
-
-
-
-
+        # Config Tab
+        #   Angular Calibration Box
+        ############################
 
         self.anglecalibration_box = QtWidgets.QGroupBox("Angular Calibration")
         self.anglecalibration_box.setLayout(QtWidgets.QHBoxLayout())
@@ -286,6 +326,9 @@ class UiMainWindow(object):
 
         self.tab_config.layout().addWidget(self.anglecalibration_box)
 
+        # Config Tab
+        #   Output Folder Box:
+        ############################
 
         self.output_folder_box = QtWidgets.QGroupBox("Select output folder for measured data")
         self.output_folder_box.setMaximumHeight(100)
@@ -311,6 +354,7 @@ class UiMainWindow(object):
         self.tab_config.layout().addWidget(self.output_folder_box)
 
         ## MEASURE TAB
+        #############################
         #############################
 
         self.azimuthBox = QtWidgets.QSpinBox()
@@ -655,26 +699,41 @@ class UiMainWindow(object):
         QtCore.QTimer.singleShot(interval, self.measurement_ref.trigger_reference_measurement)
 
     def trigger_left_ear_calibration(self):
-        if self.measurement_ref.tracker.calibrate_ear('left'):
-            self.calibrate_ear_left_label.setText(f"Calibrated, {self.measurement_ref.tracker.ear_pos_l}")
-        elif hasattr(self.measurement_ref.tracker, 'ear_pos_l'):
-            self.calibrate_ear_left_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.ear_pos_l}")
+        if self.measurement_ref.tracker.calibrate_headdimensions('left'):
+            self.calibrate_ear_left_label.setText(f"Calibrated, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
+        elif self.measurement_ref.tracker.head_dimensions['ear_pos_l'] is not None:
+            self.calibrate_ear_left_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
 
-        if hasattr(self.measurement_ref.tracker, 'head_diameter'):
-            if self.measurement_ref.tracker.head_diameter is not None:
-                self.head_diameter_label.setText(f'Head Diameter: {self.measurement_ref.tracker.head_diameter:.3f}, {self.measurement_ref.tracker.ear_center}')
+        if self.measurement_ref.tracker.head_dimensions['head_diameter'] is not None:
+            self.head_diameter_label.setText(f"Head Diameter: {self.measurement_ref.tracker.head_dimensions['head_diameter']:.3f}, {self.measurement_ref.tracker.head_dimensions['ear_center']}")
 
     def trigger_right_ear_calibration(self):
+        if self.measurement_ref.tracker.calibrate_headdimensions('right'):
+            self.calibrate_ear_right_label.setText(f"Calibrated, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
+        elif self.measurement_ref.tracker.head_dimensions['ear_pos_r'] is not None:
+            self.calibrate_ear_right_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
 
-        if self.measurement_ref.tracker.calibrate_ear('right'):
-            self.calibrate_ear_right_label.setText(f"Calibrated, {self.measurement_ref.tracker.ear_pos_r}")
-        elif hasattr(self.measurement_ref.tracker, 'ear_pos_r'):
-            self.calibrate_ear_right_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.ear_pos_l}")
+        if self.measurement_ref.tracker.head_dimensions['head_diameter'] is not None:
+            self.head_diameter_label.setText(f"Head Diameter: {self.measurement_ref.tracker.head_dimensions['head_diameter']:.3f}, {self.measurement_ref.tracker.head_dimensions['ear_center']}")
 
-        if hasattr(self.measurement_ref.tracker, 'head_diameter'):
-            if self.measurement_ref.tracker.head_diameter is not None:
-                self.head_diameter_label.setText(
-                    f'Head Diameter: {self.measurement_ref.tracker.head_diameter:.3f}, {self.measurement_ref.tracker.ear_center}')
+    def trigger_head_front_calibration(self):
+        if self.measurement_ref.tracker.calibrate_headdimensions('front'):
+            if self.measurement_ref.tracker.head_dimensions['head_length'] is not None:
+                self.head_length_label.setText(f"Head Length: {self.measurement_ref.tracker.head_dimensions['head_length']:.3f}")
+        else:
+            self.head_length_label.setText("Calibration Failed")
+
+    def trigger_head_back_calibration(self):
+        if self.measurement_ref.tracker.calibrate_headdimensions('back'):
+            if self.measurement_ref.tracker.head_dimensions['head_length'] is not None:
+                self.head_length_label.setText(f"Head Length: {self.measurement_ref.tracker.head_dimensions['head_length']:.3f}")
+        else:
+            self.head_length_label.setText("Calibration Failed")
+
+
+    def trigger_head_back_calibration(self):
+        if self.measurement_ref.tracker.calibrate_headdimensions('front'):
+            pass
 
     def trigger_acoustical_centre_calibration(self):
         if self.measurement_ref.tracker.calibrate_acoustical_center():
