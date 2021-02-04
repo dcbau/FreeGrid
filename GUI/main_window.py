@@ -853,10 +853,6 @@ class UiMainWindow(object):
             self.head_length_label.setText("Calibration Failed")
 
 
-    def trigger_head_back_calibration(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('front'):
-            pass
-
     def trigger_acoustical_centre_calibration(self):
         if self.measurement_ref.tracker.calibrate_acoustical_center():
             self.calibrate_acoustical_center_label.setText(f'Calibrated, {self.measurement_ref.tracker.acoustical_center_pos}')

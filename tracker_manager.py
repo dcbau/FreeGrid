@@ -166,20 +166,35 @@ class TrackerManager():
         def calibrate_headdimensions(self, pos, multiple_calls=True):
 
             if multiple_calls:
-                num_calls = 3
-                time_window_s = 1
+                num_calls = 30
+                time_window_s = 2
                 sleep_interval = time_window_s / num_calls
 
                 pose_head_list = np.zeros([3, 4, num_calls])
                 pose_ear_list = np.zeros([3, 4, num_calls])
 
+                direction_vector_list = np.zeros([3, num_calls])
                 valid_ids = np.full(num_calls, True, dtype=bool)
+
+                time.sleep(1) #inital sleep to calm down trackers
 
                 for i in range(num_calls):
                     try:
-                        pose_head, pose_ear = self.get_tracker_data()
-                        pose_head_list[:, :, i] = pose_head.m
-                        pose_ear_list[:, :, i] = pose_ear.m
+                        pose_head_temp, pose_ear_temp = self.get_tracker_data()
+                        pose_head = pose_head_temp.m
+                        pose_ear = pose_ear_temp.m
+
+                        translation_head = np.array([pose_head[0][3], pose_head[1][3], pose_head[2][3]])
+                        translation_ear = np.array([pose_ear[0][3], pose_ear[1][3], pose_ear[2][3]])
+
+                        transvec = translation_ear - translation_head
+
+                        fwd = np.array([pose_head[0][2], pose_head[1][2], pose_head[2][2]])
+                        up = np.array([pose_head[0][1], pose_head[1][1], pose_head[2][1]])
+                        side = np.array([pose_head[0][0], pose_head[1][0], pose_head[2][0]])
+
+                        direction_vector_list[:, i] = np.array([np.inner(transvec, side), np.inner(transvec, up), np.inner(transvec, fwd)])
+
                     except:
                         valid_ids[i] = False
 
@@ -187,29 +202,30 @@ class TrackerManager():
 
                 if valid_ids.max() == False:
                     return False
+
                 try:
-                    # use the last used pose object and store the averaged pose in it
-                    pose_head.m = np.mean(pose_head_list, axis=2)
-                    pose_ear.m = np.mean(pose_ear_list, axis=2)
+                    direction_vector = np.mean(direction_vector_list[:, valid_ids], axis=1)
                 except:
                     return False
 
             else:
                 try:
-                    pose_head, pose_ear = self.get_tracker_data()
+                    pose_head_temp, pose_ear_temp = self.get_tracker_data()
+                    pose_head = pose_head_temp.m
+                    pose_ear = pose_ear_temp.m
                 except:
                     return False
 
-            translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
-            translation_ear = np.array([pose_ear.m[0][3], pose_ear.m[1][3], pose_ear.m[2][3]])
+                translation_head = np.array([pose_head[0][3], pose_head[1][3], pose_head[2][3]])
+                translation_ear = np.array([pose_ear[0][3], pose_ear[1][3], pose_ear[2][3]])
 
-            transvec = translation_ear - translation_head
+                transvec = translation_ear - translation_head
 
-            fwd = np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
-            up = np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
-            side = np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
+                fwd = np.array([pose_head[0][2], pose_head[1][2], pose_head[2][2]])
+                up = np.array([pose_head[0][1], pose_head[1][1], pose_head[2][1]])
+                side = np.array([pose_head[0][0], pose_head[1][0], pose_head[2][0]])
 
-            direction_vector = np.array([np.inner(transvec, side), np.inner(transvec, up), np.inner(transvec, fwd)])
+                direction_vector = np.array([np.inner(transvec, side), np.inner(transvec, up), np.inner(transvec, fwd)])
 
             if pos == 'left':
                 self.head_dimensions['ear_pos_l'] = direction_vector
