@@ -11,6 +11,8 @@ from grid_improving import pointrecommender
 from datetime import date
 from Reproduction import ir_player
 from Reproduction import pybinsim_player
+from pythonosc import udp_client
+import socket
 
 
 class PositionTableModel(QtCore.QAbstractTableModel):
@@ -135,22 +137,15 @@ class MeasurementController:
         today = date.today()
         self.current_date = today.strftime("%d_%m_%Y")
 
-
-        self.test_with_loaded_hpirs = False
-        if self.test_with_loaded_hpirs:
-            self.output_path = os.getcwd()
-            filename = "headphone_ir_" + self.current_date + ".mat"
-            filename = "headphone_ir_HD6XX_10_11_2020.mat"
-            filepath = os.path.join(self.output_path, filename)
-            self.loaded_hpirs = scipy.io.loadmat(filepath)
-            self.load_hpir_id = 0
-
         self.reproduction_mode = False
         self.reproduction_running = False
         self.reproduction_player = None
 
-
-
+        self.send_osc_data = False
+        self.osc_send_ip = '127.0.0.1'
+        self.osc_send_port = 1337
+        self.osc_send_address = '/guided_hrtfs/angle'
+        self.osc_send_client = None
 
     def register_gui_handler(self, handle):
         self.gui_handle = handle
@@ -169,8 +164,28 @@ class MeasurementController:
         self.gui_handle.autoMeasurementTriggerProgress.setVisible(False)
         self.auto_trigger_by_headmovement = False
 
+    # main callback thread
     def timer_callback(self):
-        #todo rewrite the timer callback since it has become the main timing thread. should focus more on case/mode selection
+
+        # check for tracker status
+        if self.tracker.tracking_mode == "Vive":
+            self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
+        elif self.tracker.tracking_mode == "OSC_direct":
+            self.gui_handle.set_osc_status(self.tracker.osc_input_server.get_osc_receive_status())
+
+        if self.send_osc_data:
+            az, el, r = self.tracker.get_relative_position()
+            self.osc_send_client.send_message(self.osc_send_address, [az, el, r])
+            print(f"Sending {az}|{el}|{r} to {self.osc_send_ip}/{self.osc_send_port}/{self.osc_send_address}")
+
+
+
+        if self.reproduction_mode:
+            az, el, r = self.tracker.get_relative_position()
+            if self.reproduction_running:
+                self.reproduction_player.update_position(az, el)
+            return
+
 
         if self.measurement_running_flag:
 
@@ -181,56 +196,40 @@ class MeasurementController:
             variance = angularDistance(az, el, self.measurement_position[0],
                                        self.measurement_position[1]) * 180 / np.pi
 
-            # widen up tolerance angle for extreme elevations, since they are hard to hold
+            # widen up tolerance angle for extreme elevations, since they are uncomfortable to hold
             if abs(self.measurement_position[1]) > 45:
                 w = abs(self.measurement_position[1]) - 45
                 tolerance_angle += w/4
 
-            #print(variance)
             if (variance > tolerance_angle
                     or abs(r - self.measurement_position[2]) > tolerance_radius):
                 self.measurement_valid = False
-                self.tracker.trigger_haptic_impulse()
 
-        else:
+            return
 
-            if self.reproduction_mode:
-                az, el, r = self.tracker.get_relative_position()
+        if self.guidance_running:
+            az, el, r = self.tracker.get_relative_position()
+            if self.point_recommender.update_position(az, el):
+                self.measurement_trigger = True
+                self.gui_handle.vispy_canvas.recommendation_points.clear_all_points()
 
-                if self.reproduction_running:
-                    self.reproduction_player.update_position(az, el)
+        # check for measurement triggers
+        if self.measurement_trigger or self.check_for_trigger_by_headmovement():
 
+            # start a measurement
+            self.measurement_trigger = False
+            az, el, r = self.tracker.get_relative_position()
+            self.measurement_position = np.array([az, el, r])
+            run_measurement = StartSingleMeasurementAsync(self)
+            self.measurement_running_flag = True
+            self.measurement_valid = True
+            run_measurement.start()
 
-
-            # check for tracker status
-            self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
-
-            if self.guidance_running:
-                az, el, r = self.tracker.get_relative_position()
-                if self.point_recommender.update_position(az, el):
-                    self.measurement_trigger = True
-                    self.gui_handle.vispy_canvas.recommendation_points.clear_all_points()
-
-
-            # check for measurement triggers
-            if self.tracker.checkForTriggerEvent() \
-                    or self.measurement_trigger\
-                    or self.check_for_trigger_by_headmovement():
-
-                # start a measurement
-                self.measurement_trigger = False
-                az, el, r = self.tracker.get_relative_position()
-                self.measurement_position = np.array([az, el, r])
-                run_measurement = StartSingleMeasurementAsync(self)
-                self.measurement_running_flag = True
-                self.measurement_valid = True
-                run_measurement.start()
-
-            elif self.reference_measurement_trigger:
-                # start reference measurement
-                self.reference_measurement_trigger = False
-                run_measurement = StartReferenceMeasurementAsync(self)
-                run_measurement.start()
+        elif self.reference_measurement_trigger:
+            # start reference measurement
+            self.reference_measurement_trigger = False
+            run_measurement = StartReferenceMeasurementAsync(self)
+            run_measurement.start()
 
     def check_for_trigger_by_headmovement(self, ignore_autotriggermode = False):
 
@@ -270,20 +269,14 @@ class MeasurementController:
         self.gui_handle.autoMeasurementTriggerProgress.setRange(0, 100)
         self.gui_handle.autoMeasurementTriggerProgress.setValue(progress * 100)
 
-
         return False
 
 
     def done_measurement(self):
-
         self.measurement_running_flag = False
-
-        #self.plotRecordings()
 
         if self.measurement_valid:
             self.measurement.play_sound(True)
-
-            print("Measurement valid")
 
             [rec_l, rec_r, fb_loop] = self.measurement.get_recordings()
             self.gui_handle.plot_recordings(rec_l, rec_r, fb_loop)
@@ -291,27 +284,20 @@ class MeasurementController:
             self.gui_handle.plot_IRs(ir_l, ir_r)
             self.gui_handle.add_measurement_point(self.measurement_position[0], self.measurement_position[1])
 
-
             ir = np.array([[ir_l, ir_r]]).astype(np.float32)
             raw_rec = np.array([[rec_l, rec_r]]).astype(np.float32)
             raw_fb = np.array([[fb_loop]]).astype(np.float32)
 
-            #todo: rewrite this. if measurements are done but only contain zeros, .any() also returns false, so the output is overwritten!!!
-            if self.measurements.any():
+            if self.positions.any():
                 self.measurements = np.concatenate((self.measurements, ir))
-            else:
-                self.measurements = ir
-
-            if self.raw_signals.any():
                 self.raw_signals = np.concatenate((self.raw_signals, raw_rec))
                 self.raw_feedbackloop = np.concatenate((self.raw_feedbackloop, raw_fb))
+                self.positions = np.concatenate((self.positions, self.measurement_position.reshape(1, 3)))
+
             else:
+                self.measurements = ir
                 self.raw_signals = raw_rec
                 self.raw_feedbackloop = raw_fb
-
-            if self.positions.any():
-                self.positions = np.concatenate((self.positions, self.measurement_position.reshape(1, 3)))
-            else:
                 self.positions = self.measurement_position.reshape(1, 3)
 
             self.save_to_file()
@@ -322,13 +308,10 @@ class MeasurementController:
                 self.gui_handle.enable_point_recommendation()
 
             # add to data list
-            #data_entry = np.append(self.numMeasurements, self.measurement_position)
-            data_entry = self.measurement_position.reshape(1, 3)
-            self.positions_table_model.add_position(data_entry)
+            self.positions_table_model.add_position(self.measurement_position.reshape(1, 3))
 
         else:
             self.measurement.play_sound(False)
-            print("ERROR, Measurement not valid")
 
     def save_to_file(self):
 
@@ -336,7 +319,7 @@ class MeasurementController:
                   'rawFeedbackLoop': self.raw_feedbackloop,
                   'dataIR': self.measurements,
                   'sourcePositions': self.positions,
-                  'fs': 48000}
+                  'fs': self.measurement.fs}
 
         scipy.io.savemat(self.get_current_file_path(), export)
 
@@ -375,7 +358,7 @@ class MeasurementController:
         export = {'ref_rawRecorded': self.raw_signals_reference,
                   'ref_rawFeedbackLoop': self.raw_feedbackloop_reference,
                   'referenceIR': self.measurements_reference,
-                  'fs': 48000}
+                  'fs': self.measurement.fs}
 
         filename = "reference_measurement_" + self.current_date + ".mat"
         filepath = os.path.join(self.output_path, filename)
@@ -460,12 +443,7 @@ class MeasurementController:
 
         [rec_l, rec_r, fb_loop] = self.measurement.get_recordings()
 
-        if self.test_with_loaded_hpirs:
-            ir_l = self.loaded_hpirs['hpir'][self.load_hpir_id, 0, :]
-            ir_r = self.loaded_hpirs['hpir'][self.load_hpir_id, 1, :]
-            self.load_hpir_id += 1
-        else:
-            [ir_l, ir_r] = self.measurement.get_irs()
+        [ir_l, ir_r] = self.measurement.get_irs()
 
         ir = np.array([[ir_l, ir_r]]).astype(np.float32)
         raw_rec = np.array([[rec_l, rec_r]]).astype(np.float32)
@@ -480,13 +458,9 @@ class MeasurementController:
             self.raw_signals_hp = raw_rec
             self.raw_feedbackloop_hp = raw_fb
 
-        if self.test_with_loaded_hpirs:
-            if self.load_hpir_id > 0:
-                self.estimate_hpcf()
-        else:
-            self.estimate_hpcf()
+        self.estimate_hpcf()
 
-        self.gui_handle.plot_hptf(self.hp_irs, fs=48000)
+        self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.fs)
         self.numHPMeasurements += 1
         self.gui_handle.hp_measurement_count.setText(str(self.numHPMeasurements))
         self.export_hp_measurement()
@@ -496,7 +470,7 @@ class MeasurementController:
         self.raw_signals_hp = np.array([])
         self.raw_feedbackloop_hp = np.array([])
 
-        self.gui_handle.plot_hptf(self.hp_irs, fs=48000)
+        self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.fs)
         self.numHPMeasurements = 0
 
         self.gui_handle.hp_measurement_count.setText(" ")
@@ -514,13 +488,12 @@ class MeasurementController:
                   'hpir_rawFeedbackLoop': self.raw_feedbackloop_hp,
                   'hpir': self.hp_irs,
                   'beta': beta,
-                  'fs': 48000}
+                  'fs': self.measurement.fs}
 
-        if not self.test_with_loaded_hpirs:
-            hp_name = self.gui_handle.headphone_name.text()
-            filename = "headphone_ir_" + hp_name + "_" + self.current_date + ".mat"
-            filepath = os.path.join(self.output_path, filename)
-            scipy.io.savemat(filepath, export)
+        hp_name = self.gui_handle.headphone_name.text()
+        filename = "headphone_ir_" + hp_name + "_" + self.current_date + ".mat"
+        filepath = os.path.join(self.output_path, filename)
+        scipy.io.savemat(filepath, export)
 
     def remove_hp_measurement(self):
         try:
@@ -530,7 +503,7 @@ class MeasurementController:
         except:
             return
 
-        self.gui_handle.plot_hptf(self.hp_irs, fs=48000)
+        self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.fs)
         self.numHPMeasurements -= 1
 
         if self.numHPMeasurements:
@@ -547,7 +520,7 @@ class MeasurementController:
         # algorithm taken in modified form from
         # https://github.com/spatialaudio/hptf-compensation-filters/blob/master/Calc_HpTF_compensation_filter.m
         # Copyright (c) 2016 Vera Erbes
-        # licensed undet MIT license
+        # licensed under MIT license
 
         if beta_regularization is None:
             try:
@@ -569,7 +542,7 @@ class MeasurementController:
         beta = beta_regularization
 
         M = np.size(self.hp_irs, 0)
-        fs = 48000
+        fs = self.measurement.fs
 
         # algorithm
         #######################
@@ -665,6 +638,49 @@ class MeasurementController:
             print("Stop")
             self.reproduction_player.stop()
             self.reproduction_running = False
+
+    def start_osc_send(self, ip=None, port=None, address=None):
+        if self.tracker.tracking_mode == "OSC_direct":
+            return False
+
+        if self.update_osc_parameters(ip, port, address):
+
+            if self.osc_send_client is not None:
+                del self.osc_send_client
+            self.osc_send_client = udp_client.SimpleUDPClient(self.osc_send_ip, self.osc_send_port)
+
+            self.send_osc_data = True
+        else:
+            return False
+
+        return True
+
+
+    def stop_osc_send(self):
+        self.send_osc_data = False
+
+    def update_osc_parameters(self, ip=None, port=None, address=None):
+        if ip is not None:
+            try:
+                socket.inet_aton(ip)
+            except OSError:
+                print("Invalid IP Adress Format!")
+                return False
+            self.osc_send_ip = ip
+        if port is not None:
+            try:
+                port = int(port)
+            except ValueError:
+                print("Invalid Port Format!")
+                return False
+            self.osc_send_port = port
+        if address is not None:
+            self.osc_send_address = address
+
+        return True
+
+    def get_osc_parameters(self):
+        return self.osc_send_ip, self.osc_send_port, self.osc_send_address
 
 
 

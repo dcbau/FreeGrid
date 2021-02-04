@@ -6,6 +6,8 @@ import time
 import numpy as np
 #import pyshtools
 from pyquaternion import Quaternion
+import osc_input
+
 
 
 class Device():
@@ -23,13 +25,6 @@ class Device():
 
     def get_id(self):
         return self.id
-
-class pose():
-    def __init__(self, x_left, y_up, z_forward, translation):
-        self.x_left = x_left
-        self.y_up = y_up
-        self.z_forward = z_forward
-        self.translation = translation
 
 def convert_to_quaternion(pose_mat):
     # Per issue #2, adding a abs() so that sqrt only results in real numbers
@@ -64,6 +59,10 @@ class TrackerManager():
                 'back_pos': None,
                 'head_length': None
             }
+
+            self.tracking_mode = "Vive"
+            self.osc_input_server = osc_input.OSCInputServer()
+            self.osc_input_server.start_listening()
 
             self.acoustical_center_pos = None
 
@@ -122,30 +121,6 @@ class TrackerManager():
             self.calibrate_orientation()
 
 
-
-
-
-
-
-
-        def checkForTriggerEvent(self):
-
-            #print("Check for Trigger Event")
-            if (hasattr(self, 'controller1')):
-                result, controllerState = self.vr_system.getControllerState(self.controller1.id)
-                inputs = self.from_controller_state_to_dict(controllerState)
-                if(bool(controllerState.ulButtonPressed >> 2 & 1)):
-                    print("Button Pressed 1")
-                    return True
-
-            if (hasattr(self, 'controller2')):
-                result, controllerState = self.vr_system.getControllerState(self.controller2.id)
-                if (bool(controllerState.ulButtonPressed >> 2 & 1)):
-                    print("Button Pressed 2")
-                    return True
-
-            return False
-
         def from_controller_state_to_dict(self, pControllerState):
             # docs: https://github.com/ValveSoftware/openvr/wiki/IVRSystem::GetControllerState
             d = {}
@@ -173,17 +148,6 @@ class TrackerManager():
             # System button can't be read, if you press it
             # the controllers stop reporting
             return d
-
-        def trigger_haptic_impulse(self):
-            return
-
-            if (hasattr(self, 'controller1')):
-                id = self.controller1.id
-            else:
-                id = self.controller2.id
-            for i in range(1000):
-                self.vr_system.triggerHapticPulse(id, 1, 1000)
-
 
         def calibrate_orientation(self):
 
@@ -288,6 +252,14 @@ class TrackerManager():
 
 
         def get_relative_position(self):
+
+            if self.tracking_mode == "OSC_direct":
+                try:
+                    angles = self.osc_input_server.get_current_angle()
+                except:
+                    return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
+
+                return angles[0], angles[1], angles[2]
 
             try:
                 if self.offset_mode == 'calibrated' and self.acoustical_center_pos is not None:
@@ -464,3 +436,7 @@ class TrackerManager():
                         return True
                     else:
                         return False
+
+        def set_tracking_mode(self, trackingmode):
+            self.tracking_mode = trackingmode
+

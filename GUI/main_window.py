@@ -101,6 +101,7 @@ class UiMainWindow(object):
 
         #self.device_status_widget.layout().setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
         self.device_status_widget.setMaximumHeight(200)
+
         # TRACKER STATUS WIDGET
 
         self.tracker_status_widget = QtWidgets.QGroupBox("Vive Tracker Status")
@@ -117,6 +118,24 @@ class UiMainWindow(object):
         self.tracker_status_widget.layout().addRow(self.tracker2_label, self.tracker2_status_label)
 
         self.tracker_status_widget.setMaximumHeight(100)
+
+        # OSC STATUS WIDGET
+
+        self.osc_status_box = QtWidgets.QGroupBox("OSC Input Status")
+        self.osc_status_box.setMaximumHeight(100)
+        self.osc_status_box.setLayout(QtWidgets.QVBoxLayout())
+
+        self.osc_status_indicator = QtWidgets.QCheckBox(" OSC Input")
+        self.osc_status_indicator.setStyleSheet("QCheckBox::indicator"
+                                                "{"
+                                                "background-color : lightgrey;"
+                                                "}")
+        self.osc_status_indicator.setCheckable(False)
+        self.osc_status_box.layout().addWidget(self.osc_status_indicator)
+
+        self.osc_status_box.hide()
+
+
 
 
 
@@ -180,28 +199,66 @@ class UiMainWindow(object):
         #############################
 
         # Config Tab
+        #   Select Tracking Input
+        ############################
+
+        self.tracking_input_box = QtWidgets.QGroupBox("Tracking Input")
+        self.tracking_input_box.setFixedHeight(70)
+        self.tracking_input_box.setLayout(QtWidgets.QHBoxLayout())
+
+        self.tracking_input_vive = QtWidgets.QRadioButton("Vive Trackers")
+        self.tracking_input_vive.setChecked(True)
+        self.tracking_input_vive.sourcename = "Vive"
+        self.tracking_input_vive.toggled.connect(self.select_tracking_input)
+        self.tracking_input_box.layout().addWidget(self.tracking_input_vive)
+
+        self.tracking_input_OSC_direct = QtWidgets.QRadioButton("External: OSC (Az|El|R)")
+        self.tracking_input_OSC_direct.sourcename = "OSC_direct"
+        self.tracking_input_OSC_direct.toggled.connect(self.select_tracking_input)
+        self.tracking_input_box.layout().addWidget(self.tracking_input_OSC_direct)
+
+        #radiobutton = QtWidgets.QRadioButton("External: Vive OSC (Raw Data)")
+        #radiobutton.sourcename = "OSC_vive"
+        #radiobutton.toggled.connect(self.select_tracking_input)
+        #self.tracking_input_box.layout().addWidget(radiobutton)
+
+        self.tab_config.layout().addWidget(self.tracking_input_box)
+
+        # Config Tab
+        # Vive Tracker Box
         #   Show Instructions Dialog Box:
         ###########################
 
+
+        self.vivetracker_box = QtWidgets.QGroupBox("Tracker Calibration")
+        self.vivetracker_box.setLayout(QtWidgets.QVBoxLayout())
+        self.vivetracker_box.layout().setAlignment(QtCore.Qt.AlignTop)
+        self.vivetracker_box.setFixedHeight(500)
+
+        self.tab_config.layout().addWidget(self.vivetracker_box)
+
         self.dlg = InstructionsDialogBox()
-        self.show_instructions_button = QtWidgets.QPushButton(self.tab_measure)
+        self.show_instructions_button = QtWidgets.QPushButton()
         self.show_instructions_button.setText("Show Calibration Instructions")
         self.show_instructions_button.clicked.connect(self.dlg.show)
         self.show_instructions_button.setMaximumWidth(200)
-        self.tab_config.layout().addWidget(self.show_instructions_button)
+        self.vivetracker_box.layout().addWidget(self.show_instructions_button)
+
 
         # Config Tab
+        # Vive Tracker Box
         #   Switch Trackers Box:
         ###########################
 
-        self.switchTrackersButton = QtWidgets.QPushButton(self.tab_measure)
+        self.switchTrackersButton = QtWidgets.QPushButton()
         self.switchTrackersButton.setText("Switch Trackers")
         self.switchTrackersButton.setObjectName("switchTrackersButton")
         self.switchTrackersButton.setMaximumWidth(200)
         self.switchTrackersButton.clicked.connect(self.switch_trackers)
-        self.tab_config.layout().addWidget(self.switchTrackersButton)
+        self.vivetracker_box.layout().addWidget(self.switchTrackersButton)
 
         # Config Tab
+        # Vive Tracker Box
         #   Offset Calibration Box:
         ###########################
 
@@ -209,7 +266,7 @@ class UiMainWindow(object):
         self.offset_configuration_box.setLayout(QtWidgets.QVBoxLayout())
         self.offset_configuration_box.setMaximumHeight(250)
 
-        self.tab_config.layout().addWidget(self.offset_configuration_box)
+        self.vivetracker_box.layout().addWidget(self.offset_configuration_box)
 
         self.offset_configuration_widget = QtWidgets.QTabWidget()
         self.offset_configuration_box.layout().addWidget(self.offset_configuration_widget)
@@ -224,6 +281,7 @@ class UiMainWindow(object):
         self.offset_configuration_widget.setTabBarAutoHide(False)
 
         # Config Tab
+        # Vive Tracker Box
         #   Offset Calibration Box:
         #       Manual Offset Tab
 
@@ -247,6 +305,7 @@ class UiMainWindow(object):
         self.manual_offsetbox.layout().addRow("Tracker - Head Y (cm): ", self.offset_head_y)
 
         # Config Tab
+        # Vive Tracker Box
         #   Offset Calibration Box:
         #       Calibrated Offset Tab
 
@@ -273,6 +332,7 @@ class UiMainWindow(object):
         self.calibrated_offsetbox.layout().addRow(self.calibrate_acoustical_center, self.calibrate_acoustical_center_label)
 
         # Config Tab
+        # Vive Tracker Box
         #   Offset Calibration Box:
         #       Head Dimensions Tab
 
@@ -296,6 +356,7 @@ class UiMainWindow(object):
         self.head_dimensions_box.layout().addWidget(self.head_length_label)
 
         # Config Tab
+        # Vive Tracker Box
         #   Offset Calibration Box:
         #       Adding Widgets
 
@@ -304,6 +365,7 @@ class UiMainWindow(object):
         self.offset_configuration_widget.addTab(self.head_dimensions_box, "Head Length")
 
         # Config Tab
+        # Vive Tracker Box
         #   Angular Calibration Box
         ############################
 
@@ -324,14 +386,36 @@ class UiMainWindow(object):
         self.anglecalibration_box.layout().addWidget(self.calibration_wait_time)
         self.anglecalibration_box.layout().addWidget(self.calibrateButton)
 
-        self.tab_config.layout().addWidget(self.anglecalibration_box)
+        self.vivetracker_box.layout().addWidget(self.anglecalibration_box)
+
+        # Config Tab
+        #   OSC Config Box
+        ############################
+
+        self.osc_config_box = QtWidgets.QGroupBox("OSC Configuration")
+        self.osc_config_box.setLayout(QtWidgets.QVBoxLayout())
+        self.osc_config_box.setFixedHeight(500)
+        self.osc_config_box.layout().setAlignment(QtCore.Qt.AlignTop)
+        self.osc_config_box.hide()
+
+        self.osc_ip_label = QtWidgets.QLabel("Current Host IP: ")
+        self.osc_port_label = QtWidgets.QLabel("OSC Server Port: ")
+        self.osc_address_label = QtWidgets.QLabel("Listening for list of [Az, El, R] on osc-address '/guided_hrtfs/angle'")
+        self.osc_address_label.setWordWrap(True)
+
+        self.osc_config_box.layout().addWidget(self.osc_ip_label)
+        self.osc_config_box.layout().addWidget(self.osc_port_label)
+        self.osc_config_box.layout().addWidget(self.osc_address_label)
+
+
+        self.tab_config.layout().addWidget(self.osc_config_box)
 
         # Config Tab
         #   Output Folder Box:
         ############################
 
         self.output_folder_box = QtWidgets.QGroupBox("Select output folder for measured data")
-        self.output_folder_box.setMaximumHeight(100)
+        self.output_folder_box.setFixedHeight(80)
         self.output_folder_box.setLayout(QtWidgets.QHBoxLayout())
         path = os.getcwd()
         path = os.path.join(path, "Measurements")
@@ -353,6 +437,41 @@ class UiMainWindow(object):
 
         self.tab_config.layout().addWidget(self.output_folder_box)
 
+        # Config Tab
+        #   Send OSC Box:
+        ############################
+        self.send_osc_box = QtWidgets.QGroupBox("Send OSC data to external application")
+        self.send_osc_box.setFixedHeight(200)
+        self.send_osc_box.setLayout(QtWidgets.QFormLayout())
+        self.send_osc_box.layout().setLabelAlignment(QtCore.Qt.AlignLeft)
+
+
+        ip, port, address = self.measurement_ref.get_osc_parameters()
+
+        self.send_osc_ip_select = QtWidgets.QLineEdit()
+        self.send_osc_ip_select.setText(ip)
+        self.send_osc_box.layout().addRow("OSC IP Address: ", self.send_osc_ip_select)
+
+        self.send_osc_port_select = QtWidgets.QLineEdit()
+        self.send_osc_port_select.setText(f'{port}')
+        self.send_osc_box.layout().addRow("OSC Port: ", self.send_osc_port_select)
+
+        self.send_osc_address_select = QtWidgets.QLineEdit()
+        self.send_osc_address_select.setText(address)
+        self.send_osc_box.layout().addRow("OSC Address: ", self.send_osc_address_select)
+
+
+        self.send_osc_button = QtWidgets.QPushButton()
+        self.send_osc_button.setText("Send OSC")
+        self.send_osc_button.clicked.connect(self.activate_osc_send)
+        self.send_osc_button.setFixedSize(100, 50)
+        self.send_osc_button.setCheckable(True)
+        #self.send_osc_button.setStyleSheet("background-color : lightgrey")
+        self.send_osc_box.layout().addRow(self.send_osc_button)
+
+        self.tab_config.layout().addWidget(self.send_osc_box)
+
+
         ## MEASURE TAB
         #############################
         #############################
@@ -371,7 +490,7 @@ class UiMainWindow(object):
         self.radiusBox.setMaximum(999)
         self.radiusBox.valueChanged.connect(self.manual_update_radius)
 
-        self.manualAngleBox = QtWidgets.QGroupBox("Set angle manually")
+        self.manualAngleBox = QtWidgets.QGroupBox("Set angle manually (Only visible when VIVE trackers are Qdisconnected)")
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(QtWidgets.QLabel("Azimuth °"))
         layout.addWidget(self.azimuthBox)
@@ -581,6 +700,7 @@ class UiMainWindow(object):
         self.gridLayout.addWidget(self.vpWidget, 0, 0, 1, 1)
         self.gridLayout.addWidget(self.device_status_widget, 1, 0, 1, 1)
         self.gridLayout.addWidget(self.tracker_status_widget, 2, 0, 1, 1)
+        self.gridLayout.addWidget(self.osc_status_box, 2, 0, 1, 1)
 
         self.gridLayout.setColumnStretch(0, 10)
         self.gridLayout.setColumnStretch(1, 10)
@@ -658,13 +778,15 @@ class UiMainWindow(object):
 
 
     def update_tracker_status(self, status):
-        self.tracker1_status_label = QtWidgets.QLabel(status["tracker1"])
-        self.tracker2_status_label = QtWidgets.QLabel(status["tracker2"])
+        self.tracker1_status_label.setText(status["tracker1"])
+        self.tracker2_status_label.setText(status["tracker2"])
 
-        if status["tracker1"] == "Tracking" and status["tracker2"] == "Tracking":
+        if status["tracker1"] == "Tracking" and status["tracker2"] == "Tracking" \
+                or self.measurement_ref.tracker.tracking_mode == "OSC_direct":
             self.manualAngleBox.setVisible(False)
         else:
             self.manualAngleBox.setVisible(True)
+
 
     def updateCurrentAngle(self, az, el, r):
         r = r*100
@@ -954,6 +1076,74 @@ class UiMainWindow(object):
         self.tracker_status_widget.setPalette(palette)
         self.tracker_status_widget.setAutoFillBackground(True)
         self.tracker_status_widget.repaint()
+
+    def select_tracking_input(self):
+        radioButton = self.tracking_input_box.sender()
+        if radioButton.isChecked():
+            if radioButton.sourcename == "Vive":
+                self.vivetracker_box.show()
+                self.osc_config_box.hide()
+
+                self.osc_status_box.hide()
+                self.tracker_status_widget.show()
+
+                self.measurement_ref.tracker.set_tracking_mode(radioButton.sourcename)
+
+                self.send_osc_box.setEnabled(True)
+
+
+            if radioButton.sourcename == "OSC_direct":
+                self.vivetracker_box.hide()
+                self.osc_config_box.show()
+
+                self.tracker_status_widget.hide()
+                self.osc_status_box.show()
+
+                self.measurement_ref.tracker.set_tracking_mode(radioButton.sourcename)
+
+                ip, port = self.measurement_ref.tracker.osc_input_server.get_current_ip_and_port()
+                self.osc_ip_label.setText(f"Current Host IP: {ip}")
+                self.osc_port_label.setText(f"OSC Server Port: {port}")
+
+                self.send_osc_box.setEnabled(False)
+
+                self.manualAngleBox.setVisible(False)
+
+
+    def set_osc_status(self, osc_status):
+        if osc_status:
+            #self.osc_status_indicator.setStyleSheet("color: green")
+            self.osc_status_indicator.setStyleSheet("QCheckBox::indicator"
+                                                    "{"
+                                                    "background-color : lightgreen;"
+                                                    "}")
+        else:
+            #self.osc_status_indicator.setStyleSheet("color: white")
+            self.osc_status_indicator.setStyleSheet("QCheckBox::indicator"
+                                                    "{"
+                                                    "background-color : white;"
+                                                    "}")
+
+    def activate_osc_send(self):
+
+        checked = self.send_osc_button.isChecked()
+
+        if self.send_osc_button.isChecked():
+            if self.measurement_ref.start_osc_send(self.send_osc_ip_select.text(), self.send_osc_port_select.text(), self.send_osc_address_select.text()):
+                self.send_osc_ip_select.setEnabled(False)
+                self.send_osc_port_select.setEnabled(False)
+                self.send_osc_address_select.setEnabled(False)
+                self.tracking_input_OSC_direct.setEnabled(False)
+            else:
+                self.send_osc_button.setChecked(False)
+        else:
+            self.measurement_ref.stop_osc_send()
+            self.send_osc_ip_select.setEnabled(True)
+            self.send_osc_port_select.setEnabled(True)
+            self.send_osc_address_select.setEnabled(True)
+            self.tracking_input_OSC_direct.setEnabled(True)
+
+
 
 
 
