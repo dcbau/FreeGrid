@@ -5,7 +5,7 @@ from measurement import Measurement
 import numpy as np
 import scipy.io
 import scipy.signal.windows
-from grid_improving.grid_filling import angularDistance
+from grid_improving import angular_distance
 import os
 from grid_improving import pointrecommender
 from datetime import date
@@ -13,6 +13,18 @@ from Reproduction import ir_player
 from Reproduction import pybinsim_player
 from pythonosc import udp_client
 import socket
+
+class AnglularVarianceChecker():
+    def __init__(self):
+        self.az = 0
+        self.el = 0
+        self.r = 1
+
+    def set_reference(self, az, el, r):
+        self.ref = np.array([az, el, r])
+
+    def check_variance(self, az, el, r):
+        pass
 
 
 class PositionTableModel(QtCore.QAbstractTableModel):
@@ -193,17 +205,19 @@ class MeasurementController:
             tolerance_angle = 2  # (degree)
             tolerance_radius = 0.1  # (meter)
             az, el, r = self.tracker.get_relative_position()
-            variance = angularDistance(az, el, self.measurement_position[0],
-                                       self.measurement_position[1]) * 180 / np.pi
+            variance = angular_distance.angularDistance(az, el, self.measurement_position[0],
+                                       self.measurement_position[1])
 
             # widen up tolerance angle for extreme elevations, since they are uncomfortable to hold
             if abs(self.measurement_position[1]) > 45:
                 w = abs(self.measurement_position[1]) - 45
                 tolerance_angle += w/4
 
+            print(f"Variance: {variance},   Tolerance: {tolerance_angle}")
             if (variance > tolerance_angle
                     or abs(r - self.measurement_position[2]) > tolerance_radius):
                 self.measurement_valid = False
+                self.measurement.interrupt_measurement()
 
             return
 
@@ -252,8 +266,8 @@ class MeasurementController:
         tolerance_angle = 2  # (degree)
         tolerance_radius = 0.1  # (meter)
         az, el, r = self.tracker.get_relative_position()
-        variance = angularDistance(az, el, self.headmovement_ref_position[0],
-                                   self.headmovement_ref_position[1]) * 180 / np.pi
+        variance = angular_distance.angularDistance(az, el, self.headmovement_ref_position[0],
+                                   self.headmovement_ref_position[1])
         if (variance > tolerance_angle
                 or abs(r - self.headmovement_ref_position[2]) > tolerance_radius):
             self.headmovement_trigger_counter = 0

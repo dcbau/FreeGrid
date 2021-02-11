@@ -13,7 +13,7 @@ class OSCInputServer(object):
 
         # osc default settings
         self.ip = '127.0.0.1'
-        self.port = 1337
+        self.port = 8000
 
         osc_dispatcher = dispatcher.Dispatcher()
         self.osc_identifier_angle = "/guided_hrtfs/angle"

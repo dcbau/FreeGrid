@@ -233,7 +233,6 @@ class PointRecommender():
                                                                    current_el,
                                                                    self.target_angle['az'],
                                                                    self.target_angle['el'])
-            self.distance = self.distance * 180 / np.pi
 
             self.guiding_tone.update_distance(self.distance)
             if self.distance < self.angular_accuracy:

@@ -115,6 +115,9 @@ class Measurement():
             sd.play(self.sound_failed, self.sound_failed_fs)
         sd.wait()
 
+    def interrupt_measurement(self):
+        sd.stop()
+
     def single_measurement(self, type=None):
 
         self.recorded_sweep_l = []

@@ -4,81 +4,7 @@ from grid_improving.grid_creation import *
 import itertools
 import time
 import sound_field_analysis.lebedev
-
-def sph2cart(_az, _el, ra):
-
-    #convention: - el = 0...180°,
-    #            - x-axis = (0°|90°)
-    #            - y-axis = (90°|90°)
-
-    a = _az * np.pi / 180
-    e = _el * np.pi / 180
-
-    x = ra * np.multiply(np.cos(a), np.sin(e))
-    y = ra * np.multiply(np.sin(a), np.sin(e))
-    z = ra * np.cos(e)
-
-    # array = np.array([x, y, z])
-    # array = np.round(array * 1000) / 1000
-
-    return x, y, z
-
-def cart2sph(x, y, z):
-
-    # convention: - el = 0...180°,
-    #            - x-axis = (0°|90°)
-    #            - y-axis = (90°|90°)
-
-    az = np.arctan2(y, x)
-
-    vec = np.array([x, y, z])
-    r = np.linalg.norm(vec, 2, 0)
-    el = np.arccos(z/r)
-
-    az = az * 180 / np.pi
-    el = el * 180 / np.pi
-
-    return az, el
-
-def getDistances(p_az, p_el, grid_az, grid_el, return_format='rad'):
-    x1, y1, z1 = sph2cart(p_az, p_el, 1);
-    x2, y2, z2 = sph2cart(grid_az, grid_el, 1);
-
-    # make the single point value a matrix with same dimensions than the grid
-    x1 = x1 * np.ones_like(x2)
-    y1 = y1 * np.ones_like(z2)
-    z1 = z1 * np.ones_like(z2)
-
-    dotProduct = np.einsum('ji,ji->i', [x1, y1, z1], [x2, y2, z2])
-
-    distances = np.arccos(np.clip(dotProduct, -1.0, 1.0));
-
-    if return_format == 'deg':
-        distances = distances * 180 / np.pi
-
-    return distances
-
-def angularDistance(az1, el1, az2, el2, input_format='deg', return_format='rad'):
-    # el1 = el1 - 90;
-    # el2 = el2 - 90;
-
-    if input_format == 'rad':
-        az1 = az1 * np.pi / 180
-        az2 = az2 * np.pi / 180
-        el1 = el1 * np.pi / 180
-        el2 = el2 * np.pi / 180
-
-    x1, y1, z1 = sph2cart(az1, el1, 1);
-    x2, y2, z2 = sph2cart(az2, el2, 1);
-
-    # distance = np.arctan2(np.linalg.norm(np.cross(xyz1, xyz2)), np.dot(xyz1, xyz2)) / 180;
-    distance = np.arccos(np.clip(np.dot([x1, y1, z1], [x2, y2, z2]), -1.0, 1.0));
-    # distance = np.arccos(np.clip(0.5, -1.0, 1.0)) / np.pi;
-
-    if return_format == 'deg':
-        distance = distance * 180 / np.pi
-
-    return distance
+import grid_improving.angular_distance
 
 
 def get_sph_harms(SHOrder, az, el):
@@ -141,7 +67,7 @@ def calculateDensityAreas(inputGrid, resolution):
         #         minDist = d
         # nearestNeighbors[i] = minDist
 
-        ds = getDistances(Az[i], El[i], inputGrid[:, 0], inputGrid[:, 1])
+        ds = grid_improving.angular_distance.getDistances(Az[i], 90 - El[i], inputGrid[:, 0], 90 - inputGrid[:, 1])
         nearestNeighbors[i] = np.amin(ds)
 
     return Az, El, nearestNeighbors
@@ -158,7 +84,11 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
 
     if _correctionGrid is None:
         lebedev_grid = sound_field_analysis.lebedev.genGrid(194)
-        az, el = cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
+        az, el, r = grid_improving.angular_distance.cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
+        az = az * r2d
+        el = el * r2d
+        az = az % 360
+        el = 90 - el
         _correctionGrid = np.transpose(np.array([az, el]))
 
     inputGrid = _inputGrid * d2r
@@ -220,8 +150,11 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
 
     if _correctionGrid is None:
         lebedev_grid = sound_field_analysis.lebedev.genGrid(194)
-        az, el = cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
+        az, el, r = grid_improving.angular_distance.cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
+        az = az*r2d
+        el = el*r2d
         az = az % 360
+        el = 90 - el
         _correctionGrid = np.transpose(np.array([az, el]))
 
     inputGrid = _inputGrid# * d2r
@@ -249,7 +182,7 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
 
         for i in range(nNewPoints):
             for j in range(np.size(inputGrid, 0)):
-                d = angularDistance(inputGrid[j, 0], inputGrid[j, 1], grid[i, 0], grid[i, 1], return_format='deg')
+                d = grid_improving.angular_distance.angularDistance(inputGrid[j, 0], 90 - inputGrid[j, 1], grid[i, 0], 90 - grid[i, 1], return_format='deg')
                 if d < min_distance:
                     min_distance = d
 
@@ -259,7 +192,7 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
         for c in new_point_combis:
             p1 = grid[c[0], :]
             p2 = grid[c[1], :]
-            d = angularDistance(p1[0], p1[1], p2[0], p2[1], return_format='deg')
+            d = grid_improving.angular_distance.angularDistance(p1[0], 90 - p1[1], p2[0], 90 - p2[1])
             if d < min_distance:
                 min_distance = d
 
