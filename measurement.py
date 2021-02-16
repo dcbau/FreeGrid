@@ -38,9 +38,9 @@ class Measurement():
 
     def __init__(self):
 
-        devices = sd.query_devices()
-        print(devices)
-        print(sd.default.device)
+        #devices = sd.query_devices()
+        #print(devices)
+        #print(sd.default.device)
 
         self.get_names_of_defualt_devices()
 
@@ -50,7 +50,7 @@ class Measurement():
             self.fs = sd.default.samplerate
 
 
-        print(sd.default.samplerate)
+        print(f'Using Samplerate: {sd.default.samplerate}')
 
         # define sweep parameters
         sweeplength_sec = 3

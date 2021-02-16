@@ -720,7 +720,6 @@ class UiMainWindow(object):
 
         self.measurement_ref.register_gui_handler(self)
 
-        print('FINISH SETUP')
 
 
     def retranslateUi(self, MainWindow):
@@ -736,7 +735,6 @@ class UiMainWindow(object):
         self.positions_table.setColumnWidth(1, self.positions_table.width() / 3)
         self.positions_table.setColumnWidth(2, self.positions_table.width() / 3)
 
-        print("Width: " + str(self.positions_table.width()))
 
 
     def manual_update_az(self):
