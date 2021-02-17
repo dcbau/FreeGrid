@@ -585,7 +585,7 @@ class UiMainWindow(object):
         ## DATA LIST TAB
         #############################
         self.positions_table = QtWidgets.QTableView()
-        self.positions_table.setModel(self.measurement_ref.positions_table_model)
+        self.positions_table.setModel(self.measurement_ref.positions_list)
         self.positions_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.positions_table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.positions_table.verticalHeader().show()

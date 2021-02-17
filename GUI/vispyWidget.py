@@ -1,18 +1,14 @@
-import sys
 import numpy as np
 
-from vispy import app, gloo, geometry, visuals
+from vispy import app, gloo
 from vispy.util.transforms import perspective, translate, rotate
-from vispy.geometry.generation import create_sphere
-from vispy.color.colormap import get_colormaps
 
-from PyQt5.QtCore import pyqtSignal, QSize, Qt
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 #import pywavefront
 
-import tracker_manager
 from GUI.gl_shapes import Sphere, Speaker
 
 vertex = """

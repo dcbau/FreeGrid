@@ -1,5 +1,19 @@
 # GuidedHRTFsPython
 
+## Additional Hardware
+### Measurement Equipment
+Of course, a pair of in-ear microphones is needed. We used [these DIY microphones](https://www.researchgate.net/publication/331988584_The_PIRATE_an_anthropometric_earPlug_with_exchangeable_microphones_for_Individual_Reliable_Acquisition_of_Transfer_functions_at_the_Ear_canal_entrance), but any available in-ear microphone will work.
+
+A good measurement loudspeaker with an adequately good magnitude and phase response. It should be rather small to closely match a point source.
+> Low frequency response of the speaker is not that important, since the low frequency range is not that important for an HRTF and is usually crowded with undesired room modes. So we omit the low frequency below 200Hz of the HRTFs anyway.
+
+An audio interface for capturing the IRs an audio interface. It should at least has 2In/2Out. A third I/O is very helpful to have a feedback loop (directly connecting Out3 -> In3), than the software can directly compensate any software- or DA/AD-latency. Digitally controlled preamps of the inputs are a big benefit to avoid L/R level mismatch.
+### Tracking System
+The application is highly specialized to be used with the HTC VIVE system. It is widely available, easy to use, moderate priced and offers very accurate and fast tracking capabilites. Despite many other VR/AR applications, neither the Headset nor the Contollers are needed, only the additionally available [Trackers](https://www.vive.com/de/accessory/vive-tracker/). 
+
+Tracker handling is already built in the application (SteamVR is needed nevertheless), and with an integrated simple calibration routine, very accurate relational angles between head and loudspeaker can be achieved. 
+
+The application is also capable of receiving external tracking data via Open Sound Control (OSC), if a different tracking system is used. But then the external system has to take care of determining the relative angle between head and loudspeaker, because the OSC input only listens to the values *Azimuth*, *Elevation* and *Radius*. 
 ## Install Notes:
 The whole application is Python, so in order to run it you need Python with a bunch of external packages. 
 We highly recommend using [conda](https://docs.conda.io/en/latest/) for this.

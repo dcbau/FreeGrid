@@ -68,8 +68,8 @@ class Measurement():
         self.excitation_hpc_3ch = self.make_excitation_sweep(num_channels=3, d_sweep_sec=2)
 
         #read sound files
-        self.sound_success_fs, self.sound_success = wave.read('Resources/soundfx_success.wav')
-        self.sound_failed_fs, self.sound_failed = wave.read('Resources/soundfx_failed.wav')
+        self.sound_success_fs, self.sound_success = wave.read('resources/soundfx_success.wav')
+        self.sound_failed_fs, self.sound_failed = wave.read('resources/soundfx_failed.wav')
 
 
         self.sound_failed = self.sound_failed * 0.05 / 32768

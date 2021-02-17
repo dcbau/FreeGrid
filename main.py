@@ -1,5 +1,3 @@
-from grid_improving.grid_filling import *
-
 from PyQt5 import QtWidgets
 import sys
 

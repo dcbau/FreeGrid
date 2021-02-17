@@ -1,4 +1,4 @@
-from Reproduction import pybinsim
+from reproduction import pybinsim
 import threading
 import numpy as np
 import scipy.io

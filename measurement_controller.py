@@ -1,4 +1,5 @@
-from tracker_manager import TrackerManager
+from measurement_list import MeasurementListModel
+from tracking.tracker_manager import TrackerManager
 import threading
 from PyQt5 import QtCore
 from measurement import Measurement
@@ -9,93 +10,9 @@ from grid_improving import angular_distance
 import os
 from grid_improving import pointrecommender
 from datetime import date
-from Reproduction import ir_player
-from Reproduction import pybinsim_player
+from reproduction import pybinsim_player
 from pythonosc import udp_client
 import socket
-
-class AnglularVarianceChecker():
-    def __init__(self):
-        self.az = 0
-        self.el = 0
-        self.r = 1
-
-    def set_reference(self, az, el, r):
-        self.ref = np.array([az, el, r])
-
-    def check_variance(self, az, el, r):
-        pass
-
-
-class PositionTableModel(QtCore.QAbstractTableModel):
-    def __init__(self):
-        super(PositionTableModel, self).__init__()
-        self._data = np.array([])
-        self.header = ["Az", "El", "Radius"]
-
-    def set_data(self, data):
-        self.layoutAboutToBeChanged.emit()
-        self._data = data
-        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rowCount(0), self.columnCount(0)))
-        self.layoutChanged.emit()
-
-    def add_position(self, row_value):
-
-        if self._data.any():
-            new_row = self._data.shape[0] + 1
-            self.beginInsertRows(QtCore.QModelIndex(), new_row, new_row)
-            self._data = np.append(self._data, row_value, axis=0)
-            self.endInsertRows()
-
-        else:
-            self.beginResetModel()
-            self._data = np.array(row_value, copy=True)
-            self.endResetModel()
-
-    def remove_position(self, id):
-
-        try:
-            try:
-                start = id.min()
-                end = id.max()
-            except AttributeError:
-                start = id
-                end = id
-            except ValueError:
-                raise IndexError
-            self.beginRemoveRows(QtCore.QModelIndex(), start, end)
-            self._data = np.delete(self._data, id, axis=0)
-            self.endRemoveRows()
-        except IndexError:
-            print("Could not remove measurement from data list: Invalid Id")
-
-
-
-    def data(self, index, role):
-        if role == QtCore.Qt.DisplayRole:
-            if self._data.any():
-                value = self._data[index.row(), index.column()]
-                return str(value)
-
-    def rowCount(self, index):
-        try:
-            return self._data.shape[0]
-        except IndexError:
-            return 0
-
-    def columnCount(self, index):
-        try:
-            return self._data.shape[1]
-        except IndexError:
-            return 0
-
-    def headerData(self, col, orientation, role):
-        if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
-            return self.header[col]
-
-        if orientation == QtCore.Qt.Vertical and role == QtCore.Qt.DisplayRole:
-            return col + 1
-        return None
 
 
 class MeasurementController:
@@ -132,7 +49,7 @@ class MeasurementController:
         self.raw_feedbackloop_reference = np.array([])
 
         self.positions = np.array([])
-        self.positions_table_model = PositionTableModel()
+        self.positions_list = MeasurementListModel()
 
         self.hp_irs = np.array([])
         self.raw_signals_hp = np.array([])
@@ -188,7 +105,6 @@ class MeasurementController:
         if self.send_osc_data:
             az, el, r = self.tracker.get_relative_position()
             self.osc_send_client.send_message(self.osc_send_address, [az, el, r])
-            print(f"Sending {az}|{el}|{r} to {self.osc_send_ip}/{self.osc_send_port}/{self.osc_send_address}")
 
 
 
@@ -213,7 +129,6 @@ class MeasurementController:
                 w = abs(self.measurement_position[1]) - 45
                 tolerance_angle += w/4
 
-            print(f"Variance: {variance},   Tolerance: {tolerance_angle}")
             if (variance > tolerance_angle
                     or abs(r - self.measurement_position[2]) > tolerance_radius):
                 self.measurement_valid = False
@@ -322,7 +237,7 @@ class MeasurementController:
                 self.gui_handle.enable_point_recommendation()
 
             # add to data list
-            self.positions_table_model.add_position(self.measurement_position.reshape(1, 3))
+            self.positions_list.add_position(self.measurement_position.reshape(1, 3))
 
         else:
             self.measurement.play_sound(False)
@@ -427,7 +342,7 @@ class MeasurementController:
 
             self.positions = np.delete(self.positions, id, 0)
 
-            self.positions_table_model.remove_position(id)
+            self.positions_list.remove_position(id)
 
             self.gui_handle.vispy_canvas.meas_points.remove_point(id)
 
@@ -446,7 +361,7 @@ class MeasurementController:
         self.positions = np.array([])
 
         self.gui_handle.vispy_canvas.meas_points.clear_all_points()
-        self.positions_table_model.remove_position(all_ids)
+        self.positions_list.remove_position(all_ids)
 
 
 
@@ -616,7 +531,7 @@ class MeasurementController:
 
     def init_reproduction(self):
         if not self.reproduction_mode:
-            print("init")
+            print("Init Reproduction")
             try:
 
                 #self.reproduction_player = ir_player.IR_player(IR_filepath=self.get_current_file_path())

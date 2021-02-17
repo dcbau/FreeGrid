@@ -1,13 +1,9 @@
-from ctypes import Array
-from typing import Optional
-
 from openvr import *
 import time
 import numpy as np
 #import pyshtools
 from pyquaternion import Quaternion
-import osc_input
-
+from tracking import osc_input
 
 
 class Device():
