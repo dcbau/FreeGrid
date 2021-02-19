@@ -24,7 +24,7 @@ class PyBinSim_Player():
 
         self.client = udp_client.SimpleUDPClient(ip, 10000)
 
-        self.binsim = pybinsim.BinSim('Reproduction/pybinsim_resources/config/config.cfg')
+        self.binsim = pybinsim.BinSim('reproduction/pybinsim_resources/config/config.cfg')
 
     def close(self):
         self.binsim.__exit__(None, None, None)
@@ -161,7 +161,7 @@ class PyBinSim_Player():
                 el_vals = np.zeros(np.size(az_vals)).astype(int)
                 dense_irs = irs_windowed
 
-            ir_export_path = 'Reproduction/pybinsim_resources/BRIRs_CIRC360_pbs'
+            ir_export_path = 'reproduction/pybinsim_resources/BRIRs_CIRC360_pbs'
             ir_folder = os.path.join(ir_export_path, 'IRs')
 
             if not os.path.isdir(ir_export_path):
@@ -190,20 +190,20 @@ class PyBinSim_Player():
                 filterlist.write(f'{az_vals[m]} {el_vals[m]} 0 0 0 0 {filename_full}\n')
 
             # add headphone compesation filter
-            hpcf_path = 'Reproduction/pybinsim_resources/hpirs/HPCF_David_HD660.wav'
+            hpcf_path = 'reproduction/pybinsim_resources/hpirs/HPCF_David_HD660.wav'
             filterlist.write(f'HPFILTER {hpcf_path}\n')
             filterlist.close()
 
             # make the config file
-            config_file_path = 'Reproduction/pybinsim_resources/config/config.cfg'
+            config_file_path = 'reproduction/pybinsim_resources/config/config.cfg'
             if os.path.isfile(config_file_path):
                 os.unlink(config_file_path)
 
             configfile = open(config_file_path, 'w')
-            configfile.write(f'soundfile Reproduction/pybinsim_resources/signal/test_48k.wav\n')
+            configfile.write(f'soundfile reproduction/pybinsim_resources/signal/test_48k.wav\n')
             configfile.write(f'blockSize {blocksize}\n')
             configfile.write(f'filterSize {filter_length}\n')
-            configfile.write(f'filterList Reproduction/pybinsim_resources/BRIRs_CIRC360_pbs/filterlist.txt\n')
+            configfile.write(f'filterList reproduction/pybinsim_resources/BRIRs_CIRC360_pbs/filterlist.txt\n')
             configfile.write(f'maxChannels 2\n')
             configfile.write(f'samplingRate 48000\n')
             configfile.write(f'enableCrossfading False\n')

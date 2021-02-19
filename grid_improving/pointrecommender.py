@@ -229,7 +229,7 @@ class PointRecommender():
 
         if self.guiding_phase == GuidingPhase.guiding_vertical:
 
-            self.distance = grid_improving.grid_filling.angularDistance(current_az,
+            self.distance = grid_improving.angular_distance.angularDistance(current_az,
                                                                    current_el,
                                                                    self.target_angle['az'],
                                                                    self.target_angle['el'])
