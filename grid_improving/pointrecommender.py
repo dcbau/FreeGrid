@@ -177,7 +177,7 @@ class PointRecommender():
         self.target_angle['az'] = az_target % 360
         self.target_angle['el'] = el_target
 
-        self.target_view['yaw'], self.target_view['pitch'], self.target_view['roll'] = self.get_head_rotation_to_point(az_target, el_target)
+        self.target_view['yaw'], self.target_view['pitch'], self.target_view['roll'] = get_head_rotation_to_point(az_target, el_target)
         if abs(self.target_view['yaw']) > self.angular_accuracy:
             self.guiding_phase = GuidingPhase.guiding_horizontal
             self.voice_instructions.play_angle_instruction(rotation='yaw', angle=self.target_view['yaw'])
