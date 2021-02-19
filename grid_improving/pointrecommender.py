@@ -260,94 +260,96 @@ class PointRecommender():
 
         return az, el
 
-    def get_head_rotation_to_point(self, az, el):
-        '''
-        Gives the view direction (how to turn the head in a yaw and pitch/roll movement),
-        so a speaker placed in frontal direction has the given azimuth and elevation
-        relative to the head. To reduce backpain, the elevation is achived by either pitch OR roll,
-        the unused return value is set to zero.
-        @param az: Azimuth angle 0° ... 360°
-        @param el: Elevation angle -90° ... - + 90°
-        @return yaw, pitch, roll: View direction, either [yaw, pitch, 0] or [yaw, 0, roll]
-        '''
-        ## First angle version (yaw/pitch)
+def get_head_rotation_to_point(az, el):
+    '''
+    Gives the view direction (how to turn the head in a yaw and pitch/roll movement),
+    so a speaker placed in frontal direction has the given azimuth and elevation
+    relative to the head. To reduce backpain, the elevation is achived by either pitch OR roll,
+    the unused return value is set to zero.
+    @param az: Azimuth angle 0° ... 360°
+    @param el: Elevation angle -90° ... - + 90°
+    @return yaw, pitch, roll: View direction, either [yaw, pitch, 0] or [yaw, 0, roll]
+    '''
+    ## First angle version (yaw/pitch)
 
-        # calculate angle
-        [yaw1, pitch1] = self.vertical2interauralCoordinates(az, el)
+    # calculate angle
+    [yaw1, pitch1] = vertical2interauralCoordinates(az, el)
 
-        # modify yaw angles for directions behind the lateral plane (modification determined empirically)
-        yaw1 = np.where((az > 90) & (az <= 270), 180 - yaw1,  yaw1)
+    # modify yaw angles for directions behind the lateral plane (modification determined empirically)
+    yaw1 = np.where((az > 90) & (az <= 270), 180 - yaw1,  yaw1)
 
-        # restrict range
-        yaw1 = np.where(yaw1 > 180, yaw1 - 360, yaw1)
-        yaw1 = np.where(yaw1 < -180, yaw1 + 360, yaw1)
+    # restrict range
+    yaw1 = np.where(yaw1 > 180, yaw1 - 360, yaw1)
+    yaw1 = np.where(yaw1 < -180, yaw1 + 360, yaw1)
 
-        # invert to make it a view direction
-        yaw1 *= -1
-        pitch1 *= -1
+    # invert to make it a view direction
+    yaw1 *= -1
+    pitch1 *= -1
 
-        ## Second angle version (yaw/roll)
-        '@todo: for some angles the roll movements are ridiculous. eg. az=260, el=30 -> roll over 90°!' \
-        'roll should always be below 90° '
+    ## Second angle version (yaw/roll)
 
-        # calculate angle
-        [yaw2, roll2] = self.vertical2frontalCoordinates(az, el)
+    # calculate angle
+    [yaw2, roll2] = vertical2frontalCoordinates(az, el)
 
-        # modify yaw angles left/right side seperately (values determined empirically)
-        yaw2 = np.where(az <= 180, 90 - yaw2, yaw2 - 90)
+    # modify yaw angles left/right side seperately (values determined empirically)
+    yaw2 = np.where(az <= 180, 90 - yaw2, yaw2 - 90)
 
-        # invert to make it a view direction
-        yaw2 *= -1
-        roll2 *= -1
+    # invert to make it a view direction
+    yaw2 *= -1
+    roll2 *= -1
 
-        ## make new final list containing both movement options
+    ## make new final list containing both movement options
 
-        # select version where the elevation movement is smaller (easier to reach)
-        yaw = np.where(np.abs(pitch1) > np.abs(roll2), yaw2, yaw1)
-        pitch = np.where(np.abs(pitch1) > np.abs(roll2), 0, pitch1)
-        roll = np.where(np.abs(pitch1) > np.abs(roll2), roll2, 0)
+    # select version where the elevation movement is smaller (easier to reach)
+    yaw = np.where(np.abs(pitch1) > np.abs(roll2), yaw2, yaw1)
+    pitch = np.where(np.abs(pitch1) > np.abs(roll2), 0, pitch1)
+    roll = np.where(np.abs(pitch1) > np.abs(roll2), roll2, 0)
 
-        return yaw, pitch, roll
+    return yaw, pitch, roll
 
 
 
 
-    def vertical2interauralCoordinates(self, az, el):
-        '''
-        Converting from "vertical-polar" (first rotatation around the
-        vertical axis -> poles are on the vertical axis) to "interaural-polar" (first
-        rotatation is around the interaural axis & poles are on the interaural axis)
-        '''
+def vertical2interauralCoordinates(az, el):
+    '''
+    Converting from "vertical-polar" (first rotatation around the
+    vertical axis -> poles are on the vertical axis) to "interaural-polar" (first
+    rotatation is around the interaural axis & poles are on the interaural axis)
+    '''
 
-        #Source:
-        #Mattes et al, 2012: "Towards a human perceputal model for 3D sound localization"
+    #Source:
+    #Mattes et al, 2012: "Towards a human perceputal model for 3D sound localization"
 
-        el = np.deg2rad(el)
-        az = np.deg2rad(az)
+    el = np.deg2rad(el)
+    az = np.deg2rad(az)
 
-        el_interaural = np.arctan(np.tan(el) / np.cos(az))
-        az_interaural = np.arcsin(np.cos(el) * np.sin(az))
+    el_interaural = np.arctan(np.tan(el) / np.cos(az))
+    az_interaural = np.arcsin(np.cos(el) * np.sin(az))
 
-        az_interaural = np.rad2deg(az_interaural)
-        el_interaural = np.rad2deg(el_interaural)
+    az_interaural = np.rad2deg(az_interaural)
+    el_interaural = np.rad2deg(el_interaural)
 
-        return az_interaural, el_interaural
+    return az_interaural, el_interaural
 
-    def vertical2frontalCoordinates(self, az, el):
-        '''
-        Converting from "vertical-polar" (first rotatation around the
-        vertical axis -> poles are on the vertical axis) to "frontal-polar" (first
-        rotatation is around the frontal axis & poles are on the frontal axis)
+def vertical2frontalCoordinates(az, el):
+    '''
+    Converting from "vertical-polar" (first rotatation around the
+    vertical axis -> poles are on the vertical axis) to "frontal-polar" (first
+    rotatation is around the frontal axis & poles are on the frontal axis)
 
-        The returned elevation corresponds to a lateral elevation (like a roll movement of the head)
-        '''
-        el = np.deg2rad(el)
-        az = np.deg2rad(az)
+    The returned elevation corresponds to a lateral elevation (like a roll movement of the head)
+    '''
+    el = np.deg2rad(el)
+    az = np.deg2rad(az)
 
+    if az > np.pi:
+        el_frontal = -np.arctan2(np.tan(el), -np.sin(az)) # little hack to comply to acot(cot(el) * sin(az))
+    else:
         el_frontal = np.arctan2(np.tan(el), np.sin(az))
-        az_frontal = np.arcsin(np.cos(el) * np.cos(az))
 
-        az_frontal = np.rad2deg(az_frontal)
-        el_frontal = np.rad2deg(el_frontal)
+    az_frontal = np.arcsin(np.cos(el) * np.cos(az))
 
-        return az_frontal, el_frontal
+    az_frontal = np.rad2deg(az_frontal)
+    el_frontal = np.rad2deg(el_frontal)
+
+    return az_frontal, el_frontal
