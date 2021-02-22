@@ -61,7 +61,7 @@ class MeasurementController:
         self.guidance_running = False
         self.recommended_points = {}
         self.point_recommender = pointrecommender.PointRecommender(self.tracker)
-        self.point_recommender.get_head_rotation_to_point(260, 40)
+        #self.point_recommender.get_head_rotation_to_point(260, 40)
 
         today = date.today()
         self.current_date = today.strftime("%d_%m_%Y")

@@ -40,12 +40,6 @@ class TrackerManager():
             self.trackers_switched = False
             self.counter = 0
 
-            self.offset_cm = {
-                'speaker_z': 6,
-                'speaker_y': 7,
-                'head_y': 15
-            }
-
             self.head_dimensions = {
                 'ear_pos_l': None,
                 'ear_pos_r': None,
@@ -62,7 +56,6 @@ class TrackerManager():
 
             self.acoustical_center_pos = None
 
-            self.offset_mode = 'calibrated'
 
             self.vr_system_initialized = False
 
@@ -274,10 +267,13 @@ class TrackerManager():
                 return angles[0], angles[1], angles[2]
 
             try:
-                if self.offset_mode == 'calibrated' and self.acoustical_center_pos is not None:
-                    pose_head, pose_speaker = self.get_tracker_data(only_tracker_1=True)
+                if self.acoustical_center_pos is not None:
+                    pose_head = self.get_tracker_data(only_tracker_1=True)
+                    translation_speaker = self.acoustical_center_pos
                 else:
+                    # if speaker is not calibrated yet, the live tracking speaker pose is used
                     pose_head, pose_speaker = self.get_tracker_data()
+                    translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
 
             except:
                 return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
@@ -291,37 +287,12 @@ class TrackerManager():
 
                 translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
 
-                if self.offset_mode == 'calibrated' and self.head_dimensions['ear_center'] is not None:
+                if self.head_dimensions['ear_center'] is not None:
                     offset_x = self.head_dimensions['ear_center'][0] * np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
                     offset_y = self.head_dimensions['ear_center'][1] * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
                     offset_z = self.head_dimensions['ear_center'][2] * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
 
                     translation_head = translation_head + offset_x + offset_y + offset_z
-                else:
-                    # offset from ears to tracker
-                    # true head center lies below the tracker (negative y direction), so we translate the pose matrix "down"
-                    if mystery_flag:
-                        offset_y_vector = self.offset_cm['head_y'] * 0.01 * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
-                    else:
-                        offset_y_vector = -self.offset_cm['head_y'] * 0.01 * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
-
-                    translation_head = translation_head + offset_y_vector
-
-                if self.offset_mode == 'calibrated' and self.acoustical_center_pos is not None:
-
-                    translation_speaker = self.acoustical_center_pos
-                else:
-                    translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
-
-                    # offset from speaker center to tracker
-                    if mystery_flag:
-                        offset_y_vector = self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
-                        offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
-                    else:
-                        offset_y_vector = -self.offset_cm['speaker_y'] * 0.01 * np.array([pose_speaker.m[0][1], pose_speaker.m[1][1], pose_speaker.m[2][1]])
-                        offset_z_vector = self.offset_cm['speaker_z'] * 0.01 * np.array([pose_speaker.m[0][2], pose_speaker.m[1][2], pose_speaker.m[2][2]])
-                    translation_speaker = translation_speaker + offset_y_vector + offset_z_vector
-
 
                 # get vector pointing from head center to speaker center
                 transvec = translation_speaker - translation_head
@@ -438,16 +409,10 @@ class TrackerManager():
 
         def check_if_tracking_is_valid(self):
             if self.vr_system_initialized:
-                if self.offset_mode == 'calibrated':
-                    if not self.trackers_switched:
-                        return self.tracker1.isActive
-                    else:
-                        return self.tracker2.isActive
+                if not self.trackers_switched:
+                    return self.tracker1.isActive
                 else:
-                    if self.tracker1.isActive and self.tracker2.isActive:
-                        return True
-                    else:
-                        return False
+                    return self.tracker2.isActive
 
         def set_tracking_mode(self, trackingmode):
             self.tracking_mode = trackingmode
