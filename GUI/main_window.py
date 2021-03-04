@@ -1375,12 +1375,12 @@ class PlotWidget(QtWidgets.QWidget):
         if plot=='waveform_log':
             t_vec = np.arange(0, np.size(ir_r)) / fs
             logwaveform = 20 * np.log10(np.abs(ir_r))
-            ax1.plot(t_vec, logwaveform)
-            ax1.set_ylim([-120, np.max([np.max(logwaveform), 12])])
-            ax1.set_xlabel('Seconds')
+            ax2.plot(t_vec, logwaveform)
+            ax2.set_ylim([-120, np.max([np.max(logwaveform), 12])])
+            ax2.set_xlabel('Seconds')
         elif plot == 'waveform':
             t_vec = np.arange(0, np.size(ir_r)) / fs
-            ax1.plot(t_vec, ir_r)
+            ax2.plot(t_vec, ir_r)
         elif plot=='spectrogram':
             _,_,_, cax2 = ax2.specgram(ir_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
             self.plot2.colorbar(cax2).set_label('dB')

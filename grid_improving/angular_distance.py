@@ -55,7 +55,6 @@ def angularDistance(az1, el1, az2, el2, input_format='deg', return_format='deg')
     # distance = np.arctan2(np.linalg.norm(np.cross(xyz1, xyz2)), np.dot(xyz1, xyz2)) / 180;
     distance = np.arccos(np.clip(np.dot([x1, y1, z1], [x2, y2, z2]), -1.0, 1.0));
     # distance = np.arccos(np.clip(0.5, -1.0, 1.0)) / np.pi;
-    print(distance)
 
     if return_format == 'deg':
         distance = distance * 180 / np.pi

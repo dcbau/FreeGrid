@@ -244,14 +244,19 @@ class MeasurementController:
 
     def save_to_file(self):
 
-
+        headWidth = self.tracker.head_dimensions['head_width']
+        if headWidth is None:
+            headWidth = "Not available"
+        headLength = self.tracker.head_dimensions['head_length']
+        if headLength is None:
+            headLength = "Not available"
         export = {'rawRecorded': self.raw_signals,
                   'rawFeedbackLoop': self.raw_feedbackloop,
                   'dataIR': self.measurements,
                   'sourcePositions': self.positions,
                   'fs': self.measurement.fs,
-                  'headWidth': self.tracker.head_dimensions['head_width'],
-                  'headLength': self.tracker.head_dimensions['head_length']}
+                  'headWidth': headWidth,
+                  'headLength': headLength}
 
         scipy.io.savemat(self.get_current_file_path(), export)
 
@@ -534,7 +539,7 @@ class MeasurementController:
 
     def init_reproduction(self):
         if not self.reproduction_mode:
-            print("Init Reproduction")
+            print("Init reproduction")
             try:
 
                 #self.reproduction_player = ir_player.IR_player(IR_filepath=self.get_current_file_path())

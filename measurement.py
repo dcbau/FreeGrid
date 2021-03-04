@@ -275,11 +275,12 @@ class Measurement():
 
 
         # make IR
-        fc_lp = self.sweep_parameters['f_start'] * 2
-        fc_hp = 20000
-        self.ir_l = deconvolve(self.feedback_loop, self.recorded_sweep_l, self.fs, lowpass=[fc_lp, 4, 2])
-        self.ir_r = deconvolve(self.feedback_loop, self.recorded_sweep_r, self.fs, highpass=[fc_hp, 4, 2])
+        fc_hp = 50 #self.sweep_parameters['f_start'] * 2
+        fc_lp = 18000
+        self.ir_l = deconvolve(self.feedback_loop, self.recorded_sweep_l, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
+        self.ir_r = deconvolve(self.feedback_loop, self.recorded_sweep_r, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
 
+        #self.ir_l = deconv(self.feedback_loop, self.recorded_sweep_l)
     def get_names_of_defualt_devices(self):
         try:
             input_dev = sd.query_devices(sd.default.device[0])
