@@ -1,9 +1,9 @@
 import sounddevice as sd
-from scipy.signal import chirp
+from scipy.signal import chirp, unit_impulse, butter, sosfilt
 import matplotlib.pyplot as mplot
 import matplotlib
 import scipy.io.wavfile as wave
-from numpy.fft import fft, ifft
+from numpy.fft import fft, ifft, rfft, irfft
 import numpy as np
 import time
 
@@ -33,6 +33,88 @@ def deconv(x, y):
 
     return h
 
+# deconvolution method similar to AKdeconv() from the AKtools matlab toolbox
+def deconvolve(x, y, fs, max_inv_dyn=None, lowpass=None, highpass=None):
+    input_length = np.size(x)
+    n = np.ceil(np.log2(input_length)) + 1
+    N_fft = int(pow(2, n))
+
+    # transform
+    X_f = rfft(x, N_fft)
+    Y_f = rfft(y, N_fft)
+
+    # invert input signal
+    X_inv = 1 / X_f
+
+    if max_inv_dyn is not None:
+        # identify bins that exceed max inversion dynamic
+        min_mag = np.min(np.abs(X_inv))
+        mag_limit = min_mag * pow(10, np.abs(max_inv_dyn) / 20)
+        ids_exceed = np.where(abs(X_inv) > mag_limit)
+
+        # clip magnitude and leave phase untouched
+        X_inv[ids_exceed] = mag_limit * np.exp(1j * np.angle(X_inv[ids_exceed]))
+
+    if lowpass is not None or highpass is not None:
+        # make fir filter by pushing a dirac through a butterworth SOS (multiple times)
+        lp_filter = hp_filter = unit_impulse(N_fft)
+
+        # lowpass
+        if lowpass is not None:
+            sos_lp = butter(lowpass[1], lowpass[0], 'lowpass', fs=fs, output='sos')
+            for i in range(lowpass[2]):
+                lp_filter = sosfilt(sos_lp, lp_filter)
+        lp_filter = rfft(lp_filter)
+
+        # highpass
+        if highpass is not None:
+            sos_hp = butter(highpass[1], highpass[0], 'highpass', fs=fs, output='sos')
+            for i in range(highpass[2]):
+                hp_filter = sosfilt(sos_hp, hp_filter)
+        hp_filter = rfft(hp_filter)
+
+        lp_hp_filter = hp_filter * lp_filter
+
+        # apply filter
+        X_inv = X_inv * lp_hp_filter
+
+    # deconvolve
+    H = Y_f * X_inv
+
+    # backward transform
+    h = irfft(H, N_fft)
+
+    # truncate to original length
+    h = h[:input_length]
+
+    return h
+
+def make_excitation_sweep(fs, num_channels=2, d_sweep_sec=3, d_post_silence_sec=1, f_start=20, f_end=20000, amp_db=-20, fade_out_samples=0):
+
+    amplitude_lin = 10 ** (amp_db / 20)
+
+    # make sweep
+    t_sweep = np.linspace(0, d_sweep_sec, int(d_sweep_sec * fs))
+    sweep = amplitude_lin * chirp(t_sweep, f0=f_start, t1=d_sweep_sec, f1=f_end, method='logarithmic', phi=90)
+
+    # squared cosine fade
+    fade_tmp = np.cos(np.linspace(0, np.pi / 2, fade_out_samples)) ** 2
+    window = np.ones(np.size(sweep, 0))
+    window[np.size(window) - fade_out_samples: np.size(window)] = fade_tmp
+    sweep = sweep * window
+
+    pre_silence = int(fs * 0.01) # 10msec post silence for safety while playback
+    post_silence = int(fs * d_post_silence_sec)
+
+
+    excitation = np.pad(sweep, (pre_silence, post_silence))
+
+    excitation = np.tile(excitation, (num_channels, 1))  # make stereo or more, for out channels 1 & 2
+    excitation = np.transpose(excitation).astype(np.float32)
+
+    return excitation
+
+
 
 class Measurement():
 
@@ -52,20 +134,29 @@ class Measurement():
 
         print(f'Using Samplerate: {sd.default.samplerate}')
 
-        # define sweep parameters
-        sweeplength_sec = 3
-        silencelength_sec = 1
-        amplitude_db = -20
-        f_start = 20
-        f_end = 20000
+        self.sweep_parameters = {
+            'sweeplength_sec': 3.0,
+            'post_silence_sec': 1.5,
+            'f_start': 10,
+            'f_end': 22000,
+            'amp_db': -20.0,
+            'fade_out_samples': 200
+        }
+
 
         self.dummy_debugging = False
 
         #make sweep
-        self.excitation = self.make_excitation_sweep(f_start=100, d_sweep_sec=2)
-        self.excitation_3ch = self.make_excitation_sweep(num_channels=3, f_start=100, d_sweep_sec=2)
-        self.excitation_hpc = self.make_excitation_sweep(d_sweep_sec=2)
-        self.excitation_hpc_3ch = self.make_excitation_sweep(num_channels=3, d_sweep_sec=2)
+
+
+        self.make_regular_sweeps()
+
+        self.excitation_hpc = make_excitation_sweep(fs=self.fs, d_sweep_sec=2)
+        self.excitation_hpc_3ch = make_excitation_sweep(fs=self.fs, num_channels=3, d_sweep_sec=2)
+
+        if self.dummy_debugging:
+            self.excitation = make_excitation_sweep(fs=self.fs, f_start=100, d_sweep_sec=0.01, d_post_silence_sec=0.01)
+            self.excitation_3ch = make_excitation_sweep(fs=self.fs, num_channels=3, d_sweep_sec=0.01, d_post_silence_sec=0.01)
 
         #read sound files
         self.sound_success_fs, self.sound_success = wave.read('resources/soundfx_success.wav')
@@ -83,27 +174,38 @@ class Measurement():
         self.ir_l = []
         self.ir_r = []
 
-    def make_excitation_sweep(self, num_channels=2, d_sweep_sec=3, d_post_silence_sec=1, f_start=20, f_end=20000, amp_db=-20):
+    def set_sweep_parameters(self, d_sweep_sec, d_post_silence_sec, f_start, f_end, amp_db, fade_out_samples):
+        self.sweep_parameters['sweeplength_sec'] = d_sweep_sec
+        self.sweep_parameters['post_silence_sec'] = d_post_silence_sec
+        self.sweep_parameters['f_start'] = f_start
+        self.sweep_parameters['f_end'] = f_end
+        self.sweep_parameters['amp_db'] = amp_db
+        self.sweep_parameters['fade_out_samples'] = fade_out_samples
 
-        amplitude_lin = 10 ** (amp_db / 20)
+        self.make_regular_sweeps()
 
-        if self.dummy_debugging:
-            d_sweep_sec = 0.01
+    def get_sweep_parameters(self):
+        return self.sweep_parameters
 
-        # make sweep
-        t_sweep = np.linspace(0, d_sweep_sec, d_sweep_sec * self.fs)
-        sweep = amplitude_lin * chirp(t_sweep, f0=f_start, t1=d_sweep_sec, f1=f_end, method='logarithmic', phi=90)
+    def make_regular_sweeps(self):
+        self.excitation = make_excitation_sweep(fs=self.fs,
+                                                d_sweep_sec=self.sweep_parameters['sweeplength_sec'],
+                                                d_post_silence_sec=self.sweep_parameters['post_silence_sec'],
+                                                f_start=self.sweep_parameters['f_start'],
+                                                f_end=self.sweep_parameters['f_end'],
+                                                amp_db=self.sweep_parameters['amp_db'],
+                                                fade_out_samples=self.sweep_parameters['fade_out_samples'])
 
-        silence = np.zeros(self.fs * d_post_silence_sec)
-        if self.dummy_debugging:
-            silence = np.zeros(2000)
+        self.excitation_3ch = make_excitation_sweep(fs=self.fs,
+                                                    d_sweep_sec=self.sweep_parameters['sweeplength_sec'],
+                                                    d_post_silence_sec=self.sweep_parameters['post_silence_sec'],
+                                                    f_start=self.sweep_parameters['f_start'],
+                                                    f_end=self.sweep_parameters['f_end'],
+                                                    amp_db=self.sweep_parameters['amp_db'],
+                                                    fade_out_samples=self.sweep_parameters['fade_out_samples'],
+                                                    num_channels=3)
 
-        excitation = np.append(sweep, silence)
 
-        excitation = np.tile(excitation, (num_channels, 1))  # make stereo or more, for out channels 1 & 2
-        excitation = np.transpose(excitation).astype(np.float32)
-
-        return excitation
 
 
 
@@ -173,9 +275,10 @@ class Measurement():
 
 
         # make IR
-        self.ir_l = deconv(self.feedback_loop, self.recorded_sweep_l)
-        self.ir_r = deconv(self.feedback_loop, self.recorded_sweep_r)
-
+        fc_lp = self.sweep_parameters['f_start'] * 2
+        fc_hp = 20000
+        self.ir_l = deconvolve(self.feedback_loop, self.recorded_sweep_l, self.fs, lowpass=[fc_lp, 4, 2])
+        self.ir_r = deconvolve(self.feedback_loop, self.recorded_sweep_r, self.fs, highpass=[fc_hp, 4, 2])
 
     def get_names_of_defualt_devices(self):
         input_dev = sd.query_devices(sd.default.device[0])

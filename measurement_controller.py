@@ -244,11 +244,14 @@ class MeasurementController:
 
     def save_to_file(self):
 
+
         export = {'rawRecorded': self.raw_signals,
                   'rawFeedbackLoop': self.raw_feedbackloop,
                   'dataIR': self.measurements,
                   'sourcePositions': self.positions,
-                  'fs': self.measurement.fs}
+                  'fs': self.measurement.fs,
+                  'headWidth': self.tracker.head_dimensions['head_width'],
+                  'headLength': self.tracker.head_dimensions['head_length']}
 
         scipy.io.savemat(self.get_current_file_path(), export)
 

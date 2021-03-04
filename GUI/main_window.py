@@ -257,6 +257,11 @@ class UiMainWindow(object):
         self.switchTrackersButton.clicked.connect(self.switch_trackers)
         self.vivetracker_box.layout().addWidget(self.switchTrackersButton)
 
+        # Config Tab
+        # Vive Tracker Box
+        #   Delay trackers textfield:
+        ###########################
+
         self.delay_calibration_layout = QtWidgets.QHBoxLayout()
         self.delay_calibration_layout.setAlignment(QtCore.Qt.AlignLeft)
         self.vivetracker_box.layout().addLayout(self.delay_calibration_layout)
@@ -265,6 +270,74 @@ class UiMainWindow(object):
         self.calibration_wait_time = QtWidgets.QSpinBox()
         self.delay_calibration_layout.addWidget(self.calibration_wait_time)
 
+        # Config Tab
+        # Vive Tracker Box
+        #   Head Dimensions Dialog:
+        ###########################
+
+        self.head_dimensions_dialog = QtWidgets.QDialog()
+
+        self.head_dimensions_dialog.setModal(False)
+        self.head_dimensions_dialog.setWindowTitle("Measure Head Dimensions")
+
+        Btn = QtWidgets.QDialogButtonBox.Close
+        self.head_dimensions_dialog.buttonBox = QtWidgets.QDialogButtonBox(Btn)
+        self.head_dimensions_dialog.buttonBox.clicked.connect(self.head_dimensions_dialog.close)
+
+        self.head_dimensions_dialog.setLayout(QtWidgets.QVBoxLayout())
+        self.head_dimensions_dialog.layout().setAlignment(QtCore.Qt.AlignLeft)
+
+        self.head_dimensions_formlayout = QtWidgets.QFormLayout()
+        self.head_dimensions_dialog.layout().addLayout(self.head_dimensions_formlayout)
+
+        calibration_button_width = 180
+        calibration_button_size = QtCore.QSize(calibration_button_width, 50)
+
+        self.calibrate_left_head = QtWidgets.QPushButton(text='Left Side')
+        self.calibrate_left_head.setAutoDefault(False)
+        # self.calibrate_ear_left.setFixedSize(calibration_button_size)
+        self.calibrate_left_head.setFixedWidth(calibration_button_width)
+        self.calibrate_left_head.clicked.connect(lambda: self.calibrate(self.calibrate_head_left))
+        self.calibrate_left_head_label = QtWidgets.QLabel(text="Uncalibrated")
+        self.head_dimensions_formlayout.addRow(self.calibrate_left_head, self.calibrate_left_head_label)
+
+        self.calibrate_right_head = QtWidgets.QPushButton(text='Right Side')
+        self.calibrate_right_head.setAutoDefault(False)
+
+        # self.calibrate_ear_right.setFixedSize(calibration_button_size)
+        self.calibrate_right_head.setFixedWidth(calibration_button_width)
+        self.calibrate_right_head.clicked.connect(lambda: self.calibrate(self.calibrate_head_right))
+        self.calibrate_right_head_label = QtWidgets.QLabel(text="Uncalibrated")
+        self.head_dimensions_formlayout.addRow(self.calibrate_right_head, self.calibrate_right_head_label)
+
+        self.head_width_label = QtWidgets.QLabel(text="Head Width: - ")
+        self.head_dimensions_formlayout.addRow(QtWidgets.QLabel(""), self.head_width_label)
+
+        self.calibrate_front_head = QtWidgets.QPushButton(text='Front Of Head')
+        self.calibrate_front_head.setAutoDefault(False)
+        # self.calibrate_front_head.setFixedSize(calibration_button_size)
+        self.calibrate_front_head.setFixedWidth(calibration_button_width)
+        self.calibrate_front_head.clicked.connect(lambda: self.calibrate(self.calibrate_head_front))
+        self.head_dimensions_formlayout.addRow(self.calibrate_front_head, QtWidgets.QLabel("(Optional)"))
+
+        self.calibrate_back_head = QtWidgets.QPushButton(text='Back Of Head')
+        self.calibrate_back_head.setAutoDefault(False)
+        # self.calibrate_back_head.setFixedSize(calibration_button_size)
+        self.calibrate_back_head.setFixedWidth(calibration_button_width)
+        self.calibrate_back_head.clicked.connect(lambda: self.calibrate(self.calibrate_head_back))
+        self.head_dimensions_formlayout.addRow(self.calibrate_back_head, QtWidgets.QLabel("(Optional)"))
+
+        self.head_length_label = QtWidgets.QLabel(text="Head Length: - ")
+        self.head_dimensions_formlayout.addRow(QtWidgets.QLabel(""), self.head_length_label)
+
+        self.head_dimensions_dialog.layout().addWidget(self.head_dimensions_dialog.buttonBox)
+
+
+        self.show_head_dimensions = QtWidgets.QPushButton()
+        self.show_head_dimensions.setText("Measure Head Dimensions")
+        self.show_head_dimensions.clicked.connect(self.head_dimensions_dialog.show)
+        self.show_head_dimensions.setMaximumWidth(200)
+        self.vivetracker_box.layout().addWidget(self.show_head_dimensions)
 
         # Config Tab
         # Vive Tracker Box
@@ -296,24 +369,6 @@ class UiMainWindow(object):
         self.calibrate_ear_right.clicked.connect(lambda: self.calibrate(self.calibrate_right_ear))
         self.calibrate_ear_right_label = QtWidgets.QLabel(text="Uncalibrated")
         self.calibrations_formlayout.addRow(self.calibrate_ear_right, self.calibrate_ear_right_label)
-
-        self.head_diameter_label = QtWidgets.QLabel(text="Head Diameter: - ")
-        self.calibrations_formlayout.addRow(QtWidgets.QLabel(""), self.head_diameter_label)
-
-        self.calibrate_front_head = QtWidgets.QPushButton(text='Calibrate Front Of Head')
-        #self.calibrate_front_head.setFixedSize(calibration_button_size)
-        self.calibrate_front_head.setFixedWidth(calibration_button_width)
-        self.calibrate_front_head.clicked.connect(lambda: self.calibrate(self.calibrate_head_front))
-        self.calibrations_formlayout.addRow(self.calibrate_front_head, QtWidgets.QLabel("(Optional)"))
-
-        self.calibrate_back_head = QtWidgets.QPushButton(text='Calibrate Back Of Head')
-        #self.calibrate_back_head.setFixedSize(calibration_button_size)
-        self.calibrate_back_head.setFixedWidth(calibration_button_width)
-        self.calibrate_back_head.clicked.connect(lambda: self.calibrate(self.calibrate_head_back))
-        self.calibrations_formlayout.addRow(self.calibrate_back_head, QtWidgets.QLabel("(Optional)"))
-
-        self.head_length_label = QtWidgets.QLabel(text="Head Length: - ")
-        self.calibrations_formlayout.addRow(QtWidgets.QLabel(""), self.head_length_label)
 
         self.calibrate_acoustical_center = QtWidgets.QPushButton(text='Calibrate Speaker')
         #self.calibrate_acoustical_center.setFixedSize(calibration_button_size)
@@ -355,6 +410,66 @@ class UiMainWindow(object):
 
 
         self.tab_config.layout().addWidget(self.osc_config_box)
+
+        # Config Tab
+        #   Measurement Parameters Box:
+        ############################
+
+        self.measuremet_paramteres_box = QtWidgets.QGroupBox("Measurement Parameters")
+        self.measuremet_paramteres_box.setLayout(QtWidgets.QVBoxLayout())
+
+
+        self.sweep_parameters_dialog = QtWidgets.QDialog()
+        self.sweep_parameters_dialog.setModal(False)
+        self.sweep_parameters_dialog.setWindowTitle("Sweep Parameters")
+
+        Btn_ok = QtWidgets.QDialogButtonBox.Ok
+        self.sweep_parameters_dialog.buttonBox = QtWidgets.QDialogButtonBox(Btn_ok)
+        self.sweep_parameters_dialog.buttonBox.clicked.connect(self.update_sweep_parameters)
+
+        self.sweep_parameters_dialog.setLayout(QtWidgets.QVBoxLayout())
+        self.sweep_parameters_dialog.layout().setAlignment(QtCore.Qt.AlignLeft)
+
+        self.sweep_parameters_formlayout = QtWidgets.QFormLayout()
+        self.sweep_parameters_dialog.layout().addLayout(self.sweep_parameters_formlayout)
+
+        # get current parameters
+        sweep_params = self.measurement_ref.measurement.get_sweep_parameters()
+
+        # add row entries for each parameter
+        self.sweeplength_sec = QtWidgets.QLineEdit(str(sweep_params['sweeplength_sec']))
+        self.sweep_parameters_formlayout.addRow(self.sweeplength_sec, QtWidgets.QLabel(text='Sweep length (sec)'))
+
+        self.post_silence_sec = QtWidgets.QLineEdit(str(sweep_params['post_silence_sec']))
+        self.sweep_parameters_formlayout.addRow(self.post_silence_sec, QtWidgets.QLabel(text='Silence after sweep (sec)'))
+
+        self.f_start = QtWidgets.QLineEdit(str(sweep_params['f_start']))
+        self.sweep_parameters_formlayout.addRow(self.f_start, QtWidgets.QLabel(text='Sweep start frequency (Hz)'))
+
+        self.f_end = QtWidgets.QLineEdit(str(sweep_params['f_end']))
+        self.sweep_parameters_formlayout.addRow(self.f_end, QtWidgets.QLabel(text='Sweep stop frequency (Hz)'))
+
+        self.amp_db = QtWidgets.QLineEdit(str(sweep_params['amp_db']))
+        self.sweep_parameters_formlayout.addRow(self.amp_db, QtWidgets.QLabel(text='Sweep gain (dB)'))
+
+        self.fade_out_samples = QtWidgets.QLineEdit(str(sweep_params['fade_out_samples']))
+        self.sweep_parameters_formlayout.addRow(self.fade_out_samples, QtWidgets.QLabel(text='Fadeout before sweep end (samples)'))
+
+        self.sweep_parameters_errormessage = QtWidgets.QLabel("Invalid Sweep Paramters")
+        self.sweep_parameters_formlayout.addRow(self.sweep_parameters_errormessage)
+        self.sweep_parameters_errormessage.setVisible(False)
+
+        # add bottom button box
+        self.sweep_parameters_dialog.layout().addWidget(self.sweep_parameters_dialog.buttonBox)
+
+        self.show_sweep_parameters = QtWidgets.QPushButton()
+        self.show_sweep_parameters.setText("Set Sweep Parameters")
+        self.show_sweep_parameters.clicked.connect(self.sweep_parameters_dialog.show)
+        self.show_sweep_parameters.setMaximumWidth(200)
+        self.measuremet_paramteres_box.layout().addWidget(self.show_sweep_parameters)
+
+        self.tab_config.layout().addWidget(self.measuremet_paramteres_box)
+
 
         # Config Tab
         #   Output Folder Box:
@@ -769,17 +884,26 @@ class UiMainWindow(object):
         elif self.measurement_ref.tracker.head_dimensions['ear_pos_l'] is not None:
             self.calibrate_ear_left_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
 
-        if self.measurement_ref.tracker.head_dimensions['head_diameter'] is not None:
-            self.head_diameter_label.setText(f"Head Diameter: {self.measurement_ref.tracker.head_dimensions['head_diameter']:.3f}, {self.measurement_ref.tracker.head_dimensions['ear_center']}")
-
     def calibrate_right_ear(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('right'):
             self.calibrate_ear_right_label.setText(f"Calibrated, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
         elif self.measurement_ref.tracker.head_dimensions['ear_pos_r'] is not None:
             self.calibrate_ear_right_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
 
-        if self.measurement_ref.tracker.head_dimensions['head_diameter'] is not None:
-            self.head_diameter_label.setText(f"Head Diameter: {self.measurement_ref.tracker.head_dimensions['head_diameter']:.3f}, {self.measurement_ref.tracker.head_dimensions['ear_center']}")
+
+    def calibrate_head_left(self):
+        if self.measurement_ref.tracker.calibrate_headdimensions('left'):
+            if self.measurement_ref.tracker.head_dimensions['head_width'] is not None:
+                self.head_width_label.setText(f"Head Width: {self.measurement_ref.tracker.head_dimensions['head_width']:.3f}")
+        else:
+            self.head_width_label.setText("Calibration Failed")
+
+    def calibrate_head_right(self):
+        if self.measurement_ref.tracker.calibrate_headdimensions('right'):
+            if self.measurement_ref.tracker.head_dimensions['head_width'] is not None:
+                self.head_width_label.setText(f"Head Width: {self.measurement_ref.tracker.head_dimensions['head_width']:.3f}")
+        else:
+            self.head_width_label.setText("Calibration Failed")
 
     def calibrate_head_front(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('front'):
@@ -794,6 +918,7 @@ class UiMainWindow(object):
                 self.head_length_label.setText(f"Head Length: {self.measurement_ref.tracker.head_dimensions['head_length']:.3f}")
         else:
             self.head_length_label.setText("Calibration Failed")
+
 
     def calibrate_acoustical_centre(self):
         if self.measurement_ref.tracker.calibrate_acoustical_center():
@@ -1086,8 +1211,22 @@ class UiMainWindow(object):
             self.send_osc_address_select.setEnabled(True)
             self.tracking_input_OSC_direct.setEnabled(True)
 
+    def update_sweep_parameters(self):
+        try:
+            self.measurement_ref.measurement.set_sweep_parameters(d_sweep_sec=float(self.sweeplength_sec.text()),
+                                                                  d_post_silence_sec=float(self.post_silence_sec.text()),
+                                                                  f_start=int(self.f_start.text()),
+                                                                  f_end = int(self.f_end.text()),
+                                                                  amp_db=float(self.amp_db.text()),
+                                                                  fade_out_samples=int(self.fade_out_samples.text()))
+        except ValueError:
+            self.sweep_parameters_errormessage.setVisible(True)
+            return
 
+        self.sweep_parameters_errormessage.setVisible(False)
+        self.sweep_parameters_dialog.close()
 
+        return
 
 
 class InstructionsDialogBox(QtWidgets.QDialog):
@@ -1122,6 +1261,7 @@ class InstructionsDialogBox(QtWidgets.QDialog):
         self.layout.addWidget(self.buttonBox)
 
         self.setLayout(self.layout)
+
 
 class PlotWidget(QtWidgets.QWidget):
 
@@ -1207,7 +1347,7 @@ class PlotWidget(QtWidgets.QWidget):
 
         self.plot1_canvas.draw()
 
-    def plot_IRs(self, ir_l, ir_r, fs=48000, plot='waveform'):
+    def plot_IRs(self, ir_l, ir_r, fs=48000, plot='waveform_log'):
         matplotlib.rcParams.update({'font.size': 5})
 
         self.plot2.clf()
@@ -1215,8 +1355,16 @@ class PlotWidget(QtWidgets.QWidget):
         ax1 = self.plot2.add_subplot(211)
         ax1.clear()
 
-        if plot=='waveform':
-            ax1.plot(ir_l)
+        if plot=='waveform_log':
+            t_vec = np.arange(0, np.size(ir_l)) / fs
+            logwaveform = 20*np.log10(np.abs(ir_l))
+            ax1.plot(t_vec, logwaveform)
+            ax1.set_ylim([-120, np.max([np.max(logwaveform), 12])])
+            ax1.set_xlabel('Seconds')
+        elif plot=='waveform':
+            t_vec = np.arange(0, np.size(ir_l)) / fs
+            ax1.plot(t_vec, ir_l)
+            ax1.set_xlabel('Seconds')
         elif plot=='spectrogram':
             _,_,_, cax = ax1.specgram(ir_l, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
             self.plot2.colorbar(cax).set_label('dB')
@@ -1224,8 +1372,15 @@ class PlotWidget(QtWidgets.QWidget):
         ax2 = self.plot2.add_subplot(212)
         ax2.clear()
 
-        if plot=='waveform':
-            ax2.plot(ir_r)
+        if plot=='waveform_log':
+            t_vec = np.arange(0, np.size(ir_r)) / fs
+            logwaveform = 20 * np.log10(np.abs(ir_r))
+            ax1.plot(t_vec, logwaveform)
+            ax1.set_ylim([-120, np.max([np.max(logwaveform), 12])])
+            ax1.set_xlabel('Seconds')
+        elif plot == 'waveform':
+            t_vec = np.arange(0, np.size(ir_r)) / fs
+            ax1.plot(t_vec, ir_r)
         elif plot=='spectrogram':
             _,_,_, cax2 = ax2.specgram(ir_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
             self.plot2.colorbar(cax2).set_label('dB')

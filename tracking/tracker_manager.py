@@ -44,7 +44,9 @@ class TrackerManager():
                 'ear_pos_l': None,
                 'ear_pos_r': None,
                 'ear_center': None,
-                'head_diameter': None,
+                'left_pos': None,
+                'right_pos': None,
+                'head_width': None,
                 'front_pos': None,
                 'back_pos': None,
                 'head_length': None
@@ -216,22 +218,29 @@ class TrackerManager():
 
                 direction_vector = np.array([np.inner(transvec, side), np.inner(transvec, up), np.inner(transvec, fwd)])
 
-            if pos == 'left':
+            if pos == 'left_ear':
                 self.head_dimensions['ear_pos_l'] = direction_vector
-            if pos == 'right':
+            if pos == 'right_ear':
                 self.head_dimensions['ear_pos_r'] = direction_vector
+
+            if pos == 'left':
+                self.head_dimensions['left_pos'] = direction_vector
+            if pos == 'right':
+                self.head_dimensions['right_pos'] = direction_vector
             if pos == 'front':
                 self.head_dimensions['front_pos'] = direction_vector
             if pos == 'back':
                 self.head_dimensions['back_pos'] = direction_vector
 
             if self.head_dimensions['ear_pos_l'] is not None and self.head_dimensions['ear_pos_r'] is not None:
-                # calculate center of head
                 self.head_dimensions['ear_center'] = (self.head_dimensions['ear_pos_r'] + self.head_dimensions['ear_pos_l']) / 2
-                self.head_dimensions['head_diameter'] = np.linalg.norm(self.head_dimensions['ear_pos_l'] - self.head_dimensions['ear_pos_r'])
+
+            if self.head_dimensions['left_pos'] is not None and self.head_dimensions['right_pos'] is not None:
+                self.head_dimensions['head_width'] = np.linalg.norm(self.head_dimensions['left_pos'] - self.head_dimensions['left_pos'])
 
             if self.head_dimensions['front_pos'] is not None and self.head_dimensions['back_pos'] is not None:
                 self.head_dimensions['head_length'] = np.linalg.norm(self.head_dimensions['front_pos'] - self.head_dimensions['back_pos'])
+
 
             return True
 
