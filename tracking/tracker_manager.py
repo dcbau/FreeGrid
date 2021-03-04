@@ -5,6 +5,8 @@ import numpy as np
 from pyquaternion import Quaternion
 from tracking import osc_input
 
+import matplotlib
+import matplotlib.pyplot as plt
 
 class Device():
     def __init__(self, type, id, is_available=False, is_active = False):
@@ -157,8 +159,9 @@ class TrackerManager():
         def calibrate_headdimensions(self, pos, multiple_calls=True):
 
             if multiple_calls:
-                num_calls = 30
+                num_calls = 40
                 time_window_s = 2
+                inital_sleep = 2
                 sleep_interval = time_window_s / num_calls
 
                 pose_head_list = np.zeros([3, 4, num_calls])
@@ -167,7 +170,7 @@ class TrackerManager():
                 direction_vector_list = np.zeros([3, num_calls])
                 valid_ids = np.full(num_calls, True, dtype=bool)
 
-                time.sleep(1) #inital sleep to calm down trackers
+                time.sleep(inital_sleep) #inital sleep to calm down trackers
 
                 for i in range(num_calls):
                     try:
@@ -193,6 +196,16 @@ class TrackerManager():
 
                 if valid_ids.max() == False:
                     return False
+
+                #t = range(np.size(direction_vector_list, 1))
+                #fig, ax = plt.subplots()
+                #ax.plot(t, direction_vector_list[0, :])
+                #ax.plot(t, direction_vector_list[1, :])
+                #ax.plot(t, direction_vector_list[2, :])
+
+                #ax.grid()
+
+                #plt.show()
 
                 try:
                     direction_vector = np.mean(direction_vector_list[:, valid_ids], axis=1)

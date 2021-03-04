@@ -281,12 +281,18 @@ class Measurement():
         self.ir_r = deconvolve(self.feedback_loop, self.recorded_sweep_r, self.fs, highpass=[fc_hp, 4, 2])
 
     def get_names_of_defualt_devices(self):
-        input_dev = sd.query_devices(sd.default.device[0])
-        output_dev = sd.query_devices(sd.default.device[1])
+        try:
+            input_dev = sd.query_devices(sd.default.device[0])
+            output_dev = sd.query_devices(sd.default.device[1])
 
-        out_excitation = output_dev['name'] + ", Ch1"
-        num_in_ch = input_dev['max_input_channels']
-        num_out_ch = output_dev['max_output_channels']
+            out_excitation = output_dev['name'] + ", Ch1"
+            num_in_ch = input_dev['max_input_channels']
+            num_out_ch = output_dev['max_output_channels']
+
+        except sd.PortAudioError:
+            num_in_ch = 0
+            num_out_ch = 0
+
 
         device_strings = {
             "out_excitation": "Unavailable",
