@@ -390,16 +390,17 @@ class MeasurementController:
             self.hp_irs = np.concatenate((self.hp_irs, ir))
             self.raw_signals_hp = np.concatenate((self.raw_signals_hp, raw_rec))
             self.raw_feedbackloop_hp = np.concatenate((self.raw_feedbackloop_hp, raw_fb))
+            self.numHPMeasurements += 1
         else:
             self.hp_irs = ir
             self.raw_signals_hp = raw_rec
             self.raw_feedbackloop_hp = raw_fb
+            self.numHPMeasurements = 1
 
         self.estimate_hpcf()
 
         self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.fs)
-        self.numHPMeasurements += 1
-        self.gui_handle.hp_measurement_count.setText(str(self.numHPMeasurements))
+        self.gui_handle.hp_measurement_count.setText(f'Repetitions: {self.numHPMeasurements}')
         self.export_hp_measurement()
 
     def remove_all_hp_measurements(self):
@@ -444,7 +445,7 @@ class MeasurementController:
         self.numHPMeasurements -= 1
 
         if self.numHPMeasurements:
-            self.gui_handle.hp_measurement_count.setText(str(self.numHPMeasurements))
+            self.gui_handle.hp_measurement_count.setText(f'Repetitions: {self.numHPMeasurements}')
         else:
             self.gui_handle.hp_measurement_count.setText(" ")
 

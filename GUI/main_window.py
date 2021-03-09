@@ -692,10 +692,9 @@ class UiMainWindow(object):
 
         self.hp_controls_group = QtWidgets.QGroupBox()
         self.hp_controls_group.setLayout(QtWidgets.QHBoxLayout())
+        self.hp_controls_group.setAlignment(QtCore.Qt.AlignLeft)
 
-        self.hp_measurement_count = QtWidgets.QLabel("")
-        self.hp_measurement_count.setFixedWidth(16)
-        self.hp_controls_group.layout().addWidget(self.hp_measurement_count)
+
 
         self.trigger_hp_measurement_button = QtWidgets.QPushButton("Trigger Headphone  \n Measurement")
         self.trigger_hp_measurement_button.clicked.connect(self.trigger_hp_measurement)
@@ -706,17 +705,13 @@ class UiMainWindow(object):
         self.remove_hp_measurement_button.clicked.connect(self.remove_hp_measurement)
         self.remove_measurement_button.setFixedSize(QtCore.QSize(200, 50))
         self.hp_controls_group.layout().addWidget(self.remove_hp_measurement_button)
-
         self.hp_controls_group.layout().addStretch()
-        self.hp_controls_group.layout().addWidget(QtWidgets.QLabel("Reg Beta:"))
 
-        self.regularization_beta_box = QtWidgets.QDoubleSpinBox()
-        self.regularization_beta_box.setMaximum(1.0)
-        self.regularization_beta_box.setSingleStep(0.05)
-        self.regularization_beta_box.setValue(0.4)
-        self.regularization_beta_box.setFixedWidth(100)
-        self.regularization_beta_box.valueChanged.connect(self.set_regularization_beta)
-        self.hp_controls_group.layout().addWidget(self.regularization_beta_box)
+        self.hp_measurement_count = QtWidgets.QLabel("")
+        # self.hp_measurement_count.setFixedWidth(16)
+        self.hp_controls_group.layout().addWidget(self.hp_measurement_count)
+
+
 
         self.tab_hpc.layout().addWidget(self.hp_controls_group)
         #self.plot_hpc_widget = PlotWidget()
@@ -729,7 +724,19 @@ class UiMainWindow(object):
         self.plot_hpirs_canvas.setStyleSheet("background-color:transparent;")
         self.tab_hpc.layout().addWidget(self.plot_hpirs_canvas)
 
+        self.reg_beta_layout = QtWidgets.QHBoxLayout()
+        self.reg_beta_layout.setAlignment(QtCore.Qt.AlignCenter)
+        self.reg_beta_layout.addWidget(QtWidgets.QLabel("Reg Beta:"))
 
+        self.regularization_beta_box = QtWidgets.QDoubleSpinBox()
+        self.regularization_beta_box.setMaximum(1.0)
+        self.regularization_beta_box.setSingleStep(0.05)
+        self.regularization_beta_box.setValue(0.4)
+        self.regularization_beta_box.setFixedWidth(100)
+        self.regularization_beta_box.valueChanged.connect(self.set_regularization_beta)
+        self.reg_beta_layout.addWidget(self.regularization_beta_box)
+
+        self.tab_hpc.layout().addLayout(self.reg_beta_layout)
 
         self.plot_hpc = Figure()
         self.plot_hpc.set_facecolor('none')
@@ -1087,7 +1094,7 @@ class UiMainWindow(object):
         ax = self.plot_hpc.gca()
 
         ax.clear()
-        ax.set_title("Headphone Compensation (Preview)")
+        ax.set_title("Headphone Compensation (Estimate)")
         ax.set_xscale('log')
         ax.set_xlim(20, 20000)
         ax.set_ylim(-30, 10)
@@ -1346,6 +1353,7 @@ class PlotWidget(QtWidgets.QWidget):
             self.plot1.colorbar(cax3)
 
         self.plot1_canvas.draw()
+
 
     def plot_IRs(self, ir_l, ir_r, fs=48000, plot='waveform_log'):
         matplotlib.rcParams.update({'font.size': 5})
