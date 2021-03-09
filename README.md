@@ -1,4 +1,23 @@
 # GuidedHRTFsPython
+## Overview
+PICTURE HERE
+
+This project is a GUI-application for fast and easy Head-Related Transfer Function (HRTF) measurements. The measurement system can be used in almost any room, wether echoic or unechoic. It has low equipment requirements and is very flexible, it can be used with any loudspeaker, in-ear-microphones, audio interface and market-avaiblable tracking system. The user can control the resolution and accuracy of the resulting grid with the effort he spends during measurement, even giving him the possibility to focus on directions he is interested in. He is free to make full spherical measurements, horizontal measurements or measurements only covering desired areas.
+
+The procedure can be outlined as following:
+1. Place a loudspeaker in the room, put on some in-ear microphones, wire everything up
+2. Put the VIVE tracker on the head and start SteamVR
+3. Run the application and do a quick calibration routine
+4. (Beneficial: Perform a reference room-IR measurement with a reference microphone)
+5. Perform as many HRIR measurements as you wish, by simply moving your head to the disired direction
+6. After that, the system can suggest additional measurement positions to improve the spherical coverage of the dataset
+7. (Beneficial: With the mics still in the ears, perform some headphone IRs (HPIRs) for one or more headphones)
+
+> Currently, the system does not apply any post-processing or upsampling to the measured HRIRs. This is done via an external Matlab script
+
+Of course, it will not work as fluently as advertised here, at least for the first run. I would suggest to spend some minutes on reading the notes below, they should clear everything up. It is indeed very easy.
+
+We are still looking for a better name for the project...
 
 ## Additional Hardware
 ### Measurement Equipment
@@ -35,3 +54,31 @@ We highly recommend using [conda](https://docs.conda.io/en/latest/) for this.
     > SteamVR needs to be running in the background with both trackers connected BEFORE starting the application!
     
 > Note for macOS: The openvr dependency in `environment.yml` is set to an older version to comply with the no longer maintained SteamVR for macOS ('macos_default beta'). For Windows, the most recent version of openvr can be used (edit the `environment.yml` file accordingly). 
+
+## Quick Start - Configure
+SCREENSHOT HERE
+TBD
+
+## Performing Measurements
+SCREENSHOT HERE
+TBD
+
+Before starting a measurement session, it is best to give the session a name, so the exported file will be 
+! for every new session, the session name MUST be changed, otherwise the previos session will be overwritten
+! if the session name is chaned during a session, 
+
+## Performing Headphone Measurements
+SCREENSHOT HERE
+TBD
+
+https://github.com/spatialaudio/hptf-compensation-filters/blob/master/Calc_HpTF_compensation_filter.m
+
+
+## Output & Post Processing
+The output of the measurement system are the deconvolved IRs, but without any further post-processing. The post-processing and upsampling is meant to be done seperately in Matlab, at least in the current state of work. Besides the deconvoled IR, additionaly the raw recorded sweep & feedback loop sweep is stored (if no real feedbackloop was recorded, the excitation signal is stored as the feedback loop).
+
+Currently, the measured IRs are immediately stored as a bundled .mat file after every measurement. The default save path is "$PROJECT_DIR/Measurements", but it can be changed to any path in the _Configure_ panel. Whenever a change is applied to the measurements (IR added or IR removed), the export file is immediately updated.  Three different .mat files are stored: 
+
+* **HRIRs**: IRs & raw signals for each HRIR, together with the corresponding source positions of every HRIR in [Az(0...360°), El(90...-90°), R(m)]. Besides that, some metadata like used samplingrate and head-dimensions (if they were measured) are stored. The filename consists of `"measured_points_{session name}_{current date}.mat`. If multiple sessions are done (with different session names), each session is stored in a seperate file.
+* **Reference IR** IR & raw signals for the reference (center) measurement. If the reference measurement is performed multiple times, every measurement is stored (in the same .mat-file)
+* **Headphone IRs**: IRs & raw signals for each HPIR measurement repetition with the regularization value _beta_ from the HPCF-estimation. The HPCF estimate is NOT exported. The filename consists of `"headphone_ir_{hp name}_{current date}.mat`. If multiple HPs are measured, multiple files are exportet. 
