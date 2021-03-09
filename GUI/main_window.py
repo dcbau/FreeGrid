@@ -8,8 +8,10 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib
 from scipy.signal import resample
-
 import os
+
+
+reproduction_available = False
 
 
 class UiMainWindow(object):
@@ -190,9 +192,9 @@ class UiMainWindow(object):
         self.tab_reproduction.setLayout(QtWidgets.QVBoxLayout())
         self.tab_reproduction.layout().setAlignment(QtCore.Qt.AlignTop)
 
-        self.tabWidget.addTab(self.tab_reproduction, "Reproduction")
-
-        self.tab_reproduction_index = self.tabWidget.count()-1
+        if reproduction_available:
+            self.tabWidget.addTab(self.tab_reproduction, "Reproduction")
+            self.tab_reproduction_index = self.tabWidget.count()-1
 
         # Config Tab
         #############################
