@@ -253,7 +253,7 @@ class UiMainWindow(object):
         ###########################
 
         self.switchTrackersButton = QtWidgets.QPushButton()
-        self.switchTrackersButton.setText("Switch Trackers")
+        self.switchTrackersButton.setText("Switch Tracker Roles")
         self.switchTrackersButton.setObjectName("switchTrackersButton")
         self.switchTrackersButton.setMaximumWidth(200)
         self.switchTrackersButton.clicked.connect(self.switch_trackers)
@@ -386,9 +386,10 @@ class UiMainWindow(object):
         self.calibrateButton.setObjectName("calibrateButton")
         #self.calibrateButton.setFixedSize(calibration_button_size)
         self.calibrateButton.setFixedWidth(calibration_button_width)
-        self.calibrateButton.clicked.connect(lambda: self.calibrate(self.measurement_ref.tracker.calibrate_orientation))
+        self.calibrateButton.clicked.connect(lambda: self.calibrate(self.calibrate_orientation))
+        self.calibrate_orientation_label = QtWidgets.QLabel("Uncalibrated")
 
-        self.calibrations_formlayout.addRow(self.calibrateButton, QtWidgets.QLabel("Uncalibrated"))
+        self.calibrations_formlayout.addRow(self.calibrateButton, self.calibrate_orientation_label)
 
 
         # Config Tab
@@ -886,40 +887,62 @@ class UiMainWindow(object):
         interval = self.calibration_wait_time.value() * 1000
         QtCore.QTimer.singleShot(interval, calibration_function)
 
-    def calibrate_left_ear(self):
+    def calibrate_orientation(self):
+        if self.measurement_ref.tracker.calibrate_orientation():
+            self.measurement_ref.measurement.play_sound(True)
+            self.calibrate_orientation_label.setText("Calibrated")
+        else:
+            self.measurement_ref.measurement.play_sound(False)
 
+
+    def calibrate_left_ear(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('left'):
-            self.calibrate_ear_left_label.setText(f"Calibrated, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
-        elif self.measurement_ref.tracker.head_dimensions['ear_pos_l'] is not None:
-            self.calibrate_ear_left_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
+            self.calibrate_ear_left_label.setText(f"Calibrated")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
+            self.measurement_ref.measurement.play_sound(True)
+        else:
+            self.measurement_ref.measurement.play_sound(False)
+            if self.measurement_ref.tracker.head_dimensions['ear_pos_l'] is not None:
+                self.calibrate_ear_left_label.setText(f"Recalibration failed")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
 
     def calibrate_right_ear(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('right'):
-            self.calibrate_ear_right_label.setText(f"Calibrated, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
-        elif self.measurement_ref.tracker.head_dimensions['ear_pos_r'] is not None:
-            self.calibrate_ear_right_label.setText(f"Recalibration failed, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
+            self.calibrate_ear_right_label.setText(f"Calibrated")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
+            self.measurement_ref.measurement.play_sound(True)
+        else:
+            self.measurement_ref.measurement.play_sound(False)
+            if self.measurement_ref.tracker.head_dimensions['ear_pos_r'] is not None:
+                self.calibrate_ear_right_label.setText(f"Recalibration failed")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
 
 
     def calibrate_head_left(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('left'):
+            self.measurement_ref.measurement.play_sound(True)
             if self.measurement_ref.tracker.head_dimensions['head_width'] is not None:
                 self.head_width_label.setText(f"Head Width: {self.measurement_ref.tracker.head_dimensions['head_width']:.3f}")
         else:
             self.head_width_label.setText("Calibration Failed")
+            self.measurement_ref.measurement.play_sound(False)
+
 
     def calibrate_head_right(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('right'):
+            self.measurement_ref.measurement.play_sound(True)
             if self.measurement_ref.tracker.head_dimensions['head_width'] is not None:
                 self.head_width_label.setText(f"Head Width: {self.measurement_ref.tracker.head_dimensions['head_width']:.3f}")
         else:
             self.head_width_label.setText("Calibration Failed")
+            self.measurement_ref.measurement.play_sound(False)
+
 
     def calibrate_head_front(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('front'):
+            self.measurement_ref.measurement.play_sound(True)
             if self.measurement_ref.tracker.head_dimensions['head_length'] is not None:
                 self.head_length_label.setText(f"Head Length: {self.measurement_ref.tracker.head_dimensions['head_length']:.3f}")
         else:
             self.head_length_label.setText("Calibration Failed")
+            self.measurement_ref.measurement.play_sound(False)
+
 
     def calibrate_head_back(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('back'):
@@ -931,7 +954,11 @@ class UiMainWindow(object):
 
     def calibrate_acoustical_centre(self):
         if self.measurement_ref.tracker.calibrate_acoustical_center():
-            self.calibrate_acoustical_center_label.setText(f'Calibrated, {self.measurement_ref.tracker.acoustical_center_pos}')
+            self.measurement_ref.measurement.play_sound(True)
+            self.calibrate_acoustical_center_label.setText(f'Calibrated")#, {self.measurement_ref.tracker.acoustical_center_pos}')
+        else:
+            self.measurement_ref.measurement.play_sound(False)
+
 
 
     def trigger_ref_measurement(self):
@@ -1245,7 +1272,7 @@ class InstructionsDialogBox(QtWidgets.QDialog):
         instruction_text = \
             "1. Mount tracker T1 on listener head. The orientation and exact position are not important, as long as it stays fixed. \n\n" \
             "2. Check if tracker roles are correct by rotating tracker T2. The angles shouldn't change since only the position of tracker T2 is used. Switch tracker roles if necessary\n\n" \
-            "3. Hold tracker T2 to both ears (bottom center on ear canal) and calibrate each ear. Tracker T2 orientation does not matter here, but from now on tracker T1 on the listeners has to stay fixed & stable on the head.\n\n" \
+            "3. Hold tracker T2 to both ears (bottom center on ear canal) and calibrate each ear. Tracker T2 orientation does not matter here, but from now on tracker T1 (on the listeners head) has to stay fixed & stable on the head.\n\n" \
             "4. Hold tracker T2 to acoustical center of speaker and calibrate it. Tracker orientation does not matter here\n\n" \
             "5. Put tracker T2 on a planar surface (eg. on top of speaker, floor) pointing towards the same direction as frontal view of listener. Translation does not matter here\n\n" \
             "NOTE: If acoustical center is calibrated, this calibrated position stays fixed. If the speaker is moved the calibration has to be repeated."
