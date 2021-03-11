@@ -162,7 +162,7 @@ class TrackerManager():
 
             if multiple_calls:
                 num_calls = 40
-                time_window_s = 2
+                time_window_s = 1
                 inital_sleep = 2
                 sleep_interval = time_window_s / num_calls
 
