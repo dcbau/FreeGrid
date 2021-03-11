@@ -149,12 +149,14 @@ class TrackerManager():
             try:
                 pose_base, pose_relative = self.get_tracker_data()
             except:
-                return
+                return False
 
             head_tracker = Quaternion(convert_to_quaternion(pose_base))
             reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
 
             self.calibrationRotation = head_tracker.inverse * reference_tracker
+
+            return True
 
         def calibrate_headdimensions(self, pos, multiple_calls=True):
 
