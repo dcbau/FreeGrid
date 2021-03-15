@@ -104,6 +104,7 @@ class MeasurementController:
 
         if self.send_osc_data:
             az, el, r = self.tracker.get_relative_position()
+            print(f"Sending OSC Data to {self.osc_send_address}")
             self.osc_send_client.send_message(self.osc_send_address, [az, el, r])
 
 

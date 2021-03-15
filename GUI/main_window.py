@@ -896,7 +896,7 @@ class UiMainWindow(object):
 
 
     def calibrate_left_ear(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('left'):
+        if self.measurement_ref.tracker.calibrate_headdimensions('left', multiple_calls=False):
             self.calibrate_ear_left_label.setText(f"Calibrated")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
             self.measurement_ref.measurement.play_sound(True)
         else:
@@ -905,7 +905,7 @@ class UiMainWindow(object):
                 self.calibrate_ear_left_label.setText(f"Recalibration failed")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
 
     def calibrate_right_ear(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('right'):
+        if self.measurement_ref.tracker.calibrate_headdimensions('right', multiple_calls=False):
             self.calibrate_ear_right_label.setText(f"Calibrated")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
             self.measurement_ref.measurement.play_sound(True)
         else:
@@ -955,7 +955,7 @@ class UiMainWindow(object):
     def calibrate_acoustical_centre(self):
         if self.measurement_ref.tracker.calibrate_acoustical_center():
             self.measurement_ref.measurement.play_sound(True)
-            self.calibrate_acoustical_center_label.setText(f'Calibrated")#, {self.measurement_ref.tracker.acoustical_center_pos}')
+            self.calibrate_acoustical_center_label.setText(f'Calibrated')#, {self.measurement_ref.tracker.acoustical_center_pos}')
         else:
             self.measurement_ref.measurement.play_sound(False)
 

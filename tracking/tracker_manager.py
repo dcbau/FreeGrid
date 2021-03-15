@@ -162,7 +162,7 @@ class TrackerManager():
 
             if multiple_calls:
                 num_calls = 40
-                time_window_s = 2
+                time_window_s = 1
                 inital_sleep = 2
                 sleep_interval = time_window_s / num_calls
 
@@ -292,7 +292,7 @@ class TrackerManager():
 
             try:
                 if self.acoustical_center_pos is not None:
-                    pose_head = self.get_tracker_data(only_tracker_1=True)
+                    pose_head, _ = self.get_tracker_data(only_tracker_1=True)
                     translation_speaker = self.acoustical_center_pos
                 else:
                     # if speaker is not calibrated yet, the live tracking speaker pose is used
