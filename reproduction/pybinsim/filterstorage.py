@@ -26,8 +26,8 @@ import multiprocessing
 import numpy as np
 import soundfile as sf
 
-from Reproduction.pybinsim.pose import Pose
-from Reproduction.pybinsim.utility import total_size
+from reproduction.pybinsim.pose import Pose
+from reproduction.pybinsim.utility import total_size
 
 nThreads = multiprocessing.cpu_count()
 

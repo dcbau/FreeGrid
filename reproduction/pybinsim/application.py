@@ -26,11 +26,11 @@ import time
 import numpy as np
 import pyaudio
 
-from Reproduction.pybinsim.convolver import ConvolverFFTW
-from Reproduction.pybinsim.filterstorage import FilterStorage
-from Reproduction.pybinsim.osc_receiver import OscReceiver
-from Reproduction.pybinsim.pose import Pose
-from Reproduction.pybinsim.soundhandler import SoundHandler
+from reproduction.pybinsim.convolver import ConvolverFFTW
+from reproduction.pybinsim.filterstorage import FilterStorage
+from reproduction.pybinsim.osc_receiver import OscReceiver
+from reproduction.pybinsim.pose import Pose
+from reproduction.pybinsim.soundhandler import SoundHandler
 
 
 def parse_boolean(any_value):
