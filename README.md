@@ -1,5 +1,7 @@
 # GuidedHRTFsPython
+Still looking for a better project name...
 ## Overview
+
 <img src="./resources/doc/overview.png" alt="Overview" width="400"/>
 
 This project is a GUI-application for fast and easy Head-Related Transfer Function (HRTF) measurements. The measurement system can be used in almost any room, wether echoic or anechoic. It has low equipment requirements and is very flexible, it can be used with any loudspeaker, in-ear-microphones, audio interface and market-avaiblable tracking system. The user can control the resolution and accuracy of the resulting grid with the effort he spends during measurement, even giving him the possibility to focus on directions he is interested in. He is free to make full spherical measurements, horizontal measurements or measurements only covering desired areas.
@@ -8,16 +10,14 @@ The procedure can be outlined as following:
 1. Place a loudspeaker in the room, put on some in-ear microphones, wire everything up
 2. Put the VIVE tracker on the head and start SteamVR
 3. Run the application and do a quick calibration routine
-4. (Beneficial: Perform a reference room-IR measurement with a reference microphone)
+4. (Beneficial: Perform a center IR measurement with a reference microphone)
 5. Perform as many HRIR measurements as you wish, by simply moving your head to the disired direction
 6. After that, the system can suggest additional measurement positions to improve the spherical coverage of the dataset
 7. (Beneficial: With the mics still in the ears, perform some headphone IRs (HPIRs) for one or more headphones)
 
 > Currently, the system does not apply any post-processing or upsampling to the measured HRIRs. This is done via an external Matlab script
 
-Of course, it will not work as fluently as advertised here, at least for the first run. I would suggest to spend some minutes on reading the notes below, they should clear everything up. It is indeed very easy.
-
-We are still looking for a better name for the project...
+Of course, it will not work as fluently as advertised here, at least for the first run. I would suggest to spend some minutes on reading the notes below, they should clear everything up.
 
  <br>
  <br>
@@ -58,7 +58,7 @@ We highly recommend using [conda](https://docs.conda.io/en/latest/) for this.
     ```
     python main.py
     ```
-    > SteamVR needs to be running in the background with both trackers connected BEFORE starting the application!
+    
     
 > Note for macOS: The openvr dependency in `environment.yml` is set to an older version to comply with the no longer maintained SteamVR for macOS ('macos_default beta'). For Windows, the most recent version of openvr can be used (edit the `environment.yml` file accordingly). 
  
@@ -67,21 +67,44 @@ We highly recommend using [conda](https://docs.conda.io/en/latest/) for this.
  
 ## Quick Start
 
+### Before starting the application
+- The application will use the default audio device by the operating system. Select the appropriate device before starting the application, selecting audio devices while running the application is currently not possible. 
+
+- SteamVR needs to be running in the background with both trackers connected. 
+  <img src="./resources/doc/steamvr_status.png" alt="Overview" width="400"/>
+
+
 ### Configure
 SCREENSHOT HERE
-TBD
+#### A) Calibrate using Vive Trackers
+1. __Check Trackers__ First of all, make sure the trackers are correctly working. If you move the trackers around, the virtual speaker position display should be showing the relative angle from one tracker to the other. One tracker is the base tracker (for the head tracking) the other one represents the relative speaker position. The relative speakers orientation is not regarded. 
+   Accordingly, you can identify the tracker roles by rotating them. If the roles are reversed and you already attached the wrong tracker to the head, you can simply switch the roles with the `Switch Tracker Roles` Button.
+2. __Calibrate Listener Head__ With the base tracker attached anywhere to the head, hold the second tracker to each ear (the bottom center of the tracker against the ear canal) and press the corresponding calibration button. This defines the approximated rotation center of the head between the ears.
+3. __Calibrate Speaker Position__ Hold the tracker against the acoustical center of the speaker (approximately between the two topmost speaker cones) and press the corresponding calibration button.
+4. __Calibrate Listener Orientation__ Place the tracker on the floor somewhere between the speaker and the desired listening position, pointing towards the desired view direction (LED facing in opposite direction). Point your head exactly into the desired listening direction (look directly to the loudspeaker) and press the `Calibrate Orientation` button. Be as accurate as possible during this step and make sure that the tracker is lying super flat on the floor. 
+
+The calibration steps can be repeated in any order, if needed. After successfull calibration, the second tracker can be turned off.
+
+#### B) Calibrate using external tracking system (OSC)
+In case you are using another tracking system wich can communicate via OSC, you don´t have to calibrate anything. The external tracking system has to take care of that. It should supply __relative__ angles (Azimuth, Elevation & Radius) between the loudspeaker and the head, and __not__ the head orientation. The bottom left panel _Vive Tracker Status_ becomes _OSC Input Status_ and will blink if osc messages are received. 
 
 ### Performing Measurements
-SCREENSHOT HERE
-TBD
+<img src="./resources/doc/measurement_window.png" alt="Overview" width="700"/>
 
-Before starting a measurement session, it is best to give the session a name, so the exported file will be 
-! for every new session, the session name MUST be changed, otherwise the previos session will be overwritten
-! if the session name is chaned during a session, 
+> Before starting a measurement session, it is best to give the session a name, so the exported file can be identified later on. For every new session, the session name __must__ be changed, otherwise the previos session will be overwritten.
+
+1. Perform a center measurement with a reference microphone. Place the microphone where the head center will be during the measurement and connect the microphone to the left (Ch1) input of your audio interface. 
+2. Run some measurements. Best thing to do is to activate the _Auto Measurement Mode_, where a measurement is triggered when the head remains still for 2 seconds. During the measurement, keep your head still for the whole time (even after the sweep is finished) until you hear the sound for a successfull measurement. 
+   > A good starting point is to perform around 30 measurements for a full spherical coverage. This should take around 5 minutes
+   
+   During the measurement, you can always pause the auto measurement to have a look at the already done measurements in the `Data List` tab, where you can also delete measurements if you made a mistake. The source positions of the measurements will also be shown in the virtual speaker position display.
+3. After your inital measurements, you can ask the _Point Recommender_ for additional points. First, recommend a point, it will pop up in the virtual speaker position display. By pressing `Start Guidance`, a spoken word guidance will tell you where to move your head (always assuming you are initally looking towards the speaker), followed by a guiding tone interval indicating how close you are to the disered view direction. It is a two step procedure, first guiding your view on the horizontal plance, from there on guiding you to the exact spot by tilting your head down, up, left or right.  
+
 
 ### Performing Headphone Measurements
+To be done...
+
 SCREENSHOT HERE
-TBD
 
 > We are mostly using [this](https://github.com/spatialaudio/hptf-compensation-filters) approach for generating HPCF filters, where a variable regularization parameter _beta_ is used to damp inversion overshoots. Since this regularization parameter has to be set individually, we found it useful to include an estimation plot of the final HPCF (with variable _beta_) in the application. 
 
