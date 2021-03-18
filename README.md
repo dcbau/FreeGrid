@@ -75,6 +75,7 @@ The application is coded in Python, so to run it you need Python with a set of e
 - The application will use the default audio device by the operating system. Select the appropriate device before starting the application, selecting audio devices while running the application is currently not possible. 
 
 - SteamVR needs to be running in the background with both trackers connected. 
+
   <img src="./resources/doc/steamvr_status.png" alt="Overview" width="400"/>
 
 
