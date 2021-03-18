@@ -640,9 +640,9 @@ class StartSingleMeasurementAsync(threading.Thread):
         self.parent = parent
 
     def run(self):
-        print("run")
+        #print("run")
         self.parent.measurement.single_measurement()
-        print("stop")
+        #print("stop")
         self.parent.done_measurement()
 
 class StartReferenceMeasurementAsync(threading.Thread):
@@ -651,7 +651,7 @@ class StartReferenceMeasurementAsync(threading.Thread):
         self.parent = parent
 
     def run(self):
-        print("run")
+        #print("run")
         self.parent.measurement.single_measurement()
-        print("stop")
+        #print("stop")
         self.parent.done_measurement_reference()

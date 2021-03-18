@@ -3,6 +3,7 @@ import grid_improving.grid_filling
 import numpy as np
 from enum import Enum
 import scipy.io.wavfile as wave
+import warnings
 
 class GuidingPhase(Enum):
     no_guiding = 0
@@ -34,6 +35,9 @@ class VoiceInstruction():
 
     def loadfile(self, filename, normalize=True):
         directory = 'Resources/voice_samples/'
+
+        # suppress specific warning because reading the file "turn_right.wav" always triggered a warning
+        warnings.simplefilter(action='ignore', category=wave.WavFileWarning)
 
         try:
             fs, file = wave.read(directory + filename)
@@ -250,10 +254,10 @@ class PointRecommender():
         newpoints = grid_improving.grid_filling.addSamplepoints(existing_pointset, 1)
         newpoints2 = grid_improving.grid_filling.addSamplepoints_geometric(existing_pointset, 1)
 
-        print("NewPoints1: ")
-        print(newpoints)
-        print("NewPoints2: ")
-        print(newpoints2)
+        #print("NewPoints1: ")
+        #print(newpoints)
+        #print("NewPoints2: ")
+        #print(newpoints2)
 
         az = newpoints2[:, 0] % 360
         el = 90 - newpoints2[:, 1]

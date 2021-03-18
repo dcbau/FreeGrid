@@ -93,21 +93,25 @@ class TrackerManager():
                         self.controller2.set_availability(self.vr_system.isTrackedDeviceConnected(deviceID))
 
 
-            if(hasattr(self, 'tracker1')):
-                print("Has tracker one!")
-                if(self.tracker1.is_available()):
-                    print("Tracker 1 Available")
-
-            if (hasattr(self, 'tracker2')):
-                print("Has tracker two!")
-                if (self.tracker2.is_available()):
-                    print("Tracker 2 Available")
-
-            if (hasattr(self, 'controller1')):
-                print("Has controller 1!")
-
-            if (hasattr(self, 'controller2')):
-                print("Has controller 2!")
+            # if(hasattr(self, 'tracker1')):
+            #     #print("Has tracker one!")
+            #     if(self.tracker1.is_available()):
+            #         pass
+            #         #print("Tracker 1 Available")
+            #
+            # if (hasattr(self, 'tracker2')):
+            #     #print("Has tracker two!")
+            #     if (self.tracker2.is_available()):
+            #         pass
+            #         #print("Tracker 2 Available")
+            #
+            # if (hasattr(self, 'controller1')):
+            #     #print("Has controller 1!")
+            #     pass
+            #
+            # if (hasattr(self, 'controller2')):
+            #     #print("Has controller 2!")
+            #     pass
 
 
             self.calibrationRotation = Quaternion()
@@ -144,7 +148,7 @@ class TrackerManager():
 
         def calibrate_orientation(self):
 
-            print("Calibration")
+            #print("Calibration")
 
             try:
                 pose_base, pose_relative = self.get_tracker_data()
@@ -261,7 +265,7 @@ class TrackerManager():
 
         #this calibration assumes that the speaker is not moved after the calibration
         def calibrate_acoustical_center(self):
-            print('Calibrate Acoustical Centre')
+            #print('Calibrate Acoustical Centre')
             try:
                 pose_head, pose_acenter = self.get_tracker_data()
             except:

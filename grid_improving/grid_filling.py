@@ -110,8 +110,8 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
     combinations = itertools.combinations(range(nCorrectionPoints), nNewPoints)
     combinations = np.array(list(combinations))
 
-    print("\nSearching through ", np.size(combinations, 0), " possible combinations of ", nCorrectionPoints, " points")
-    print("Use Loop: ", use_loop)
+    #print("\nSearching through ", np.size(combinations, 0), " possible combinations of ", nCorrectionPoints, " points")
+    #print("Use Loop: ", use_loop)
     start_time = time.time()
 
     YnmBase = get_sph_harms(sh_order, inputGrid[:, 0], inputGrid[:, 1])
@@ -135,8 +135,8 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
 
     correction_points = correctionGrid[bestmatch]
 
-    print("Took ", time.time() - start_time, " seconds")
-    print("Best condition value found was ", condition, " for SH Order ", sh_order)
+    #print("Took ", time.time() - start_time, " seconds")
+    #print("Best condition value found was ", condition, " for SH Order ", sh_order)
 
     return correction_points * r2d
 
@@ -169,7 +169,7 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
     combinations = itertools.combinations(range(nCorrectionPoints), nNewPoints)
     combinations = np.array(list(combinations))
 
-    print("\nSearching through ", np.size(combinations, 0), " possible combinations of ", nCorrectionPoints, " points")
+    #("\nSearching through ", np.size(combinations, 0), " possible combinations of ", nCorrectionPoints, " points")
     start_time = time.time()
 
     highest_min_distance = 0
@@ -202,7 +202,7 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
 
     correction_points = correctionGrid[bestmatch]
 
-    print("Took ", time.time() - start_time, " seconds")
+    #print("Took ", time.time() - start_time, " seconds")
 
     return correction_points
 

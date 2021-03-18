@@ -256,8 +256,6 @@ class SpherePoints():
         self.radius = radius
 
     def add_point(self, az, el):
-
-        print("Paint Point: ", az, "  ", el)
         r = self.radius
 
         az = az * np.pi / 180.0

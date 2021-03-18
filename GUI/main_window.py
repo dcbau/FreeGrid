@@ -981,7 +981,7 @@ class UiMainWindow(object):
         self.vispy_canvas.meas_points.deselect_points(deselected.row())
         self.vispy_canvas.meas_points.select_point(selected.row())
 
-        print("Data Table Selection: " + str(selected.row()))
+        #print("Data Table Selection: " + str(selected.row()))
         idx = selected.row()
         try:
             ir_l = self.measurement_ref.measurements[idx, 0, :]
@@ -1027,7 +1027,7 @@ class UiMainWindow(object):
             ret = dialog.question(self.myMainWindow,'', "Are you sure you want to delete this measurement?", dialog.Yes | dialog.No)
 
             if ret == dialog.Yes:
-                print("Deleting Measurement " + str(id))
+                #print("Deleting Measurement " + str(id))
                 self.measurement_ref.delete_measurement(id)
 
     def update_dev_status(self):
