@@ -80,7 +80,7 @@ The application is coded in Python, so to run it you need Python with a set of e
 
 
 ### Configure
-<img src="./resources/doc/configure_window.png" alt="Overview" width="700"/>
+<img src="./resources/doc/configure_window.png" alt="Overview" width="600"/>
 
 #### A) Calibrate using Vive Trackers
 1. __Check Trackers__ First of all, make sure the trackers are correctly working. If you move the trackers around, the virtual speaker position display should be showing the relative angle from one tracker to the other. One tracker is the base tracker (for the head tracking) the other one represents the relative speaker position. The relative speakers orientation is not regarded. 
@@ -95,7 +95,7 @@ The calibration steps can be repeated in any order, if needed. After successfull
 In case you are using another tracking system wich can communicate via OSC, you don´t have to calibrate anything. The external tracking system has to take care of that. It should supply __relative__ angles (Azimuth, Elevation & Radius) between the loudspeaker and the head, and __not__ the head orientation. The bottom left panel _Vive Tracker Status_ becomes _OSC Input Status_ and will blink if osc messages are received. 
 
 ### Performing Measurements
-<img src="./resources/doc/measurement_window.png" alt="Overview" width="700"/>
+<img src="./resources/doc/measurement_window.png" alt="Overview" width="600"/>
 
 > Before starting a measurement session, it is best to give the session a name, so the exported file can be identified later on. For every new session, the session name __must__ be changed, otherwise the previos session will be overwritten.
 
@@ -120,7 +120,7 @@ In the application, it is possible to measure the headphone impulse responses (H
 4. Perform round about 10 to 15 headphone measurements. Between every measurement, put the headphone off and on and try to vary the position on the head a little.
 5. For measuring another headphone, simply click `Clear/Start New`. The IRs have already been saved (see section _Output & Post Processing_) .
 
-<img src="./resources/doc/hp_measurement.png" alt="Overview" width="500"/>
+<img src="./resources/doc/hp_measurement.png" alt="Overview" width="300"/>
 
 In the plots below, you see the layered magnitude responses for every HPIR (left/right seperate), but also an estimate of the resulting HPCF filter. This estimate is not exported. 
 
