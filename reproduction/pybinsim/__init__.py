@@ -2,7 +2,7 @@ import logging
 
 __version__ = "1.2.4"
 
-from Reproduction.pybinsim.application import BinSim
+from reproduction.pybinsim.application import BinSim
 
 
 def init_logging(loglevel):
