@@ -1,5 +1,9 @@
 # GuidedHRTFsPython
-Still looking for a better project name...
+> __Current State Of Work__ (March 2021)
+> - The project is still in a testing phase. It works and provides good results, but is not verified
+> - The postprocessing and upsampling of the impulse responses is not included in the repository. Although this is a essential part of the whole project, the current scope of this application is the measurement procedure itself.  
+> - We are still looking for a better project name ...
+
 ## Overview
 
 <img src="./resources/doc/overview.png" alt="Overview" width="400"/>
@@ -75,7 +79,8 @@ The application is coded in Python, so to run it you need Python with a set of e
 
 
 ### Configure
-SCREENSHOT HERE
+<img src="./resources/doc/configure_window.png" alt="Overview" width="700"/>
+
 #### A) Calibrate using Vive Trackers
 1. __Check Trackers__ First of all, make sure the trackers are correctly working. If you move the trackers around, the virtual speaker position display should be showing the relative angle from one tracker to the other. One tracker is the base tracker (for the head tracking) the other one represents the relative speaker position. The relative speakers orientation is not regarded. 
    Accordingly, you can identify the tracker roles by rotating them. If the roles are reversed and you already attached the wrong tracker to the head, you can simply switch the roles with the `Switch Tracker Roles` Button.
@@ -93,8 +98,9 @@ In case you are using another tracking system wich can communicate via OSC, you 
 
 > Before starting a measurement session, it is best to give the session a name, so the exported file can be identified later on. For every new session, the session name __must__ be changed, otherwise the previos session will be overwritten.
 
-1. Perform a center measurement with a reference microphone. Place the microphone where the head center will be during the measurement and connect the microphone to the left (Ch1) input of your audio interface. 
-2. Run some measurements. Best thing to do is to activate the _Auto Measurement Mode_, where a measurement is triggered when the head remains still for 2 seconds. During the measurement, keep your head still for the whole time (even after the sweep is finished) until you hear the sound for a successfull measurement. 
+1. Perform a center measurement with a reference microphone: Place the microphone where the head center will be during the measurement and connect the microphone to the left (Ch1) input of your audio interface. 
+2. Place the in-ear microphones in the ear canals and connect the to input Ch1/Ch2. Set adequate levels for the output and input of the audio device (see [notes on measurement setup](resources/doc/measurement-setup-notes.md) for help)
+3. Run some measurements. Best thing to do is to activate the _Auto Measurement Mode_, where a measurement is triggered when the head remains still for 2 seconds. During the measurement, keep your head still for the whole time (even after the sweep is finished) until you hear the sound for a successfull measurement. 
    > A good starting point is to perform around 30 measurements for a full spherical coverage. This should take around 5 minutes
    
    During the measurement, you can always pause the auto measurement to have a look at the already done measurements in the `Data List` tab, where you can also delete measurements if you made a mistake. The source positions of the measurements will also be shown in the virtual speaker position display.
@@ -102,11 +108,22 @@ In case you are using another tracking system wich can communicate via OSC, you 
 
 
 ### Performing Headphone Measurements
-To be done...
 
-SCREENSHOT HERE
+A headphone compensation filter (HPCF) is a good way to equalize the headphone used later on in the reproduction (if the reproduction headphone is known). Furthermore, measuring the individual HPCF directly after the individual HRIRs has the advantage of compensating the used in-ear microphones and their potentially uneven placement in the ear canal. 
 
-> We are mostly using [this](https://github.com/spatialaudio/hptf-compensation-filters) approach for generating HPCF filters, where a variable regularization parameter _beta_ is used to damp inversion overshoots. Since this regularization parameter has to be set individually, we found it useful to include an estimation plot of the final HPCF (with variable _beta_) in the application. 
+In the application, it is possible to measure the headphone impulse responses (HPIR) from which the HPCF can be estimated.
+
+1. Set the name of the headphone
+2. Connect the headphone to the Ch1/Ch2 output of the audio interface
+3. Put on the headphones and try not to move the in-ear microphones. Set an adequate sweep volume (be careful with your ears!)
+4. Perform round about 10 to 15 headphone measurements. Between every measurement, put the headphone off and on and try to vary the position on the head a little.
+5. For measuring another headphone, simply click `Clear/Start New`. The IRs have already been saved (see section _Output & Post Processing_) .
+
+<img src="./resources/doc/hp_measurement.png" alt="Overview" width="500"/>
+
+In the plots below, you see the layered magnitude responses for every HPIR (left/right seperate), but also an estimate of the resulting HPCF filter. This estimate is not exported. 
+
+> In our lab, we are mostly using [this](https://github.com/spatialaudio/hptf-compensation-filters) approach for generating HPCF filters, where a variable regularization parameter _beta_ is used to damp inversion overshoots. Since this regularization parameter has to be set individually, we found it useful to include an estimation plot of the final HPCF (with variable _beta_) in the application. 
 
  <br>
  <br>
