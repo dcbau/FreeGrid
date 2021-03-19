@@ -72,7 +72,7 @@ The application is coded in Python, so to run it you need Python with a set of e
 ## Quick Start
 
 ### Before starting the application
-- The application will use the default audio device by the operating system. Select the appropriate device before starting the application, selecting audio devices while running the application is currently not possible. 
+- The application will use the default audio device of the operating system. Please select the appropriate device before starting the application as selecting audio devices while running the application is currently not possible. 
 
 - SteamVR needs to be running in the background with both trackers connected. 
 
@@ -80,9 +80,14 @@ The application is coded in Python, so to run it you need Python with a set of e
 
 
 ### Configure
+<<<<<<< Updated upstream
 <img src="./resources/doc/configure_window.png" alt="Overview" width="600"/>
 
 #### A) Calibrate using Vive Trackers
+=======
+SCREENSHOT HERE
+#### A) Calibration using Vive Trackers
+>>>>>>> Stashed changes
 1. __Check Trackers__ First of all, make sure the trackers are correctly working. If you move the trackers around, the virtual speaker position display should be showing the relative angle from one tracker to the other. One tracker is the base tracker (for the head tracking) the other one represents the relative speaker position. The relative speakers orientation is not regarded. 
    Accordingly, you can identify the tracker roles by rotating them. If the roles are reversed and you already attached the wrong tracker to the head, you can simply switch the roles with the `Switch Tracker Roles` Button.
 2. __Calibrate Listener Head__ With the base tracker attached anywhere to the head, hold the second tracker to each ear (the bottom center of the tracker against the ear canal) and press the corresponding calibration button. This defines the approximated rotation center of the head between the ears.
@@ -91,7 +96,7 @@ The application is coded in Python, so to run it you need Python with a set of e
 
 The calibration steps can be repeated in any order, if needed. After successfull calibration, the second tracker can be turned off.
 
-#### B) Calibrate using external tracking system (OSC)
+#### B) Calibration using external tracking system (OSC)
 In case you are using another tracking system wich can communicate via OSC, you don´t have to calibrate anything. The external tracking system has to take care of that. It should supply __relative__ angles (Azimuth, Elevation & Radius) between the loudspeaker and the head, and __not__ the head orientation. The bottom left panel _Vive Tracker Status_ becomes _OSC Input Status_ and will blink if osc messages are received. 
 
 ### Performing Measurements
