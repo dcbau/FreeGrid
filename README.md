@@ -83,11 +83,10 @@ The application is coded in Python, so to run it you need Python with a set of e
 <<<<<<< Updated upstream
 <img src="./resources/doc/configure_window.png" alt="Overview" width="600"/>
 
-#### A) Calibrate using Vive Trackers
-=======
-SCREENSHOT HERE
 #### A) Calibration using Vive Trackers
->>>>>>> Stashed changes
+=======
+SCREENSHOT HERE  
+
 1. __Check Trackers__ First of all, make sure the trackers are correctly working. If you move the trackers around, the virtual speaker position display should be showing the relative angle from one tracker to the other. One tracker is the base tracker (for the head tracking) the other one represents the relative speaker position. The relative speakers orientation is not regarded. 
    Accordingly, you can identify the tracker roles by rotating them. If the roles are reversed and you already attached the wrong tracker to the head, you can simply switch the roles with the `Switch Tracker Roles` Button.
 2. __Calibrate Listener Head__ With the base tracker attached anywhere to the head, hold the second tracker to each ear (the bottom center of the tracker against the ear canal) and press the corresponding calibration button. This defines the approximated rotation center of the head between the ears.
