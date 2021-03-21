@@ -1,8 +1,9 @@
 # GuidedHRTFsPython
-> __Current State Of Work__ (March 2021)
-> - The project is still in a testing phase. It works and provides good results, but is not verified
-> - The postprocessing and upsampling of the impulse responses is not included in the repository. Although this is a essential part of the whole project, the current scope of this application is the measurement procedure itself.  
-> - We are still looking for a better project name ...
+> __Current State Of Work__ (March 2021) 
+>  
+> - The project is still in a test phase. It works and provides good results, but needs further evaluation.
+> - The postprocessing and upsampling of the Head-Related Impulse Responses (HRIRs) is not part of the repository. Although this is a essential part of the entire project, the current scope of this application is the measurement procedure itself.    
+> - We are still looking for a better project name...
 
 ## Overview
 
@@ -79,7 +80,7 @@ The application is coded in Python, so to run it you need Python with a set of e
   <img src="./resources/doc/steamvr_status.png" alt="Overview" width="400"/>
 
 
-### Configure
+### Configuration
 <<<<<<< Updated upstream
 <img src="./resources/doc/configure_window.png" alt="Overview" width="600"/>
 
@@ -87,60 +88,60 @@ The application is coded in Python, so to run it you need Python with a set of e
 =======
 SCREENSHOT HERE  
 
-1. __Check Trackers__ First of all, make sure the trackers are correctly working. If you move the trackers around, the virtual speaker position display should be showing the relative angle from one tracker to the other. One tracker is the base tracker (for the head tracking) the other one represents the relative speaker position. The relative speakers orientation is not regarded. 
-   Accordingly, you can identify the tracker roles by rotating them. If the roles are reversed and you already attached the wrong tracker to the head, you can simply switch the roles with the `Switch Tracker Roles` Button.
-2. __Calibrate Listener Head__ With the base tracker attached anywhere to the head, hold the second tracker to each ear (the bottom center of the tracker against the ear canal) and press the corresponding calibration button. This defines the approximated rotation center of the head between the ears.
-3. __Calibrate Speaker Position__ Hold the tracker against the acoustical center of the speaker (approximately between the two topmost speaker cones) and press the corresponding calibration button.
-4. __Calibrate Listener Orientation__ Place the tracker on the floor somewhere between the speaker and the desired listening position, pointing towards the desired view direction (LED facing in opposite direction). Point your head exactly into the desired listening direction (look directly to the loudspeaker) and press the `Calibrate Orientation` button. Be as accurate as possible during this step and make sure that the tracker is lying super flat on the floor. 
+1. __Check Trackers:__ First, make sure the trackers are working correctly. When you move the trackers around, the virtual speaker position display should show the relative angle between the trackers. One tracker is the base tracker (for the head tracking) the other one represents the relative loudspeaker position. The relative loudspeakers orientation is not regarded. 
+   Accordingly, you can identify the tracker roles by rotating them. If the roles are reversed and you already attached the wrong tracker to the head, you can simply switch the roles by pressing the `Switch Tracker Roles` button.
+2. __Calibrate Listener Head:__ With the base tracker attached to the head, hold the second tracker to each ear (the bottom center of the tracker to the ear canal) and press the corresponding calibration button (`Calibrate Left / Right Ear`) in the GUI. This defines the approximated rotation center of the head between the ears.
+3. __Calibrate Speaker Position:__ Hold the tracker to the acoustical center of the speaker and press the `Calibrate Speaker` button in the GUI.
+4. __Calibrate Listener Orientation:__ Place the tracker on the floor somewhere between the speaker and the desired measurement position, pointing towards the desired view direction (LED on the tracker facing in opposite direction). Point your head exactly into the desired listening direction (look directly to the loudspeaker) and press the `Calibrate Orientation` button in the GUI. Be as accurate as possible during this step and make sure that the tracker is flat on the ground. 
 
-The calibration steps can be repeated in any order, if needed. After successfull calibration, the second tracker can be turned off.
+The calibration steps can be repeated in any order, if necesary. After successfull calibration, the second tracker can be switched off.
 
 #### B) Calibration using external tracking system (OSC)
-In case you are using another tracking system wich can communicate via OSC, you don´t have to calibrate anything. The external tracking system has to take care of that. It should supply __relative__ angles (Azimuth, Elevation & Radius) between the loudspeaker and the head, and __not__ the head orientation. The bottom left panel _Vive Tracker Status_ becomes _OSC Input Status_ and will blink if osc messages are received. 
+In case you are using another tracking system wich can communicate via OSC, you do not have to performa a calibration. The external tracking system has to take care of the calibration. The external system should supply __relative__ angles (azimuth, elevation, and radius) between the loudspeaker and the user's head, and __not__ the head orientation of the user. The bottom left panel _Vive Tracker Status_ becomes _OSC Input Status_ and will blink if OSC messages are received. 
 
 ### Performing Measurements
 <img src="./resources/doc/measurement_window.png" alt="Overview" width="600"/>
 
-> Before starting a measurement session, it is best to give the session a name, so the exported file can be identified later on. For every new session, the session name __must__ be changed, otherwise the previos session will be overwritten.
+> Before starting a measurement session, you should give the session a name so that the exported file can be identified later on. For every new session, the session name __must__ be changed, otherwise the previos session will be overwritten.
 
-1. Perform a center measurement with a reference microphone: Place the microphone where the head center will be during the measurement and connect the microphone to the left (Ch1) input of your audio interface. 
-2. Place the in-ear microphones in the ear canals and connect the to input Ch1/Ch2. Set adequate levels for the output and input of the audio device (see [notes on measurement setup](resources/doc/measurement-setup-notes.md) for help)
-3. Run some measurements. Best thing to do is to activate the _Auto Measurement Mode_, where a measurement is triggered when the head remains still for 2 seconds. During the measurement, keep your head still for the whole time (even after the sweep is finished) until you hear the sound for a successfull measurement. 
-   > A good starting point is to perform around 30 measurements for a full spherical coverage. This should take around 5 minutes
+1. Perform a center measurement with a reference microphone. Place the microphone where the head center will be during the measurements and connect the microphone to the left input (Ch1) of your audio interface. 
+2. Place the in-ear microphones in the ear canals and connect them to the left / right input of your audio interface (Ch1/Ch2). Set adequate levels for the output and input of the audio interface (see [notes on measurement setup](resources/doc/measurement-setup-notes.md) for help)
+3. Run some measurements. It is best to activate the _Auto Measurement Mode_, where a measurement is triggered when the head is still for 2 seconds. During the measurement, keep your head still for the entire time (even after the sweep is finished) until you hear the sound for a successfull measurement. 
+   > A good starting point is to perform around 30 measurements for a full spherical coverage. This should take around 5 minutes.
    
-   During the measurement, you can always pause the auto measurement to have a look at the already done measurements in the `Data List` tab, where you can also delete measurements if you made a mistake. The source positions of the measurements will also be shown in the virtual speaker position display.
-3. After your inital measurements, you can ask the _Point Recommender_ for additional points. First, recommend a point, it will pop up in the virtual speaker position display. By pressing `Start Guidance`, a spoken word guidance will tell you where to move your head (always assuming you are initally looking towards the speaker), followed by a guiding tone interval indicating how close you are to the disered view direction. It is a two step procedure, first guiding your view on the horizontal plance, from there on guiding you to the exact spot by tilting your head down, up, left or right.  
+   You can pause the automatic measurement at any time to have a look at the measurements already done in the `Data List` tab. There, you can also delete erroneous measurements. The source positions of the measurements will also be shown in the virtual speaker position display.
+3. After your inital measurements, you can ask the _Point Recommender_ for additional points. The recommended point will show up in the virtual speaker position display. By pressing `Start Guidance`, a spoken word guidance will tell you where to move your head (always assuming you are initally looking towards the speaker), followed by a guiding tone interval indicating how close you are to the desired view direction. It is a two step procedure, first guiding your head orientation on the horizontal plance, and then guiding your head orientation to the exact spot by tilting down, up, left, or right.  
 
 
 ### Performing Headphone Measurements
 
-A headphone compensation filter (HPCF) is a good way to equalize the headphone used later on in the reproduction (if the reproduction headphone is known). Furthermore, measuring the individual HPCF directly after the individual HRIRs has the advantage of compensating the used in-ear microphones and their potentially uneven placement in the ear canal. 
+A headphone compensation filter (HPCF) is required for accurate binaural reproduction using the acquired HRTFs. Measuring the individual HPCF directly after the individual HRTF measurements has the advantage of compensating for the in-ear microphones used and their possibly uneven placement in the ear canal.
 
-In the application, it is possible to measure the headphone impulse responses (HPIR) from which the HPCF can be estimated.
+In the application, it is possible to measure headphone impulse responses (HPIR) from which a HPCF can be estimated.
 
 1. Set the name of the headphone
-2. Connect the headphone to the Ch1/Ch2 output of the audio interface
-3. Put on the headphones and try not to move the in-ear microphones. Set an adequate sweep volume (be careful with your ears!)
-4. Perform round about 10 to 15 headphone measurements. Between every measurement, put the headphone off and on and try to vary the position on the head a little.
-5. For measuring another headphone, simply click `Clear/Start New`. The IRs have already been saved (see section _Output & Post Processing_) .
+2. Connect the headphones to the stereo output of the audio interface (Ch1/Ch2).
+3. Put on the headphones and try not to move the in-ear microphones. Set an adequate sweep level (be careful with your ears!)
+4. Perform about 10 to 15 headphone measurements. Put the headphones on and off between each measurement, resulting in slightly different positions of the headphones on the head for each measurement
+5. For measuring another pair of headphones, simply click `Clear/Start New`. The HPIRs have already been saved (see section _Output & Post Processing_) .
 
 <img src="./resources/doc/hp_measurement.png" alt="Overview" width="300"/>
 
-In the plots below, you see the layered magnitude responses for every HPIR (left/right seperate), but also an estimate of the resulting HPCF filter. This estimate is not exported. 
+In the plots above, you can see the magnitude responses of the HPIRs (left/right separated) and an estimated HPCF filter. The estimated filter is not exported. 
 
-> In our lab, we are mostly using [this](https://github.com/spatialaudio/hptf-compensation-filters) approach for generating HPCF filters, where a variable regularization parameter _beta_ is used to damp inversion overshoots. Since this regularization parameter has to be set individually, we found it useful to include an estimation plot of the final HPCF (with variable _beta_) in the application. 
+> In our lab, we are mostly using [this](https://github.com/spatialaudio/hptf-compensation-filters) approach for generating HPCF filters, where a variable parameter _beta_ is used to regularize the inversion. Since this regularization parameter has to be set individually, we think it is useful to include an estimation plot of the final HPCF (with variable _beta_) in the application. 
 
  <br>
  <br>
 
 ## Output & Post Processing
-The output of the measurement system are the deconvolved IRs, but without any further post-processing. The post-processing and upsampling is meant to be done seperately in Matlab, at least in the current state of work. Besides the deconvoled IR, additionaly the raw recorded sweep & feedback loop sweep is stored (if no real feedbackloop was recorded, the excitation signal is stored as the feedback loop).
+The measurement system provides deconvolved HRIRs without further post-processing. Further post-processing and upsampling should be done seperately in Matlab, at least in the current state of work. Besides the HRIRs, additionaly the raw recorded sweeps and the feedback loop sweeps are stored (if no real feedback loop was recorded, the excitation signal is stored as the feedback loop).
 
-Currently, the measured IRs are immediately stored as a bundled .mat file after every measurement. The default save path is "$PROJECT_DIR/Measurements", but it can be changed to any path in the _Configure_ panel. Whenever a change is applied to the measurements (IR added or IR removed), the export file is immediately updated.  Three different .mat files are stored: 
+Currently, the measured HRIRs are immediately stored as a bundled .mat file after every measurement. The default save path is "$PROJECT_DIR/Measurements", but it can be changed to any path in the _Configure_ panel. Whenever a change is applied to the measurements (HRIR added removed), the export file is immediately updated. Three different .mat files are stored: 
 
-* **HRIRs**: IRs & raw signals for each HRIR, together with the corresponding source positions of every HRIR in [Az(0...360°), El(90...-90°), R(m)]. Besides that, some metadata like used samplingrate and head-dimensions (if they were measured) are stored. The filename consists of `"measured_points_{session name}_{current date}.mat`. If multiple sessions are done (with different session names), each session is stored in a seperate file.
-* **Reference IR** IR & raw signals for the reference (center) measurement. If the reference measurement is performed multiple times, every measurement is stored (in the same .mat-file)
-* **Headphone IRs**: IRs & raw signals for each HPIR measurement repetition with the regularization value _beta_ from the HPCF-estimation. The HPCF estimate is NOT exported. The filename consists of `"headphone_ir_{hp name}_{current date}.mat`. If multiple HPs are measured, multiple files are exported. 
+* **HRIRs**: IRs and raw signals for each HRIR, together with the corresponding source positions of every HRIR in [Az(0...360°), El(90...-90°), R(m)]. Furthermore, metadata such as the used sampling rate and head-dimension (if measured) are stored. The filename consists of `"measured_points_{session name}_{current date}.mat`. If multiple sessions are done (with different session names), each session is stored in a seperate file.
+* **Reference IR** IR and raw signals for the reference (center) measurement. If the reference measurement is performed multiple times, every measurement is stored (in the same .mat-file).
+* **Headphone IRs**: IRs and raw signals for each HPIR measurement repetition with the regularization value _beta_ from the HPCF estimation. The HPCF estimate is NOT exported. The filename consists of `"headphone_ir_{hp name}_{current date}.mat`. If multiple headphones are measured, multiple files are exported. 
 
 <br>
 <br>
