@@ -15,7 +15,7 @@ The measurement procedure is as follows:
 
 1. Place a loudspeaker in the room, put in-ear microphones on, wire everything up
 2. Put a VIVE Tracker on the head and start SteamVR  
-3. Run the application and perform a quick calibration routine  
+3. Run the application and perform a quick calibration routine with a second VIVE Tracker
 4. (Beneficial: Perform a center Impulse Response (IR) measurement with a reference microphone)  
 5. Perform as many Head-Related Impulse Response (HRIR) measurements as you like by simply moving your head to the disired direction  
 6. After that, the system can suggest additional measurement positions to improve the spherical coverage of the dataset  
@@ -37,7 +37,7 @@ A good measurement loudspeaker with a sufficiently good magnitude and phase resp
 
 Furthermore, an audio interface for capturing the IRs is required. It should at least have two in and outputs. A third input/output is very helpful to have a feedback loop (directly connecting Out3 -> In3) so that the software can compensate any software or DA/AD-latency. Digitally controlled preamps provide a huge benefit for L/R level matching.
 ### Tracking System
-The application is customized for the use of the HTC VIVE system. This tracking system is widely available, easy to use, moderately priced, and offers very accurate and fast tracking capabilites. Unlike many other VR/AR applications, neither the headset nor the contollers are needed, only the additionally available [Trackers](https://www.vive.com/de/accessory/vive-tracker/). 
+The application is customized for the use of the HTC VIVE system. This tracking system is widely available, easy to use, moderately priced, and offers very accurate and fast tracking capabilites. Unlike many other VR/AR applications, neither the headset nor the contollers are needed, only two additionally available [Trackers](https://www.vive.com/de/accessory/vive-tracker/). 
 
 The application handles the Trackers (SteamVR is needed nevertheless). After performing a simple calibration routine, very accurate relative angles between head and loudspeaker can be measured. 
 
