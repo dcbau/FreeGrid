@@ -81,12 +81,10 @@ The application is coded in Python, so to run it you need Python with a set of e
 
 
 ### Configuration
-<<<<<<< Updated upstream
 <img src="./resources/doc/configure_window.png" alt="Overview" width="600"/>
 
 #### A) Calibration using Vive Trackers
-=======
-SCREENSHOT HERE  
+
 
 1. __Check Trackers:__ First, make sure the trackers are working correctly. When you move the trackers around, the virtual speaker position display should show the relative angle between the trackers. One tracker is the base tracker (for the head tracking) the other one represents the relative loudspeaker position. The relative loudspeakers orientation is not regarded. 
    Accordingly, you can identify the tracker roles by rotating them. If the roles are reversed and you already attached the wrong tracker to the head, you can simply switch the roles by pressing the `Switch Tracker Roles` button.
