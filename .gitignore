@@ -2,3 +2,10 @@ __pycache__
 .idea
 /measured_points
 /reference_measurement
+/measured_points.mat
+/reference_measurement.mat
+/measurement_output/*
+/reproduction/pybinsim_resources/BRIRs_CIRC360_pbs/
+/.ipynb_checkpoints/Untitled-checkpoint.ipynb
+/Untitled.ipynb
+/Measurements/measured_points__04_03_2021.mat

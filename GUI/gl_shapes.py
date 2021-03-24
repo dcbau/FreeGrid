@@ -147,7 +147,7 @@ class Speaker():
         program['a_position'] = self.vertices
         program['a_sourceColour'] = self.colors
 
-        model = np.dot(translate((0, 0, -(r + self.size / 2))),    np.dot(rotate(el, (1, 0, 0)), rotate(az, (0, -1, 0))))
+        model = np.dot(translate((0, 0, -(r + self.size / 2))),    np.dot(rotate(el, (1, 0, 0)), rotate(az, (0, 1, 0))))
 
         program['u_model'] = model
         program.draw('lines', self.indices)

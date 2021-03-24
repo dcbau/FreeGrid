@@ -3,47 +3,8 @@ from scipy import special as sp
 from grid_improving.grid_creation import *
 import itertools
 import time
-
-def sph2cart(_az, _el, ra):
-    a = _az * np.pi / 180
-    e = _el * np.pi / 180
-
-    x = ra * np.multiply(np.cos(a), np.sin(e))
-    y = ra * np.multiply(np.sin(a), np.sin(e))
-    z = ra * np.cos(e)
-
-    # array = np.array([x, y, z])
-    # array = np.round(array * 1000) / 1000
-
-    return x, y, z
-
-def getDistances(p_az, p_el, grid_az, grid_el):
-    x1, y1, z1 = sph2cart(p_az, p_el, 1);
-    x2, y2, z2 = sph2cart(grid_az, grid_el, 1);
-
-    # make the single point value a matrix with same dimensions than the grid
-    x1 = x1 * np.ones_like(x2)
-    y1 = y1 * np.ones_like(z2)
-    z1 = z1 * np.ones_like(z2)
-
-    dotProduct = np.einsum('ji,ji->i', [x1, y1, z1], [x2, y2, z2])
-
-    distances = np.arccos(np.clip(dotProduct, -1.0, 1.0)) / np.pi;
-
-    return distances
-
-def angularDistance(az1, el1, az2, el2):
-    # el1 = el1 - 90;
-    # el2 = el2 - 90;
-
-    x1, y1, z1 = sph2cart(az1, el1, 1);
-    x2, y2, z2 = sph2cart(az2, el2, 1);
-
-    # distance = np.arctan2(np.linalg.norm(np.cross(xyz1, xyz2)), np.dot(xyz1, xyz2)) / 180;
-    distance = np.arccos(np.clip(np.dot([x1, y1, z1], [x2, y2, z2]), -1.0, 1.0)) / np.pi;
-    # distance = np.arccos(np.clip(0.5, -1.0, 1.0)) / np.pi;
-
-    return distance
+import sound_field_analysis.lebedev
+import grid_improving.angular_distance
 
 
 def get_sph_harms(SHOrder, az, el):
@@ -106,7 +67,7 @@ def calculateDensityAreas(inputGrid, resolution):
         #         minDist = d
         # nearestNeighbors[i] = minDist
 
-        ds = getDistances(Az[i], El[i], inputGrid[:, 0], inputGrid[:, 1])
+        ds = grid_improving.angular_distance.getDistances(Az[i], 90 - El[i], inputGrid[:, 0], 90 - inputGrid[:, 1])
         nearestNeighbors[i] = np.amin(ds)
 
     return Az, El, nearestNeighbors
@@ -116,22 +77,31 @@ def calculateDensityAreas(inputGrid, resolution):
 
 def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None, force_sh_order=None):
 
+    #convention: el = 0..180°
+
     d2r = np.pi / 180
     r2d = 1 / d2r
 
     if _correctionGrid is None:
-        _correctionGrid = makeGaussGrid(10, 10) * d2r
+        lebedev_grid = sound_field_analysis.lebedev.genGrid(194)
+        az, el, r = grid_improving.angular_distance.cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
+        az = az * r2d
+        el = el * r2d
+        az = az % 360
+        el = 90 - el
+        _correctionGrid = np.transpose(np.array([az, el]))
 
     inputGrid = _inputGrid * d2r
     correctionGrid = _correctionGrid * d2r
 
     nInputPoints = np.size(inputGrid, 0)
     nCorrectionPoints = np.size(correctionGrid, 0)
-    #print("nINputPoints: ", nInputPoints, "  nCorrectionPoints: ", nCorrectionPoints)
 
-    bestmatch = np.zeros(nNewPoints)
+    bestmatch = np.zeros(nNewPoints).astype(dtype=int)
     if force_sh_order is None:
         sh_order = np.floor(np.sqrt((nNewPoints + nInputPoints)) - 2)
+        if sh_order < 1:
+            sh_order = 1
     else:
         sh_order = force_sh_order
 
@@ -140,8 +110,8 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
     combinations = itertools.combinations(range(nCorrectionPoints), nNewPoints)
     combinations = np.array(list(combinations))
 
-    print("\nSearching through ", np.size(combinations, 0), " possible combinations of ", nCorrectionPoints, " points")
-    print("Use Loop: ", use_loop)
+    #print("\nSearching through ", np.size(combinations, 0), " possible combinations of ", nCorrectionPoints, " points")
+    #print("Use Loop: ", use_loop)
     start_time = time.time()
 
     YnmBase = get_sph_harms(sh_order, inputGrid[:, 0], inputGrid[:, 1])
@@ -165,7 +135,74 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
 
     correction_points = correctionGrid[bestmatch]
 
-    print("Took ", time.time() - start_time, " seconds")
-    print("Best condition value found was ", condition, " for SH Order ", sh_order)
+    #print("Took ", time.time() - start_time, " seconds")
+    #print("Best condition value found was ", condition, " for SH Order ", sh_order)
 
     return correction_points * r2d
+
+
+def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
+
+    #convention: el = 0..180°
+
+    d2r = np.pi / 180
+    r2d = 1 / d2r
+
+    if _correctionGrid is None:
+        lebedev_grid = sound_field_analysis.lebedev.genGrid(194)
+        az, el, r = grid_improving.angular_distance.cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
+        az = az*r2d
+        el = el*r2d
+        az = az % 360
+        el = 90 - el
+        _correctionGrid = np.transpose(np.array([az, el]))
+
+    inputGrid = _inputGrid# * d2r
+    correctionGrid = _correctionGrid# * d2r
+
+    nInputPoints = np.size(inputGrid, 0)
+    nCorrectionPoints = np.size(correctionGrid, 0)
+
+
+
+    # get all combinations of n points
+    combinations = itertools.combinations(range(nCorrectionPoints), nNewPoints)
+    combinations = np.array(list(combinations))
+
+    #("\nSearching through ", np.size(combinations, 0), " possible combinations of ", nCorrectionPoints, " points")
+    start_time = time.time()
+
+    highest_min_distance = 0
+    bestmatch = np.zeros(nNewPoints).astype(dtype=int)
+
+    for row in combinations:
+        min_distance = 180
+
+        grid = correctionGrid[row, :]
+
+        for i in range(nNewPoints):
+            for j in range(np.size(inputGrid, 0)):
+                d = grid_improving.angular_distance.angularDistance(inputGrid[j, 0], 90 - inputGrid[j, 1], grid[i, 0], 90 - grid[i, 1], return_format='deg')
+                if d < min_distance:
+                    min_distance = d
+
+
+
+        new_point_combis = itertools.combinations(range(nNewPoints), 2)
+        for c in new_point_combis:
+            p1 = grid[c[0], :]
+            p2 = grid[c[1], :]
+            d = grid_improving.angular_distance.angularDistance(p1[0], 90 - p1[1], p2[0], 90 - p2[1])
+            if d < min_distance:
+                min_distance = d
+
+        if min_distance > highest_min_distance:
+            highest_min_distance = min_distance
+            bestmatch = row
+
+    correction_points = correctionGrid[bestmatch]
+
+    #print("Took ", time.time() - start_time, " seconds")
+
+    return correction_points
+

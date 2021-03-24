@@ -1,18 +1,14 @@
-import sys
 import numpy as np
 
-from vispy import app, gloo, geometry, visuals
+from vispy import app, gloo
 from vispy.util.transforms import perspective, translate, rotate
-from vispy.geometry.generation import create_sphere
-from vispy.color.colormap import get_colormaps
 
-from PyQt5.QtCore import pyqtSignal, QSize, Qt
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-import pywavefront
+#import pywavefront
 
-import tracker_manager
 from GUI.gl_shapes import Sphere, Speaker
 
 vertex = """
@@ -127,7 +123,7 @@ class AzimuthAngleDisplay():
         num_vertices = self.steps + 1
         # radius = 1
         self.az = np.linspace(0, 2 * np.pi, self.steps)
-        x = np.sin(self.az) * radius
+        x = -np.sin(self.az) * radius
         y = 0 * self.az
         z = -np.cos(self.az) * radius
 
@@ -239,7 +235,7 @@ class ElevationAngleDisplay():
 
         indices = gloo.IndexBuffer(indices.astype(np.uint32))
 
-        program['u_model'] = rotate(azimuth, (0, -1, 0))
+        program['u_model'] = rotate(azimuth, (0, 1, 0))
 
         if elevation > 0:
             program['a_position'] = self.vertices_pos
@@ -250,63 +246,54 @@ class ElevationAngleDisplay():
         program.draw('triangle_strip', indices=indices)
 
 class SpherePoints():
-    def __init__(self, radius=1):
-        self.point_angles = []
-        self.vertices = np.array([[],[],[]], dtype=np.float32).reshape(0, 3)
-        self.colors = np.array([[],[],[], []], dtype=np.float32).reshape(0, 4)
+    def __init__(self, radius=1, pointcolor=np.array([1.0, 0.0, 0.0, 1.0])):
+
+        self.pixel_color = pointcolor.astype(np.float32).reshape(1, 4)
+        self.selection_color = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)
+        self.vertices = np.array([[], [], []], dtype=np.float32).reshape(0, 3)
+        self.colors = np.array([[], [], [], []], dtype=np.float32).reshape(0, 4)
+
         self.radius = radius
 
-    # def add_point(self, az, el):
-    #
-    #     print("Point: ", az, "  ", el)
-    #     self.point_angles.append([az, 90 - el])
-    #
-    #     num_vertices = int(len(self.point_angles))
-    #     self.vertices = np.zeros([num_vertices, 3], dtype=np.float32)
-    #     self.colors = np.zeros([num_vertices, 4], dtype=np.float32)
-    #
-    #     r = self.radius
-    #     for i in range(num_vertices):
-    #         az = (self.point_angles[i][0] - 90) * np.pi / 180.0
-    #         el = self.point_angles[i][1] * np.pi / 180.0
-    #         self.vertices[i][0] = r * np.sin(el) * np.cos(az)
-    #         self.vertices[i][1] = r * np.cos(el)
-    #         self.vertices[i][2] = r * np.sin(el) * np.sin(az)
-    #
-    #         self.colors[i][0] = 1.0
-    #         self.colors[i][1] = 0.0
-    #         self.colors[i][2] = 0.0
-    #         self.colors[i][3] = 1.0
-    #
-
     def add_point(self, az, el):
-
-        print("Point: ", az, "  ", el)
-
         r = self.radius
 
-        az = (az - 90) * np.pi / 180.0
-        el = (90 - el) * np.pi / 180.0
-        new_vertex = np.array([r * np.sin(el) * np.cos(az),
-                               r * np.cos(el),
-                               r * np.sin(el) * np.sin(az)],
+        az = az * np.pi / 180.0
+        el = el * np.pi / 180.0
+
+        new_vertex = np.array([-r * np.cos(el) * np.sin(az),
+                               r * np.sin(el),
+                               -r * np.cos(el) * np.cos(az)],
                               dtype=np.float32).reshape(1, 3)
 
-        new_color = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32).reshape(1, 4)
-
-
         self.vertices = np.append(self.vertices, new_vertex, 0)
-        self.colors = np.append(self.colors, new_color, 0)
+        self.colors = np.append(self.colors, self.pixel_color, 0)
 
+    def clear_all_points(self):
+        self.vertices = np.array([[], [], []], dtype=np.float32).reshape(0, 3)
+        self.colors = np.array([[], [], [], []], dtype=np.float32).reshape(0, 4)
 
-    def add_reference_measurement_point(self):
+    def select_point(self, idx):
+        try:
+            self.colors[idx] = self.selection_color
+        except IndexError:
+            print("Could not select point: Invalid id")
 
-        new_vertex = np.array([0.0, 0.0, 0.0], dtype=np.float32).reshape(1, 3)
-        new_color = np.array([0.0, 0.0, 1.0, 1.0], dtype=np.float32).reshape(1, 4)
+    def deselect_points(self, idx=None):
+        if idx == None:
+            self.colors[:] = self.pixel_color
+        else:
+            try:
+                self.colors[idx] = self.pixel_color
+            except IndexError:
+                print("Could not select point: Invalid id")
 
-        self.vertices = np.append(self.vertices, new_vertex, 0)
-        self.colors = np.append(self.colors, new_color, 0)
-
+    def remove_point(self, idx):
+        try:
+            self.vertices = np.delete(self.vertices, idx, 0)
+            self.colors = np.delete(self.colors, idx, 0)
+        except IndexError:
+            print("Couldn´t remove point: Invalid id")
 
     def draw(self, program):
 
@@ -318,6 +305,7 @@ class SpherePoints():
         program['a_position'] = self.vertices
         program['a_sourceColour'] = self.colors
         program.draw('points')
+
 
 
 class VispyCanvas(app.Canvas):
@@ -342,7 +330,9 @@ class VispyCanvas(app.Canvas):
         self.sphere = Sphere(self.sphereradius, 15, 20)
         self.speaker = Speaker(self.boxsize)
 
-        self.meas_points = SpherePoints(self.sphereradius)
+        self.meas_points = SpherePoints(radius=self.sphereradius, pointcolor=np.array([1.0, 0.0, 0.0, 1.0]))
+        self.ref_points = SpherePoints(radius=0, pointcolor=np.array([0.0, 0.0, 1.0, 1.0]))
+        self.recommendation_points = SpherePoints(radius=self.sphereradius, pointcolor=np.array([0.0, 1.0, 0.0, 1.0]))
 
 
 
@@ -409,17 +399,19 @@ class VispyCanvas(app.Canvas):
 
         self.sphere.draw(self.program)
 
-        az, el, r = self.measurement_ref.tracker.getRelativePosition()
+        az, el, r = self.measurement_ref.tracker.get_relative_position()
         self.current_azimuth = az
         self.current_elevation = el
         self.speaker.draw(self.program, az, el, self.sphereradius)
 
         self.meas_points.draw(self.program)
+        self.recommendation_points.draw(self.program)
+        self.ref_points.draw(self.program)
 
         self.azimuthdisplay.draw(self.program, az)
         self.elevationdisplay.draw(self.program, az, el)
 
-        self.parent_window.updateCurrentAngle(az, el)
+        self.parent_window.updateCurrentAngle(az, el, r)
 
 
 
