@@ -171,8 +171,6 @@ class Measurement():
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
-        self.ir_l = []
-        self.ir_r = []
 
     def set_sweep_parameters(self, d_sweep_sec, d_post_silence_sec, f_start, f_end, amp_db, fade_out_samples):
         self.sweep_parameters['sweeplength_sec'] = d_sweep_sec
@@ -225,8 +223,6 @@ class Measurement():
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
-        self.ir_l = []
-        self.ir_r = []
 
         excitation = self.excitation
         excitation_3ch = self.excitation_3ch
@@ -274,13 +270,6 @@ class Measurement():
             self.feedback_loop = recorded[:, 2]
 
 
-        # make IR
-        fc_hp = 50 #self.sweep_parameters['f_start'] * 2
-        fc_lp = 18000
-        self.ir_l = deconvolve(self.feedback_loop, self.recorded_sweep_l, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
-        self.ir_r = deconvolve(self.feedback_loop, self.recorded_sweep_r, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
-
-        #self.ir_l = deconv(self.feedback_loop, self.recorded_sweep_l)
     def get_names_of_defualt_devices(self):
         try:
             input_dev = sd.query_devices(sd.default.device[0])
@@ -321,8 +310,20 @@ class Measurement():
     def get_recordings(self):
         return [self.recorded_sweep_l, self.recorded_sweep_r, self.feedback_loop]
 
-    def get_irs(self):
+    def get_irs(self, rec_l=None, rec_r=None, fb_loop=None):
         try:
-            return [self.ir_l, self.ir_r]
+            if rec_l == None:
+                rec_l = self.recorded_sweep_l
+            if rec_r == None:
+                rec_r = self.recorded_sweep_r
+            if fb_loop == None:
+                fb_loop = self.feedback_loop
+
+            # make IR
+            fc_hp = 50  # self.sweep_parameters['f_start'] * 2
+            fc_lp = 18000
+            ir_l = deconvolve(fb_loop, rec_l, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
+            ir_r = deconvolve(fb_loop, rec_r, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
+            return [ir_l, ir_r]
         except:
             return
