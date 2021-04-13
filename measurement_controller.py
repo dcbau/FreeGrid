@@ -257,11 +257,12 @@ class MeasurementController:
                   'sourcePositions': self.positions,
                   'fs': self.measurement.fs,
                   'headWidth': headWidth,
-                  'headLength': headLength}
+                  'headLength': headLength,
+                  'sweepParameters': self.measurement.sweep_parameters}
 
-        scipy.io.savemat(self.get_current_file_path(), export)
+        scipy.io.savemat(self.get_filepath_for_irs(), export)
 
-    def get_current_file_path(self):
+    def get_filepath_for_irs(self):
 
         session_name = self.gui_handle.session_name.text()
         filename = "measured_points_" + session_name + "_" + self.current_date + ".mat"
@@ -296,9 +297,12 @@ class MeasurementController:
         export = {'ref_rawRecorded': self.raw_signals_reference,
                   'ref_rawFeedbackLoop': self.raw_feedbackloop_reference,
                   'referenceIR': self.measurements_reference,
-                  'fs': self.measurement.fs}
+                  'fs': self.measurement.fs,
+                  'sweepParameters': self.measurement.sweep_parameters}
 
-        filename = "reference_measurement_" + self.current_date + ".mat"
+
+        session_name = self.gui_handle.session_name.text()
+        filename = "reference_measurement_" + session_name + "_" + self.current_date + ".mat"
         filepath = os.path.join(self.output_path, filename)
         scipy.io.savemat(filepath, export)
 
@@ -545,7 +549,7 @@ class MeasurementController:
             try:
 
                 #self.reproduction_player = ir_player.IR_player(IR_filepath=self.get_current_file_path())
-                self.reproduction_player = pybinsim_player.PyBinSim_Player(IR_filepath=self.get_current_file_path())
+                self.reproduction_player = pybinsim_player.PyBinSim_Player(IR_filepath=self.get_filepath_for_irs())
                 self.reproduction_mode = True
 
             except FileNotFoundError:

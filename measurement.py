@@ -137,7 +137,7 @@ class Measurement():
         self.sweep_parameters = {
             'sweeplength_sec': 3.0,
             'post_silence_sec': 1.5,
-            'f_start': 10,
+            'f_start': 100,
             'f_end': 22000,
             'amp_db': -20.0,
             'fade_out_samples': 200
