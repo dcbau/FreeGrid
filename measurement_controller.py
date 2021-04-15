@@ -27,7 +27,7 @@ class MeasurementController:
         self.auto_trigger_by_headmovement = False
 
         self._timer = QtCore.QTimer()
-        self._timer.timeout.connect(self.timer_callback)
+        self._timer.timeout.connect(self.callback_thread)
         self.timer_interval_ms = 20
         self._timer.start(20)
 
@@ -37,6 +37,8 @@ class MeasurementController:
         self.measurement_history = np.array([])
         self.measurement_trigger = False
         self.reference_measurement_trigger = False
+
+        self.measurement_done_lock = threading.Lock()
 
         self.gui_handle = []
 
@@ -94,7 +96,7 @@ class MeasurementController:
         self.auto_trigger_by_headmovement = False
 
     # main callback thread
-    def timer_callback(self):
+    def callback_thread(self):
 
         # check for tracker status
         if self.tracker.tracking_mode == "Vive":
@@ -176,7 +178,7 @@ class MeasurementController:
 
         # this function has to be called by a periodic timer callback and checks if the user´s head has remained still for a defined time interval
 
-        hold_still_interval_sec = 2
+        hold_still_interval_sec = 1
         hold_still_num_callbacks = hold_still_interval_sec*1000 / self.timer_interval_ms
 
         tolerance_angle = 2  # (degree)
@@ -202,18 +204,30 @@ class MeasurementController:
         return False
 
 
-    def done_measurement(self):
-        self.measurement_running_flag = False
+    def done_hrir_measurement(self):
 
         if self.measurement_valid:
-            self.measurement.play_sound(True)
 
+            # finish measurement by getting the recorded data
+            self.measurement.play_sound(True)
             [rec_l, rec_r, fb_loop] = self.measurement.get_recordings()
+            self.measurement_running_flag = False
+
+            # deconvolve and get IRs
+            [ir_l, ir_r] = self.measurement.get_irs(rec_l, rec_r, fb_loop)
+
+            # wait for a previous measurement to finish storing and exporting
+            self.measurement_done_lock.acquire()
+
+            # add to data list
+            self.positions_list.add_position(self.measurement_position.reshape(1, 3))
+
+            # plot
             self.gui_handle.plot_recordings(rec_l, rec_r, fb_loop)
-            [ir_l, ir_r] = self.measurement.get_irs()
             self.gui_handle.plot_IRs(ir_l, ir_r)
             self.gui_handle.add_measurement_point(self.measurement_position[0], self.measurement_position[1])
 
+            # store IRs (internally)
             ir = np.array([[ir_l, ir_r]]).astype(np.float32)
             raw_rec = np.array([[rec_l, rec_r]]).astype(np.float32)
             raw_fb = np.array([[fb_loop]]).astype(np.float32)
@@ -230,15 +244,16 @@ class MeasurementController:
                 self.raw_feedbackloop = raw_fb
                 self.positions = self.measurement_position.reshape(1, 3)
 
+            # export
             self.save_to_file()
 
-            #enable point recommendation after 6 measurements
-            self.numMeasurements += 1
-            if self.numMeasurements >= 6:
-                self.gui_handle.enable_point_recommendation()
+            self.measurement_done_lock.release()
 
-            # add to data list
-            self.positions_list.add_position(self.measurement_position.reshape(1, 3))
+
+            # enable point recommendation after 6 measurements
+            self.numMeasurements += 1
+            if self.numMeasurements >= 3:
+                self.gui_handle.enable_point_recommendation()
 
         else:
             self.measurement.play_sound(False)
@@ -257,11 +272,12 @@ class MeasurementController:
                   'sourcePositions': self.positions,
                   'fs': self.measurement.fs,
                   'headWidth': headWidth,
-                  'headLength': headLength}
+                  'headLength': headLength,
+                  'sweepParameters': self.measurement.sweep_parameters}
 
-        scipy.io.savemat(self.get_current_file_path(), export)
+        scipy.io.savemat(self.get_filepath_for_irs(), export)
 
-    def get_current_file_path(self):
+    def get_filepath_for_irs(self):
 
         session_name = self.gui_handle.session_name.text()
         filename = "measured_points_" + session_name + "_" + self.current_date + ".mat"
@@ -269,7 +285,7 @@ class MeasurementController:
 
         return filepath
 
-    def done_measurement_reference(self):
+    def done_reference_measurement(self):
 
         self.measurement.play_sound(True)
 
@@ -296,9 +312,12 @@ class MeasurementController:
         export = {'ref_rawRecorded': self.raw_signals_reference,
                   'ref_rawFeedbackLoop': self.raw_feedbackloop_reference,
                   'referenceIR': self.measurements_reference,
-                  'fs': self.measurement.fs}
+                  'fs': self.measurement.fs,
+                  'sweepParameters': self.measurement.sweep_parameters}
 
-        filename = "reference_measurement_" + self.current_date + ".mat"
+
+        session_name = self.gui_handle.session_name.text()
+        filename = "reference_measurement_" + session_name + "_" + self.current_date + ".mat"
         filepath = os.path.join(self.output_path, filename)
         scipy.io.savemat(filepath, export)
 
@@ -375,6 +394,7 @@ class MeasurementController:
 
 
     def hp_measurement(self):
+
         self.measurement.single_measurement(type='hpc')
 
         self.measurement.play_sound(True)
@@ -545,7 +565,7 @@ class MeasurementController:
             try:
 
                 #self.reproduction_player = ir_player.IR_player(IR_filepath=self.get_current_file_path())
-                self.reproduction_player = pybinsim_player.PyBinSim_Player(IR_filepath=self.get_current_file_path())
+                self.reproduction_player = pybinsim_player.PyBinSim_Player(IR_filepath=self.get_filepath_for_irs())
                 self.reproduction_mode = True
 
             except FileNotFoundError:
@@ -643,7 +663,7 @@ class StartSingleMeasurementAsync(threading.Thread):
         #print("run")
         self.parent.measurement.single_measurement()
         #print("stop")
-        self.parent.done_measurement()
+        self.parent.done_hrir_measurement()
 
 class StartReferenceMeasurementAsync(threading.Thread):
     def __init__(self, parent):
@@ -654,4 +674,4 @@ class StartReferenceMeasurementAsync(threading.Thread):
         #print("run")
         self.parent.measurement.single_measurement()
         #print("stop")
-        self.parent.done_measurement_reference()
+        self.parent.done_reference_measurement()

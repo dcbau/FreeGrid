@@ -289,6 +289,10 @@ class UiMainWindow(object):
         self.head_dimensions_dialog.setLayout(QtWidgets.QVBoxLayout())
         self.head_dimensions_dialog.layout().setAlignment(QtCore.Qt.AlignLeft)
 
+        self.head_dimensions_info = QtWidgets.QLabel("Measure the width and length of the head by holding the tracker to the left, right, front and back of the head (above the ears). This data is not mandatory for the measurement, but can be used as meta data during post processing. It is stored along with the HRIR data.")
+        self.head_dimensions_info.setWordWrap(True)
+        self.head_dimensions_dialog.layout().addWidget(self.head_dimensions_info)
+
         self.head_dimensions_formlayout = QtWidgets.QFormLayout()
         self.head_dimensions_dialog.layout().addLayout(self.head_dimensions_formlayout)
 
@@ -320,14 +324,16 @@ class UiMainWindow(object):
         # self.calibrate_front_head.setFixedSize(calibration_button_size)
         self.calibrate_front_head.setFixedWidth(calibration_button_width)
         self.calibrate_front_head.clicked.connect(lambda: self.calibrate(self.calibrate_head_front))
-        self.head_dimensions_formlayout.addRow(self.calibrate_front_head, QtWidgets.QLabel("(Optional)"))
+        self.calibrate_front_head_label = QtWidgets.QLabel(text="Uncalibrated")
+        self.head_dimensions_formlayout.addRow(self.calibrate_front_head, self.calibrate_front_head_label)
 
         self.calibrate_back_head = QtWidgets.QPushButton(text='Back Of Head')
         self.calibrate_back_head.setAutoDefault(False)
         # self.calibrate_back_head.setFixedSize(calibration_button_size)
         self.calibrate_back_head.setFixedWidth(calibration_button_width)
         self.calibrate_back_head.clicked.connect(lambda: self.calibrate(self.calibrate_head_back))
-        self.head_dimensions_formlayout.addRow(self.calibrate_back_head, QtWidgets.QLabel("(Optional)"))
+        self.calibrate_back_head_label = QtWidgets.QLabel(text="Uncalibrated")
+        self.head_dimensions_formlayout.addRow(self.calibrate_back_head, self.calibrate_back_head_label)
 
         self.head_length_label = QtWidgets.QLabel(text="Head Length: - ")
         self.head_dimensions_formlayout.addRow(QtWidgets.QLabel(""), self.head_length_label)
@@ -336,7 +342,7 @@ class UiMainWindow(object):
 
 
         self.show_head_dimensions = QtWidgets.QPushButton()
-        self.show_head_dimensions.setText("Measure Head Dimensions")
+        self.show_head_dimensions.setText("Optional: Head Dimensions")
         self.show_head_dimensions.clicked.connect(self.head_dimensions_dialog.show)
         self.show_head_dimensions.setMaximumWidth(200)
         self.vivetracker_box.layout().addWidget(self.show_head_dimensions)
@@ -917,39 +923,44 @@ class UiMainWindow(object):
     def calibrate_head_left(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('left'):
             self.measurement_ref.measurement.play_sound(True)
+            self.calibrate_left_head_label.setText("Calibrated")
             if self.measurement_ref.tracker.head_dimensions['head_width'] is not None:
                 self.head_width_label.setText(f"Head Width: {self.measurement_ref.tracker.head_dimensions['head_width']:.3f}")
         else:
-            self.head_width_label.setText("Calibration Failed")
+            self.calibrate_left_head_label.setText("Calibration Failed")
             self.measurement_ref.measurement.play_sound(False)
 
 
     def calibrate_head_right(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('right'):
             self.measurement_ref.measurement.play_sound(True)
+            self.calibrate_right_head_label.setText("Calibrated")
             if self.measurement_ref.tracker.head_dimensions['head_width'] is not None:
                 self.head_width_label.setText(f"Head Width: {self.measurement_ref.tracker.head_dimensions['head_width']:.3f}")
         else:
-            self.head_width_label.setText("Calibration Failed")
+            self.calibrate_right_head_label.setText("Calibration Failed")
             self.measurement_ref.measurement.play_sound(False)
 
 
     def calibrate_head_front(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('front'):
             self.measurement_ref.measurement.play_sound(True)
+            self.calibrate_front_head_label.setText("Calibrated")
             if self.measurement_ref.tracker.head_dimensions['head_length'] is not None:
                 self.head_length_label.setText(f"Head Length: {self.measurement_ref.tracker.head_dimensions['head_length']:.3f}")
         else:
-            self.head_length_label.setText("Calibration Failed")
+            self.calibrate_front_head_label.setText("Calibration Failed")
             self.measurement_ref.measurement.play_sound(False)
 
 
     def calibrate_head_back(self):
         if self.measurement_ref.tracker.calibrate_headdimensions('back'):
+            self.measurement_ref.measurement.play_sound(True)
+            self.calibrate_back_head_label.setText("Calibrated")
             if self.measurement_ref.tracker.head_dimensions['head_length'] is not None:
                 self.head_length_label.setText(f"Head Length: {self.measurement_ref.tracker.head_dimensions['head_length']:.3f}")
         else:
-            self.head_length_label.setText("Calibration Failed")
+            self.calibrate_back_head_label.setText("Calibration Failed")
 
 
     def calibrate_acoustical_centre(self):
@@ -966,7 +977,7 @@ class UiMainWindow(object):
         QtCore.QTimer.singleShot(interval, self.measurement_ref.trigger_reference_measurement)
 
     def trigger_point_recommendation(self):
-        az, el = self.measurement_ref.recommend_points(1)
+        az, el = self.measurement_ref.recommend_points(self.num_recommended_points_select.value())
 
     def trigger_guided_measurement(self):
         self.measurement_ref.start_guided_measurement()
