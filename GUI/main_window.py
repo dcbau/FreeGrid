@@ -981,7 +981,7 @@ class UiMainWindow(object):
         QtCore.QTimer.singleShot(interval, self.measurement_ref.trigger_reference_measurement)
 
     def trigger_point_recommendation(self):
-        az, el = self.measurement_ref.recommend_points(self.num_recommended_points_select.value())
+        az, el = self.measurement_ref.recommend_points(1)
 
     def trigger_guided_measurement(self):
         self.measurement_ref.start_guided_measurement()

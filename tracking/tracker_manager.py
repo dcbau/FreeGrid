@@ -255,7 +255,7 @@ class TrackerManager():
                 self.head_dimensions['ear_center'] = (self.head_dimensions['ear_pos_r'] + self.head_dimensions['ear_pos_l']) / 2
 
             if self.head_dimensions['left_pos'] is not None and self.head_dimensions['right_pos'] is not None:
-                self.head_dimensions['head_width'] = np.linalg.norm(self.head_dimensions['left_pos'] - self.head_dimensions['left_pos'])
+                self.head_dimensions['head_width'] = np.linalg.norm(self.head_dimensions['left_pos'] - self.head_dimensions['right_pos'])
 
             if self.head_dimensions['front_pos'] is not None and self.head_dimensions['back_pos'] is not None:
                 self.head_dimensions['head_length'] = np.linalg.norm(self.head_dimensions['front_pos'] - self.head_dimensions['back_pos'])

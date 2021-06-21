@@ -383,7 +383,10 @@ class VispyCanvas(app.Canvas):
         Vispy uses the entire canvas.
         """
         gloo.set_viewport(0, 0, *event.physical_size)
-        ratio = event.physical_size[0] / float(event.physical_size[1])
+        try:
+            ratio = event.physical_size[0] / float(event.physical_size[1])
+        except ZeroDivisionError:
+            ratio = 1
         self.program['u_projection'] = perspective(45.0, ratio, 2.0, 10.0)
 
     def on_draw(self, event):
