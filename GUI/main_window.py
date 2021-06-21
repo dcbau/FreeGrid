@@ -900,9 +900,13 @@ class UiMainWindow(object):
         else:
             self.measurement_ref.measurement.play_sound(False)
 
+    # NOTES on the calibrating of head dimensions:
+    # left_ear and right_ear are for yielding the correct head center.
+    # head_left and head_right are for yielding the correct anthropometric head width
+    # head_front and head_right are for yielding the correct anthropometric head length
 
     def calibrate_left_ear(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('left', multiple_calls=False):
+        if self.measurement_ref.tracker.calibrate_headdimensions('left_ear', multiple_calls=False):
             self.calibrate_ear_left_label.setText(f"Calibrated")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
             self.measurement_ref.measurement.play_sound(True)
         else:
@@ -911,7 +915,7 @@ class UiMainWindow(object):
                 self.calibrate_ear_left_label.setText(f"Recalibration failed")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
 
     def calibrate_right_ear(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('right', multiple_calls=False):
+        if self.measurement_ref.tracker.calibrate_headdimensions('right_ear', multiple_calls=False):
             self.calibrate_ear_right_label.setText(f"Calibrated")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
             self.measurement_ref.measurement.play_sound(True)
         else:
