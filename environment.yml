@@ -6,7 +6,6 @@ dependencies:
   - pyqt
   - pyopengl
   - matplotlib
-  - pyaudio
   - pip:
     - vispy==0.5.3
     - pyshtools
