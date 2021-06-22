@@ -9,6 +9,7 @@ from matplotlib.figure import Figure
 import matplotlib
 from scipy.signal import resample
 import os
+from GUI.audio_device_widget import AudioDeviceWidget
 
 
 reproduction_available = False
@@ -84,25 +85,27 @@ class UiMainWindow(object):
         # DEVICE STATUS WIDGET
 
         self.device_status_widget = QtWidgets.QGroupBox("Audio Device Status")
-        devs = self.measurement_ref.devices
-
-        self.label_out_exc = QtWidgets.QLabel(devs['out_excitation'])
-        self.label_out_exc_2 = QtWidgets.QLabel(devs['out_excitation_2'])
-        self.label_out_fb = QtWidgets.QLabel(devs['out_feedback'])
-        self.label_in_left = QtWidgets.QLabel(devs['in_left'])
-        self.label_in_right = QtWidgets.QLabel(devs['in_right'])
-        self.label_in_fb = QtWidgets.QLabel(devs['in_feedback'])
-
-        self.device_status_widget.setLayout(QtWidgets.QFormLayout())
-        self.device_status_widget.layout().addRow(QtWidgets.QLabel("Output Excitation:"), self.label_out_exc)
-        self.device_status_widget.layout().addRow(QtWidgets.QLabel("Output Excitation 2:"), self.label_out_exc_2)
-        self.device_status_widget.layout().addRow(QtWidgets.QLabel("Output Feedback Loop:"), self.label_out_fb)
-        self.device_status_widget.layout().addRow(QtWidgets.QLabel("Input Left Ear Mic:"), self.label_in_left)
-        self.device_status_widget.layout().addRow(QtWidgets.QLabel("Input Right Ear Mic:"), self.label_in_right)
-        self.device_status_widget.layout().addRow(QtWidgets.QLabel("Input Feedback Loop:"), self.label_in_fb)
+        # devs = self.measurement_ref.devices
+        #
+        # self.label_out_exc = QtWidgets.QLabel(devs['out_excitation'])
+        # self.label_out_exc_2 = QtWidgets.QLabel(devs['out_excitation_2'])
+        # self.label_out_fb = QtWidgets.QLabel(devs['out_feedback'])
+        # self.label_in_left = QtWidgets.QLabel(devs['in_left'])
+        # self.label_in_right = QtWidgets.QLabel(devs['in_right'])
+        # self.label_in_fb = QtWidgets.QLabel(devs['in_feedback'])
+        #
+        self.device_status_widget.setLayout(QtWidgets.QHBoxLayout())
+        # self.device_status_widget.layout().addRow(QtWidgets.QLabel("Output Excitation:"), self.label_out_exc)
+        # self.device_status_widget.layout().addRow(QtWidgets.QLabel("Output Excitation 2:"), self.label_out_exc_2)
+        # self.device_status_widget.layout().addRow(QtWidgets.QLabel("Output Feedback Loop:"), self.label_out_fb)
+        # self.device_status_widget.layout().addRow(QtWidgets.QLabel("Input Left Ear Mic:"), self.label_in_left)
+        # self.device_status_widget.layout().addRow(QtWidgets.QLabel("Input Right Ear Mic:"), self.label_in_right)
+        # self.device_status_widget.layout().addRow(QtWidgets.QLabel("Input Feedback Loop:"), self.label_in_fb)
 
         #self.device_status_widget.layout().setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
-        self.device_status_widget.setMaximumHeight(200)
+        #self.device_status_widget.setMaximumHeight(200)
+        self.device_status_widget.layout().addWidget(AudioDeviceWidget())
+
 
         # TRACKER STATUS WIDGET
 

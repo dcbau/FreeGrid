@@ -257,7 +257,7 @@ class MeasurementController:
 
         else:
             self.measurement.play_sound(False)
-Bu            self.measurement_running_flag = False
+            self.measurement_running_flag = False
 
     def save_to_file(self):
 
