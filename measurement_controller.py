@@ -20,7 +20,6 @@ class MeasurementController:
     def __init__(self):
         self.tracker = TrackerManager()
         self.measurement = Measurement()
-        self.devices = self.measurement.get_names_of_defualt_devices()
 
         self.headmovement_trigger_counter = 0
         self.headmovement_ref_position = [0, 0, 1]

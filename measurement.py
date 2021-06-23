@@ -124,8 +124,6 @@ class Measurement():
         #print(devices)
         #print(sd.default.device)
 
-        self.get_names_of_defualt_devices()
-
         self.fs = sd.default.samplerate
         if self.fs is None:
             sd.default.samplerate = 48000
@@ -269,42 +267,6 @@ class Measurement():
             self.recorded_sweep_r = recorded[:, 1]
             self.feedback_loop = recorded[:, 2]
 
-
-    def get_names_of_defualt_devices(self):
-        try:
-            input_dev = sd.query_devices(sd.default.device[0])
-            output_dev = sd.query_devices(sd.default.device[1])
-
-            out_excitation = output_dev['name'] + ", Ch1"
-            num_in_ch = input_dev['max_input_channels']
-            num_out_ch = output_dev['max_output_channels']
-
-        except sd.PortAudioError:
-            num_in_ch = 0
-            num_out_ch = 0
-
-
-        device_strings = {
-            "out_excitation": "Unavailable",
-            "out_excitation_2": "Unavailable",
-            "out_feedback": "Unavailable/Disabled",
-            "in_left": "Unavailable",
-            "in_right": "Unavailable",
-            "in_feedback": "Unavailable/Disabled"
-        }
-        if num_out_ch > 0:
-            device_strings["out_excitation"] = output_dev['name'] + ", Ch1"
-        if num_out_ch > 1:
-            device_strings["out_excitation_2"] = output_dev['name'] + ", Ch2"
-        if num_in_ch > 0:
-            device_strings["in_left"] = input_dev['name'] + ", Ch1"
-        if num_in_ch > 1:
-            device_strings["in_right"] = input_dev['name'] + ", Ch2"
-        if num_in_ch > 2 and num_out_ch > 2:
-            device_strings["in_feedback"] = input_dev['name'] + ", Ch3"
-            device_strings["out_feedback"] = output_dev['name'] + ", Ch3"
-
-        return device_strings
 
 
     def get_recordings(self):

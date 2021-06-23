@@ -7,6 +7,7 @@ import sound_field_analysis.lebedev
 import grid_improving.angular_distance
 
 
+
 def get_sph_harms(SHOrder, az, el):
 
     i = 0
@@ -175,7 +176,23 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
     highest_min_distance = 0
     bestmatch = np.zeros(nNewPoints).astype(dtype=int)
 
+    progress_index = 0;
+    progress_step_size = np.size(combinations, 0) / 100
+    progress_step = progress_step_size
+    progress_plotting = True
+    print(f"Searching {np.size(combinations, 0)} combinations")
+
     for row in combinations:
+
+        if progress_plotting:
+            progress_index += 1
+            progress = progress_index / np.size(combinations, 0)
+            if progress_index > progress_step:
+                #print(round(progress*100), " percent complete", end='')
+                print("|", end='')
+
+                progress_step += progress_step_size
+
         min_distance = 180
 
         grid = correctionGrid[row, :]
@@ -201,8 +218,8 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
             bestmatch = row
 
     correction_points = correctionGrid[bestmatch]
+    print("")
 
     #print("Took ", time.time() - start_time, " seconds")
 
     return correction_points
-

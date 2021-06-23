@@ -246,13 +246,13 @@ class PointRecommender():
 
         return False
 
-    def recommend_new_points(self, _existing_pointset, num_new_points):
+    def recommend_new_points(self, _existing_pointset, num_new_points=1):
 
         existing_pointset = np.array(_existing_pointset, copy=True)
 
         existing_pointset[:, 1] = 90 - existing_pointset[:, 1]
-        newpoints = grid_improving.grid_filling.addSamplepoints(existing_pointset, 1)
-        newpoints2 = grid_improving.grid_filling.addSamplepoints_geometric(existing_pointset, 1)
+        #newpoints = grid_improving.grid_filling.addSamplepoints(existing_pointset, 1)
+        newpoints2 = grid_improving.grid_filling.addSamplepoints_geometric(existing_pointset, num_new_points)
 
         #print("NewPoints1: ")
         #print(newpoints)
