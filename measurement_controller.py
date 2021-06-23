@@ -257,7 +257,7 @@ class MeasurementController:
 
         else:
             self.measurement.play_sound(False)
-Bu            self.measurement_running_flag = False
+            self.measurement_running_flag = False
 
     def save_to_file(self):
 
@@ -325,7 +325,7 @@ Bu            self.measurement_running_flag = False
     def set_output_path(self, path):
         self.output_path = path
 
-    def recommend_points(self, num_points):
+    def recommend_points(self, num_points=1):
 
         if self.positions.any():
 
@@ -333,14 +333,14 @@ Bu            self.measurement_running_flag = False
 
             az, el = self.point_recommender.recommend_new_points(self.positions[:, 0:2], num_points)
 
-            if abs(az) > 0 or abs(el) > 0:
-                self.recommended_points['az'] = az
-                self.recommended_points['el'] = el
-                print("Recommend Point: " + str(az) + " | " + str(el))
-                for i in range(np.size(az)):
-                    self.gui_handle.vispy_canvas.recommendation_points.add_point(az[i], el[i])
+            #if abs(az) > 0 or abs(el) > 0:
+            self.recommended_points['az'] = az
+            self.recommended_points['el'] = el
+            print("Recommend Point: " + str(az) + " | " + str(el))
+            for i in range(np.size(az)):
+                self.gui_handle.vispy_canvas.recommendation_points.add_point(az[i], el[i])
 
-                return az, el
+            return az, el
 
         print("No point could be recommended")
 
