@@ -310,20 +310,21 @@ class Measurement():
     def get_recordings(self):
         return [self.recorded_sweep_l, self.recorded_sweep_r, self.feedback_loop]
 
-    def get_irs(self, rec_l=None, rec_r=None, fb_loop=None):
+    def get_irs(self, rec_l=None, rec_r=None, fb_loop=None, deconv_fc_hp = None, deconv_fc_lp = None):
         try:
-            if rec_l == None:
+            if rec_l is None:
                 rec_l = self.recorded_sweep_l
-            if rec_r == None:
+            if rec_r is None:
                 rec_r = self.recorded_sweep_r
-            if fb_loop == None:
+            if fb_loop is None:
                 fb_loop = self.feedback_loop
+            if deconv_fc_hp is None:
+                deconv_fc_hp = self.sweep_parameters['f_start'] * 2
+            if deconv_fc_lp is None:
+                deconv_fc_lp = 20000
 
-            # make IR
-            fc_hp = 50  # self.sweep_parameters['f_start'] * 2
-            fc_lp = 18000
-            ir_l = deconvolve(fb_loop, rec_l, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
-            ir_r = deconvolve(fb_loop, rec_r, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
+            ir_l = deconvolve(fb_loop, rec_l, self.fs, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
+            ir_r = deconvolve(fb_loop, rec_r, self.fs, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
             return [ir_l, ir_r]
         except:
             return
