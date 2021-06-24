@@ -218,6 +218,15 @@ class Measurement():
 
     def single_measurement(self, type=None):
 
+        # little workaround of a problem with using ASIO from multiple threads
+        # https://stackoverflow.com/questions/39858212/python-sounddevice-play-on-threads
+        default_device = sd.query_devices(sd.default.device[0])
+        default_api = sd.query_hostapis(default_device['hostapi'])
+        if default_api['name'] == 'ASIO':
+            sd._terminate()
+            sd._initialize()
+
+
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
@@ -274,11 +283,11 @@ class Measurement():
 
     def get_irs(self, rec_l=None, rec_r=None, fb_loop=None):
         try:
-            if rec_l == None:
+            if rec_l is None:
                 rec_l = self.recorded_sweep_l
-            if rec_r == None:
+            if rec_r is None:
                 rec_r = self.recorded_sweep_r
-            if fb_loop == None:
+            if fb_loop is None:
                 fb_loop = self.feedback_loop
 
             # make IR
