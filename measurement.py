@@ -170,6 +170,10 @@ class Measurement():
         self.recorded_sweep_r = []
         self.feedback_loop = []
 
+        # initially set to true, will be invalidated if one measurement does not uses the feedback loop
+        self.feedback_loop_used_for_hrirs = True
+        self.feedback_loop_used_for_hpc = True
+
     def set_sweep_parameters(self, d_sweep_sec, d_post_silence_sec, f_start, f_end, amp_db, fade_out_samples):
         self.sweep_parameters['sweeplength_sec'] = d_sweep_sec
         self.sweep_parameters['post_silence_sec'] = d_post_silence_sec
@@ -234,6 +238,13 @@ class Measurement():
 
         available_in_channels = sd.query_devices(sd.default.device[0])['max_input_channels']
 
+        # invalidate feedback loop flag
+        if available_in_channels < 3:
+            if type is 'hpc':
+                self.feedback_loop_used_for_hpc = False
+            else:
+                self.feedback_loop_used_for_hrirs = False
+
         # do measurement
         if(available_in_channels == 1):
             # ch1 = left & right
@@ -274,11 +285,11 @@ class Measurement():
 
     def get_irs(self, rec_l=None, rec_r=None, fb_loop=None):
         try:
-            if rec_l == None:
+            if rec_l is None:
                 rec_l = self.recorded_sweep_l
-            if rec_r == None:
+            if rec_r is None:
                 rec_r = self.recorded_sweep_r
-            if fb_loop == None:
+            if fb_loop is None:
                 fb_loop = self.feedback_loop
 
             # make IR
