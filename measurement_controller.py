@@ -665,6 +665,7 @@ class StartSingleMeasurementAsync(threading.Thread):
 
     def run(self):
         #print("run")
+
         self.parent.measurement.single_measurement()
         #print("stop")
         self.parent.done_hrir_measurement()
