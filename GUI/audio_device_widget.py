@@ -5,20 +5,33 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
         super(AudioDeviceWidget, self).__init__(*args, **kwargs)
-        sd.check_input_settings(device=30, channels=2, samplerate=48000, dtype=('float32', 'float32'))
 
         api_list = sd.query_hostapis()
         self.api_box = QtWidgets.QComboBox()
         self.output_devices_box = QtWidgets.QComboBox()
         self.input_devices_box = QtWidgets.QComboBox()
 
-        devs = self.get_names_of_default_devices()
-        self.label_out_exc = QtWidgets.QLabel(devs['out_excitation'])
-        self.label_out_exc_2 = QtWidgets.QLabel(devs['out_excitation_2'])
-        self.label_out_fb = QtWidgets.QLabel(devs['out_feedback'])
-        self.label_in_left = QtWidgets.QLabel(devs['in_left'])
-        self.label_in_right = QtWidgets.QLabel(devs['in_right'])
-        self.label_in_fb = QtWidgets.QLabel(devs['in_feedback'])
+        # channel layout as zero indexed channel numbers
+        # output layout: [out_1, out_2, out_fb]
+        # input layout: [in_left, in_right, in_fb]
+        self.channel_layout_ouput = [0, 1, 2]
+        self.channel_layout_input = [0, 1, 2]
+
+        self.out_1_channel = QtWidgets.QComboBox()
+        self.out_2_channel = QtWidgets.QComboBox()
+        self.out_fb_channel = QtWidgets.QComboBox()
+        self.out_1_channel.activated.connect(self.update_output_channel_layout)
+        self.out_2_channel.activated.connect(self.update_output_channel_layout)
+        self.out_fb_channel.activated.connect(self.update_output_channel_layout)
+
+        self.in_l_channel = QtWidgets.QComboBox()
+        self.in_r_channel = QtWidgets.QComboBox()
+        self.in_fb_channel = QtWidgets.QComboBox()
+        self.in_l_channel.activated.connect(self.update_input_channel_layout)
+        self.in_r_channel.activated.connect(self.update_input_channel_layout)
+        self.in_fb_channel.activated.connect(self.update_input_channel_layout)
+
+        self.duplicate_channel_warning = QtWidgets.QLabel("Warning: Duplicate channel assignment!")
 
         self.api_box.activated.connect(self.update_api)
         self.output_devices_box.activated.connect(self.update_device)
@@ -56,17 +69,26 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         verticalSpacer = QtWidgets.QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         layout.addItem(verticalSpacer)
 
-        layout.addRow(QtWidgets.QLabel("Output Excitation:"), self.label_out_exc)
-        layout.addRow(QtWidgets.QLabel("Output Excitation 2:"), self.label_out_exc_2)
-        layout.addRow(QtWidgets.QLabel("Output Feedback Loop:"), self.label_out_fb)
-        layout.addRow(QtWidgets.QLabel("Input Left Ear Mic:"), self.label_in_left)
-        layout.addRow(QtWidgets.QLabel("Input Right Ear Mic:"), self.label_in_right)
-        layout.addRow(QtWidgets.QLabel("Input Feedback Loop:"), self.label_in_fb)
+        layout.addRow(QtWidgets.QLabel("Output Excitation:"), self.out_1_channel)
+        layout.addRow(QtWidgets.QLabel("Output Excitation 2:"), self.out_2_channel)
+        layout.addRow(QtWidgets.QLabel("Output Feedback Loop:"), self.out_fb_channel)
+        layout.addRow(QtWidgets.QLabel("Input Left Ear Mic:"), self.in_l_channel)
+        layout.addRow(QtWidgets.QLabel("Input Right Ear Mic:"), self.in_r_channel)
+        layout.addRow(QtWidgets.QLabel("Input Feedback Loop:"), self.in_fb_channel)
 
+        layout.addItem(verticalSpacer)
+
+        self.use_feedback_loop = QtWidgets.QCheckBox()
+        layout.addRow("Use Feedback Loop if possible", self.use_feedback_loop)
+
+        layout.addItem(verticalSpacer)
+
+        layout.addRow("", self.duplicate_channel_warning)
+        self.duplicate_channel_warning.setHidden(True);
+        self.duplicate_channel_warning.setFont(QtGui.QFont('Arial', 15))
 
         self.setLayout(layout)
 
-        sd.check_input_settings(device=30, channels=2, samplerate=48000, dtype=('float32', 'float32'))
 
     def update_api(self):
         # update the audio devices matching the API
@@ -115,54 +137,116 @@ class AudioDeviceWidget(QtWidgets.QWidget):
             output_dev = -1
         sd.default.device = [input_dev, output_dev]
 
-
-        devs = self.get_names_of_default_devices()
-        self.label_out_exc.setText(devs['out_excitation'])
-        self.label_out_exc_2.setText(devs['out_excitation_2'])
-        self.label_out_fb.setText(devs['out_feedback'])
-        self.label_in_left.setText(devs['in_left'])
-        self.label_in_right.setText(devs['in_right'])
-        self.label_in_fb.setText(devs['in_feedback'])
-
-
-
-
-
-    def get_names_of_default_devices(self):
+        # INPUT channels
         try:
             input_dev = sd.query_devices(sd.default.device[0])
             num_in_ch = input_dev['max_input_channels']
         except sd.PortAudioError:
             num_in_ch = 0
 
+        self.in_l_channel.clear()
+        self.in_r_channel.clear()
+        self.in_fb_channel.clear()
+
+        if num_in_ch > 0:
+            for channel in range(num_in_ch):
+                self.in_l_channel.addItem(str(channel + 1))
+            if self.channel_layout_input[0] == -1 or self.channel_layout_input[0] >= num_in_ch:
+                self.channel_layout_input[0] = 0
+            self.in_l_channel.setCurrentText(str(self.channel_layout_input[0] + 1))
+        else:
+            self.channel_layout_input[0] = -1
+
+        if num_in_ch > 1:
+            for channel in range(num_in_ch):
+                self.in_r_channel.addItem(str(channel + 1))
+            if self.channel_layout_input[1] == -1 or self.channel_layout_input[1] >= num_in_ch:
+                self.channel_layout_input[1] = 1
+            self.in_r_channel.setCurrentText(str(self.channel_layout_input[1] + 1))
+        else:
+            self.channel_layout_input[1] = -1
+
+        if num_in_ch > 2:
+            for channel in range(num_in_ch):
+                self.in_fb_channel.addItem(str(channel + 1))
+            if self.channel_layout_input[2] == -1 or self.channel_layout_input[2] >= num_in_ch:
+                self.channel_layout_input[2] = 2
+            self.in_fb_channel.setCurrentText(str(self.channel_layout_input[2] + 1))
+        else:
+            self.channel_layout_input[2] = -1
+
+        self.update_input_channel_layout()
+
+
+
+        # OUTPUT channels
         try:
             output_dev = sd.query_devices(sd.default.device[1])
             num_out_ch = output_dev['max_output_channels']
         except sd.PortAudioError:
             num_out_ch = 0
 
+        self.out_1_channel.clear()
+        self.out_2_channel.clear()
+        self.out_fb_channel.clear()
 
-        device_strings = {
-            "out_excitation": "Unavailable",
-            "out_excitation_2": "Unavailable",
-            "out_feedback": "Unavailable/Disabled",
-            "in_left": "Unavailable",
-            "in_right": "Unavailable",
-            "in_feedback": "Unavailable/Disabled"
-        }
         if num_out_ch > 0:
-            device_strings["out_excitation"] = output_dev['name'] + ", Ch1"
+            for channel in range(num_out_ch):
+                self.out_1_channel.addItem(str(channel+1))
+            if self.channel_layout_ouput[0] == -1 or self.channel_layout_ouput[0] >= num_out_ch:
+                self.channel_layout_ouput[0] = 0
+            self.out_1_channel.setCurrentText(str(self.channel_layout_ouput[0]+1))
+        else:
+            self.channel_layout_ouput[0] = -1
+
         if num_out_ch > 1:
-            device_strings["out_excitation_2"] = output_dev['name'] + ", Ch2"
-        if num_in_ch > 0:
-            device_strings["in_left"] = input_dev['name'] + ", Ch1"
-        if num_in_ch > 1:
-            device_strings["in_right"] = input_dev['name'] + ", Ch2"
-        if num_in_ch > 2 and num_out_ch > 2:
-            device_strings["in_feedback"] = input_dev['name'] + ", Ch3"
-            device_strings["out_feedback"] = output_dev['name'] + ", Ch3"
+            for channel in range(num_out_ch):
+                self.out_2_channel.addItem(str(channel+1))
+            if self.channel_layout_ouput[1] == -1 or self.channel_layout_ouput[1] >= num_out_ch:
+                self.channel_layout_ouput[1] = 1
+            self.out_2_channel.setCurrentText(str(self.channel_layout_ouput[1]+1))
+        else:
+            self.channel_layout_ouput[1] = -1
 
-        return device_strings
+        if num_out_ch > 2:
+            for channel in range(num_out_ch):
+                self.out_fb_channel.addItem(str(channel+1))
+            if self.channel_layout_ouput[2] == -1 or self.channel_layout_ouput[2] >= num_out_ch:
+                self.channel_layout_ouput[2] = 2
+            self.out_fb_channel.setCurrentText(str(self.channel_layout_ouput[2]+1))
+        else:
+            self.channel_layout_ouput[2] = -1
+
+        self.update_output_channel_layout()
 
 
+    def update_output_channel_layout(self):
+        out1 = self.out_1_channel.currentIndex()
+        out2 = self.out_2_channel.currentIndex()
+        out_fb = self.out_fb_channel.currentIndex()
 
+        self.channel_layout_ouput = [out1, out2, out_fb]
+
+        if len(self.channel_layout_ouput) == len(set(self.channel_layout_ouput)):
+            self.duplicate_channel_warning.setHidden(True)
+        else:
+            self.duplicate_channel_warning.setHidden(False)
+
+    def update_input_channel_layout(self):
+        in_l = self.in_l_channel.currentIndex()
+        in_r = self.in_r_channel.currentIndex()
+        in_fb = self.in_fb_channel.currentIndex()
+
+        self.channel_layout_input = [in_l, in_r, in_fb]
+
+        if len(self.channel_layout_input) == len(set(self.channel_layout_input)):
+            self.duplicate_channel_warning.setHidden(True)
+        else:
+            self.duplicate_channel_warning.setHidden(False)
+
+    def get_current_channel_layout(self):
+        if not self.use_feedback_loop.isChecked():
+            self.channel_layout_ouput[2] = -1
+            self.channel_layout_input[2] = -1
+
+        return self.channel_layout_input, self.channel_layout_ouput
