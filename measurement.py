@@ -89,7 +89,7 @@ def deconvolve(x, y, fs, max_inv_dyn=None, lowpass=None, highpass=None):
 
     return h
 
-def make_excitation_sweep(fs, num_channels=2, d_sweep_sec=3, d_post_silence_sec=1, f_start=20, f_end=20000, amp_db=-20, fade_out_samples=0):
+def make_excitation_sweep(fs, num_channels=1, d_sweep_sec=3, d_post_silence_sec=1, f_start=20, f_end=20000, amp_db=-20, fade_out_samples=0):
 
     amplitude_lin = 10 ** (amp_db / 20)
 
@@ -146,33 +146,45 @@ class Measurement():
 
         #make sweep
 
-
-        self.make_regular_sweeps()
-
-        self.excitation_hpc = make_excitation_sweep(fs=self.fs, d_sweep_sec=2)
-        self.excitation_hpc_3ch = make_excitation_sweep(fs=self.fs, num_channels=3, d_sweep_sec=2)
+        self.sweep_mono = make_excitation_sweep(fs=self.fs,
+                                                d_sweep_sec=self.sweep_parameters['sweeplength_sec'],
+                                                d_post_silence_sec=self.sweep_parameters['post_silence_sec'],
+                                                f_start=self.sweep_parameters['f_start'],
+                                                f_end=self.sweep_parameters['f_end'],
+                                                amp_db=self.sweep_parameters['amp_db'],
+                                                fade_out_samples=self.sweep_parameters['fade_out_samples'])
 
         if self.dummy_debugging:
-            self.excitation = make_excitation_sweep(fs=self.fs, f_start=100, d_sweep_sec=0.01, d_post_silence_sec=0.01)
-            self.excitation_3ch = make_excitation_sweep(fs=self.fs, num_channels=3, d_sweep_sec=0.01, d_post_silence_sec=0.01)
+            self.sweep_mono = make_excitation_sweep(fs=self.fs, f_start=100, d_sweep_sec=0.01, d_post_silence_sec=0.01)
+
+        self.sweep_hpc_mono = make_excitation_sweep(fs=self.fs, d_sweep_sec=2)
 
         #read sound files
-        self.sound_success_fs, self.sound_success = wave.read('resources/soundfx_success.wav')
-        self.sound_failed_fs, self.sound_failed = wave.read('resources/soundfx_failed.wav')
+        self.sound_success_fs, self.sound_success_singlechannel = wave.read('resources/soundfx_success.wav')
+        self.sound_failed_fs, self.sound_failed_singlechannel = wave.read('resources/soundfx_failed.wav')
 
+        # normalize and adjust level
+        self.sound_failed_singlechannel = self.sound_failed_singlechannel * 0.05 / 32768
+        self.sound_success_singlechannel = self.sound_success_singlechannel * 0.05 / 32768
 
-        self.sound_failed = self.sound_failed * 0.05 / 32768
-        self.sound_success = self.sound_success * 0.05 / 32768
+        # default channels at startup
+        self.channel_layout_input = [0, 1, -1]
+        self.channel_layout_output = [0, 1, -1]
+        self.feedback_loop_used = False
 
+        self.excitation = []
+        self.excitation_hpc = []
+        self.sound_success = []
+        self.sound_failed = []
+        self.num_output_channels_used = []
+        self.num_input_channels_used = []
 
+        self.set_channel_layout(self.channel_layout_input, self.channel_layout_input)
 
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
 
-        # initially set to true, will be invalidated if one measurement does not uses the feedback loop
-        self.feedback_loop_used_for_hrirs = True
-        self.feedback_loop_used_for_hpc = True
 
     def set_sweep_parameters(self, d_sweep_sec, d_post_silence_sec, f_start, f_end, amp_db, fade_out_samples):
         self.sweep_parameters['sweeplength_sec'] = d_sweep_sec
@@ -182,13 +194,7 @@ class Measurement():
         self.sweep_parameters['amp_db'] = amp_db
         self.sweep_parameters['fade_out_samples'] = fade_out_samples
 
-        self.make_regular_sweeps()
-
-    def get_sweep_parameters(self):
-        return self.sweep_parameters
-
-    def make_regular_sweeps(self):
-        self.excitation = make_excitation_sweep(fs=self.fs,
+        self.sweep_mono = make_excitation_sweep(fs=self.fs,
                                                 d_sweep_sec=self.sweep_parameters['sweeplength_sec'],
                                                 d_post_silence_sec=self.sweep_parameters['post_silence_sec'],
                                                 f_start=self.sweep_parameters['f_start'],
@@ -196,18 +202,62 @@ class Measurement():
                                                 amp_db=self.sweep_parameters['amp_db'],
                                                 fade_out_samples=self.sweep_parameters['fade_out_samples'])
 
-        self.excitation_3ch = make_excitation_sweep(fs=self.fs,
-                                                    d_sweep_sec=self.sweep_parameters['sweeplength_sec'],
-                                                    d_post_silence_sec=self.sweep_parameters['post_silence_sec'],
-                                                    f_start=self.sweep_parameters['f_start'],
-                                                    f_end=self.sweep_parameters['f_end'],
-                                                    amp_db=self.sweep_parameters['amp_db'],
-                                                    fade_out_samples=self.sweep_parameters['fade_out_samples'],
-                                                    num_channels=3)
+    def get_sweep_parameters(self):
+        return self.sweep_parameters
 
 
 
+    def set_channel_layout(self, in_channels, out_channels):
+        """
+        To be called when the audio channel layout has changed (in audio_device_widget). Since portaudio does not support
+        the useage of indivudal channels, the channel assignment is "faked" by creating a multichannel audio file for
+        playrec() and only playing the sweep on the selected output channels. On the other side, only the selected input
+        channels are used from the recorded multichannel wave file
 
+        Parameters
+        ----------
+        in_channels : list of 3 ints with zero-indexed channel id, (-1 indicates disabled)
+            1st entry: input channel left ear
+            2nd entry: input channel right ear
+            3rd entry: input channel feedback loop
+
+        out_channels: list of 3 ints with zero-indexed channel id, (-1 indicates disabled)
+            1st entry: output channel 1
+            2nd entry: output channel 2
+            3rd entry: output channel feedback loop
+
+        """
+
+        self.channel_layout_input = in_channels
+        self.channel_layout_output = out_channels
+
+        # force disable of FB loop if one of the fb-channels is disabled
+        if out_channels[2] < 0 or in_channels[2] < 0:
+            self.feedback_loop_used = False
+        else:
+            self.feedback_loop_used = True
+
+        if not self.feedback_loop_used:
+            in_channels = in_channels[0:2]
+            out_channels = out_channels[0:2]
+
+        self.num_output_channels_used = max(out_channels) + 1
+        self.num_input_channels_used = max(in_channels) + 1
+
+        # make multichannel audiofile and assign the sweep to designated channels
+        self.excitation = np.zeros([np.size(self.sweep_mono, 0), self.num_output_channels_used])
+        self.excitation[:, out_channels] = self.sweep_mono
+
+        # same for HPC measurement
+        self.excitation_hpc = np.zeros([np.size(self.sweep_hpc_mono, 0), self.num_output_channels_used])
+        self.excitation_hpc[:, out_channels] = self.sweep_hpc_mono
+
+        # also for the sound fx
+        self.sound_success = np.zeros([np.size(self.sound_success_singlechannel, 0), self.num_output_channels_used])
+        self.sound_success[:, out_channels] = np.expand_dims(self.sound_success_singlechannel, axis=1)
+
+        self.sound_failed = np.zeros([np.size(self.sound_failed_singlechannel, 0), self.num_output_channels_used])
+        self.sound_failed[:, out_channels[0:2]] = np.expand_dims(self.sound_failed_singlechannel, axis=1)
 
 
     def play_sound(self, success):
@@ -230,62 +280,49 @@ class Measurement():
             sd._terminate()
             sd._initialize()
 
-
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
 
-        excitation = self.excitation
-        excitation_3ch = self.excitation_3ch
-
         if type is 'hpc':
             excitation = self.excitation_hpc
-            excitation_3ch = self.excitation_hpc_3ch
+        else:
+            excitation = self.excitation
 
         if not self.dummy_debugging:
             time.sleep(0.3)
 
-        available_in_channels = sd.query_devices(sd.default.device[0])['max_input_channels']
-
-        # invalidate feedback loop flag
-        if available_in_channels < 3:
-            if type is 'hpc':
-                self.feedback_loop_used_for_hpc = False
-            else:
-                self.feedback_loop_used_for_hrirs = False
+        try:
+            sd.check_input_settings(channels=self.num_input_channels_used, samplerate=self.fs)
+            sd.check_output_settings(channels=self.num_output_channels_used, samplerate=self.fs)
+        except:
+            print("Audio hardware error! Too many channels or unsupported samplerate")
+            return
 
         # do measurement
-        if(available_in_channels == 1):
-            # ch1 = left & right
-            recorded = sd.playrec(excitation, self.fs, channels=1)
-            sd.wait()
+        recorded = sd.playrec(excitation, self.fs, channels=self.num_input_channels_used)
+        sd.wait()
 
-            self.recorded_sweep_l = recorded[:, 0]
-            self.recorded_sweep_r = recorded[:, 0]
-            self.feedback_loop = excitation[:, 0]
+        # get the recorded signals
+        if self.channel_layout_input[0] >= 0:
+            self.recorded_sweep_l = recorded[:, self.channel_layout_input[0]]
+        else:
+            self.recorded_sweep_l = np.zeros(np.size(recorded, 0))
 
-        elif(available_in_channels == 2):
+        if self.channel_layout_input[1] >= 0:
+            self.recorded_sweep_r = recorded[:, self.channel_layout_input[1]]
+        else:
+            self.recorded_sweep_r = np.zeros(np.size(recorded, 0))
 
-            # ch1 = left
-            # ch2 = right
-            recorded = sd.playrec(excitation, self.fs, channels=2)
-            sd.wait()
+        if self.feedback_loop_used:
+            # if no FB loop, copy from original excitation sweep
+            if type is 'hpc':
+                self.feedback_loop = self.sweep_hpc_mono
+            else:
+                self.feedback_loop = self.sweep_mono
+        else:
+            self.feedback_loop = recorded[:, self.channel_layout_input[2]]
 
-            self.recorded_sweep_l = recorded[:, 0]
-            self.recorded_sweep_r = recorded[:, 1]
-            self.feedback_loop = excitation[:, 0]
-
-        elif(available_in_channels > 2):
-
-            # ch1 = left
-            # ch2 = right
-            # ch3 = feedback loop
-            recorded = sd.playrec(excitation_3ch, self.fs, channels=3)
-            sd.wait()
-
-            self.recorded_sweep_l = recorded[:, 0]
-            self.recorded_sweep_r = recorded[:, 1]
-            self.feedback_loop = recorded[:, 2]
 
 
 
