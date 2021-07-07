@@ -274,7 +274,7 @@ class MeasurementController:
                   'headWidth': headWidth,
                   'headLength': headLength,
                   'sweepParameters': self.measurement.sweep_parameters,
-                  'feedback_loop': self.measurement.feedback_loop_used_for_hrirs
+                  'feedback_loop': self.measurement.feedback_loop_used
         }
 
         scipy.io.savemat(self.get_filepath_for_irs(), export)
@@ -316,7 +316,7 @@ class MeasurementController:
                   'referenceIR': self.measurements_reference,
                   'fs': self.measurement.fs,
                   'sweepParameters': self.measurement.sweep_parameters,
-                  'feedback_loop': self.measurement.feedback_loop_used_for_hrirs}
+                  'feedback_loop': self.measurement.feedback_loop_used}
 
 
         session_name = self.gui_handle.session_name.text()
@@ -451,7 +451,7 @@ class MeasurementController:
                   'hpir': self.hp_irs,
                   'beta': beta,
                   'fs': self.measurement.fs,
-                  'feedback_loop': self.measurement.feedback_loop_used_for_hpc}
+                  'feedback_loop': self.measurement.feedback_loop_used}
 
         hp_name = self.gui_handle.headphone_name.text()
         filename = "headphone_ir_" + hp_name + "_" + self.current_date + ".mat"

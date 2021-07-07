@@ -43,6 +43,8 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.in_r_channel.activated.connect(self.update_input_channel_layout)
         self.in_fb_channel.activated.connect(self.update_input_channel_layout)
 
+        self.use_feedback_loop.stateChanged.connect(self.update_channel_layout)
+
         self.duplicate_channel_warning = QtWidgets.QLabel("Warning: Duplicate channel assignment!")
 
         self.api_box.activated.connect(self.update_api)
@@ -272,6 +274,10 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         if not self.use_feedback_loop.isChecked():
             self.channel_layout_output[2] = -1
             self.channel_layout_input[2] = -1
+        else:
+            self.channel_layout_output[2] = self.out_fb_channel.currentIndex()
+            self.channel_layout_input[2] = self.in_fb_channel.currentIndex()
+
 
         self.measurement_ref.set_channel_layout(self.channel_layout_input, self.channel_layout_output)
 

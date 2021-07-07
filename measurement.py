@@ -315,13 +315,15 @@ class Measurement():
             self.recorded_sweep_r = np.zeros(np.size(recorded, 0))
 
         if self.feedback_loop_used:
+            self.feedback_loop = recorded[:, self.channel_layout_input[2]]
+            if abs(self.feedback_loop.max()) < 0.0001:
+                self.feedback_loop = np.random.random_sample(self.feedback_loop.shape) * 0.000001  # to avoid zero-division errors
+        else:
             # if no FB loop, copy from original excitation sweep
             if type is 'hpc':
-                self.feedback_loop = self.sweep_hpc_mono
+                self.feedback_loop = self.sweep_hpc_mono[:, 0]
             else:
-                self.feedback_loop = self.sweep_mono
-        else:
-            self.feedback_loop = recorded[:, self.channel_layout_input[2]]
+                self.feedback_loop = self.sweep_mono[:, 0]
 
 
 
