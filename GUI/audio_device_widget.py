@@ -246,6 +246,25 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
         self.update_output_channel_layout()
 
+    def update_samplerates(self):
+        samplerates = [44100, 48000, 88200, 96000]
+        
+        #add the defautl devices
+        samplerates.append()
+
+        for i in range(np.size(samplerates)):
+            try:
+                sd.check_input_settings(samplerate=samplerates[i])
+                sd.check_input_settings(samplerate=samplerates[i])
+            except sd.PortAudioError:
+                samplerates.remove(samplerates[i])
+
+        if len(samplerates) == 0:
+            print("Audio device does not support samplerates 44.1, 48, 88.2 or 96")
+
+
+
+
 
     def update_output_channel_layout(self):
         out1 = self.out_1_channel.currentIndex()
