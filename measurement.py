@@ -1,7 +1,5 @@
 import sounddevice as sd
-from scipy.signal import chirp, unit_impulse, butter, sosfilt
-import matplotlib.pyplot as mplot
-import matplotlib
+from scipy.signal import chirp, unit_impulse, butter, sosfilt, resample_poly
 import scipy.io.wavfile as wave
 from numpy.fft import fft, ifft, rfft, irfft
 import numpy as np
@@ -120,17 +118,10 @@ class Measurement():
 
     def __init__(self):
 
-        #devices = sd.query_devices()
-        #print(devices)
-        #print(sd.default.device)
+        self.dummy_debugging = False
 
-        self.fs = sd.default.samplerate
-        if self.fs is None:
+        if sd.default.samplerate is None:
             sd.default.samplerate = 48000
-            self.fs = sd.default.samplerate
-
-
-        print(f'Using Samplerate: {sd.default.samplerate}')
 
         self.sweep_parameters = {
             'sweeplength_sec': 3.0,
@@ -140,24 +131,6 @@ class Measurement():
             'amp_db': -20.0,
             'fade_out_samples': 200
         }
-
-
-        self.dummy_debugging = False
-
-        #make sweep
-
-        self.sweep_mono = make_excitation_sweep(fs=self.fs,
-                                                d_sweep_sec=self.sweep_parameters['sweeplength_sec'],
-                                                d_post_silence_sec=self.sweep_parameters['post_silence_sec'],
-                                                f_start=self.sweep_parameters['f_start'],
-                                                f_end=self.sweep_parameters['f_end'],
-                                                amp_db=self.sweep_parameters['amp_db'],
-                                                fade_out_samples=self.sweep_parameters['fade_out_samples'])
-
-        if self.dummy_debugging:
-            self.sweep_mono = make_excitation_sweep(fs=self.fs, f_start=100, d_sweep_sec=0.01, d_post_silence_sec=0.01)
-
-        self.sweep_hpc_mono = make_excitation_sweep(fs=self.fs, d_sweep_sec=2)
 
         #read sound files
         self.sound_success_fs, self.sound_success_singlechannel = wave.read('resources/soundfx_success.wav')
@@ -170,20 +143,22 @@ class Measurement():
         # default channels at startup
         self.channel_layout_input = [0, 1, -1]
         self.channel_layout_output = [0, 1, -1]
+        self.num_input_channels_used = 2
+        self.num_output_channels_used = 2
         self.feedback_loop_used = False
 
-        self.excitation = []
-        self.excitation_hpc = []
-        self.sound_success = []
-        self.sound_failed = []
-        self.num_output_channels_used = []
-        self.num_input_channels_used = []
+        self.sweep_mono = None
+        self.sweep_hpc_mono = None
+        self.excitation = None
+        self.excitation_hpc = None
+        self.sound_success = None
+        self.sound_failed = None
 
-        self.set_channel_layout(self.channel_layout_input, self.channel_layout_input)
+        self.recorded_sweep_l = None
+        self.recorded_sweep_r = None
+        self.feedback_loop = None
 
-        self.recorded_sweep_l = []
-        self.recorded_sweep_r = []
-        self.feedback_loop = []
+        self.prepare_audio()
 
 
     def set_sweep_parameters(self, d_sweep_sec, d_post_silence_sec, f_start, f_end, amp_db, fade_out_samples):
@@ -194,25 +169,17 @@ class Measurement():
         self.sweep_parameters['amp_db'] = amp_db
         self.sweep_parameters['fade_out_samples'] = fade_out_samples
 
-        self.sweep_mono = make_excitation_sweep(fs=self.fs,
-                                                d_sweep_sec=self.sweep_parameters['sweeplength_sec'],
-                                                d_post_silence_sec=self.sweep_parameters['post_silence_sec'],
-                                                f_start=self.sweep_parameters['f_start'],
-                                                f_end=self.sweep_parameters['f_end'],
-                                                amp_db=self.sweep_parameters['amp_db'],
-                                                fade_out_samples=self.sweep_parameters['fade_out_samples'])
+        self.prepare_audio()
 
     def get_sweep_parameters(self):
         return self.sweep_parameters
 
-
+    def get_samplerate(self):
+        return sd.default.samplerate
 
     def set_channel_layout(self, in_channels, out_channels):
         """
-        To be called when the audio channel layout has changed (in audio_device_widget). Since portaudio does not support
-        the useage of indivudal channels, the channel assignment is "faked" by creating a multichannel audio file for
-        playrec() and only playing the sweep on the selected output channels. On the other side, only the selected input
-        channels are used from the recorded multichannel wave file
+        To be called when the audio channel layout has changed. Setting a channel to -1 disables it
 
         Parameters
         ----------
@@ -228,21 +195,70 @@ class Measurement():
 
         """
 
-        self.channel_layout_input = in_channels
-        self.channel_layout_output = out_channels
-
-        # force disable of FB loop if one of the fb-channels is disabled
         if out_channels[2] < 0 or in_channels[2] < 0:
             self.feedback_loop_used = False
+            in_channels[2] = -1
+            out_channels[2] = -1
         else:
             self.feedback_loop_used = True
 
-        if not self.feedback_loop_used:
-            in_channels = in_channels[0:2]
-            out_channels = out_channels[0:2]
-
+        self.channel_layout_input = in_channels
+        self.channel_layout_output = out_channels
         self.num_output_channels_used = max(out_channels) + 1
         self.num_input_channels_used = max(in_channels) + 1
+
+
+        self.prepare_audio()
+
+    def set_samplerate(self, fs=None):
+        '''To be called when samplerate change occured.
+        Parameters
+        ----------
+        fs :    New samplerate (int, optional) if not specified, that the samplerate has been set elsewhere via
+                sonddevice.default.samplerate'''
+
+        if fs is None:
+            if sd.default.samplerate is None:
+                sd.default.samplerate = 48000
+        else:
+            sd.default.samplerate = fs
+
+
+        self.prepare_audio()
+
+    def prepare_audio(self):
+        # whenever something changes regarding the audio signals, recompute everything. Could be more efficient, but this
+        # way the code remains simple
+        fs = sd.default.samplerate
+
+        # Make the sweep signals
+
+        self.sweep_mono = make_excitation_sweep(fs=fs,
+                                                d_sweep_sec=self.sweep_parameters['sweeplength_sec'],
+                                                d_post_silence_sec=self.sweep_parameters['post_silence_sec'],
+                                                f_start=self.sweep_parameters['f_start'],
+                                                f_end=self.sweep_parameters['f_end'],
+                                                amp_db=self.sweep_parameters['amp_db'],
+                                                fade_out_samples=self.sweep_parameters['fade_out_samples'])
+
+        if self.dummy_debugging:
+            self.sweep_mono = make_excitation_sweep(fs=fs, f_start=100, d_sweep_sec=0.01, d_post_silence_sec=0.01)
+
+        self.sweep_hpc_mono = make_excitation_sweep(fs=fs, d_sweep_sec=2)
+
+        # Adjust samplerate on the audio files
+        sound_success_src = resample_poly(self.sound_success_singlechannel, round(fs), self.sound_success_fs)
+        sound_failed_src = resample_poly(self.sound_failed_singlechannel, round(fs), self.sound_failed_fs)
+
+
+        # Since portaudio does not support the useage of individual channels, the channel assignment is "faked" by
+        # creating a multichannel audio file for playrec() and only playing the sweep on the selected output channels.
+        # On the other side, only the selected input channels are used from the recorded multichannel wave file
+        out_channels = self.channel_layout_output
+
+        if not self.feedback_loop_used:
+            out_channels = out_channels[0:2]
+
 
         # make multichannel audiofile and assign the sweep to designated channels
         self.excitation = np.zeros([np.size(self.sweep_mono, 0), self.num_output_channels_used])
@@ -253,18 +269,17 @@ class Measurement():
         self.excitation_hpc[:, out_channels] = self.sweep_hpc_mono
 
         # also for the sound fx
-        self.sound_success = np.zeros([np.size(self.sound_success_singlechannel, 0), self.num_output_channels_used])
-        self.sound_success[:, out_channels] = np.expand_dims(self.sound_success_singlechannel, axis=1)
-
-        self.sound_failed = np.zeros([np.size(self.sound_failed_singlechannel, 0), self.num_output_channels_used])
-        self.sound_failed[:, out_channels[0:2]] = np.expand_dims(self.sound_failed_singlechannel, axis=1)
+        self.sound_success = np.zeros([np.size(sound_success_src, 0), self.num_output_channels_used])
+        self.sound_success[:, out_channels[0:2]] = np.expand_dims(sound_success_src, axis=1)
+        self.sound_failed = np.zeros([np.size(sound_failed_src, 0), self.num_output_channels_used])
+        self.sound_failed[:, out_channels[0:2]] = np.expand_dims(sound_failed_src, axis=1)
 
 
     def play_sound(self, success):
         if success:
-            sd.play(self.sound_success, self.sound_success_fs)
+            sd.play(self.sound_success)
         else:
-            sd.play(self.sound_failed, self.sound_failed_fs)
+            sd.play(self.sound_failed)
         sd.wait()
 
     def interrupt_measurement(self):
@@ -280,6 +295,7 @@ class Measurement():
             sd._terminate()
             sd._initialize()
 
+
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
@@ -293,14 +309,14 @@ class Measurement():
             time.sleep(0.3)
 
         try:
-            sd.check_input_settings(channels=self.num_input_channels_used, samplerate=self.fs)
-            sd.check_output_settings(channels=self.num_output_channels_used, samplerate=self.fs)
+            sd.check_input_settings(channels=self.num_input_channels_used)
+            sd.check_output_settings(channels=self.num_output_channels_used)
         except:
             print("Audio hardware error! Too many channels or unsupported samplerate")
             return
 
         # do measurement
-        recorded = sd.playrec(excitation, self.fs, channels=self.num_input_channels_used)
+        recorded = sd.playrec(excitation, channels=self.num_input_channels_used)
         sd.wait()
 
         # get the recorded signals
@@ -343,8 +359,9 @@ class Measurement():
             # make IR
             fc_hp = 50  # self.sweep_parameters['f_start'] * 2
             fc_lp = 18000
-            ir_l = deconvolve(fb_loop, rec_l, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
-            ir_r = deconvolve(fb_loop, rec_r, self.fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
+            fs = sd.default.samplerate
+            ir_l = deconvolve(fb_loop, rec_l, fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
+            ir_r = deconvolve(fb_loop, rec_r, fs, lowpass=[fc_lp, 4, 2], highpass=[fc_hp, 4, 2])
             return [ir_l, ir_r]
         except:
             return

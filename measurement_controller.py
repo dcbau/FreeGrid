@@ -270,7 +270,7 @@ class MeasurementController:
                   'rawFeedbackLoop': self.raw_feedbackloop,
                   'dataIR': self.measurements,
                   'sourcePositions': self.positions,
-                  'fs': self.measurement.fs,
+                  'fs': self.measurement.get_samplerate(),
                   'headWidth': headWidth,
                   'headLength': headLength,
                   'sweepParameters': self.measurement.sweep_parameters,
@@ -314,7 +314,7 @@ class MeasurementController:
         export = {'ref_rawRecorded': self.raw_signals_reference,
                   'ref_rawFeedbackLoop': self.raw_feedbackloop_reference,
                   'referenceIR': self.measurements_reference,
-                  'fs': self.measurement.fs,
+                  'fs': self.measurement.get_samplerate(),
                   'sweepParameters': self.measurement.sweep_parameters,
                   'feedback_loop': self.measurement.feedback_loop_used}
 
@@ -423,7 +423,7 @@ class MeasurementController:
 
         self.estimate_hpcf()
 
-        self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.fs)
+        self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.get_samplerate())
         self.gui_handle.hp_measurement_count.setText(f'Repetitions: {self.numHPMeasurements}')
         self.export_hp_measurement()
 
@@ -432,7 +432,7 @@ class MeasurementController:
         self.raw_signals_hp = np.array([])
         self.raw_feedbackloop_hp = np.array([])
 
-        self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.fs)
+        self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.get_samplerate())
         self.numHPMeasurements = 0
 
         self.gui_handle.hp_measurement_count.setText(" ")
@@ -450,7 +450,7 @@ class MeasurementController:
                   'hpir_rawFeedbackLoop': self.raw_feedbackloop_hp,
                   'hpir': self.hp_irs,
                   'beta': beta,
-                  'fs': self.measurement.fs,
+                  'fs': self.measurement.get_samplerate(),
                   'feedback_loop': self.measurement.feedback_loop_used}
 
         hp_name = self.gui_handle.headphone_name.text()
@@ -466,7 +466,7 @@ class MeasurementController:
         except:
             return
 
-        self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.fs)
+        self.gui_handle.plot_hptf(self.hp_irs, fs=self.measurement.get_samplerate())
         self.numHPMeasurements -= 1
 
         if self.numHPMeasurements:
@@ -505,7 +505,7 @@ class MeasurementController:
         beta = beta_regularization
 
         M = np.size(self.hp_irs, 0)
-        fs = self.measurement.fs
+        fs = self.measurement.get_samplerate()
 
         # algorithm
         #######################

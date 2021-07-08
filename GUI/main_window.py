@@ -105,7 +105,8 @@ class UiMainWindow(object):
         #self.device_status_widget.layout().setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
         #self.device_status_widget.setMaximumHeight(200)
         self.device_status_widget.layout().addWidget(AudioDeviceWidget(self.measurement_ref.measurement))
-        self.device_status_widget.setMaximumHeight(400)
+        self.device_status_widget.layout().setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
+        #self.device_status_widget.setMaximumHeight(400)
 
 
         # TRACKER STATUS WIDGET

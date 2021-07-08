@@ -11,9 +11,16 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.measurement_ref = measurement_ref
 
         api_list = sd.query_hostapis()
+        textboxwidth = 120
+        numboxwidth = 55
         self.api_box = QtWidgets.QComboBox()
+        self.api_box.setFixedWidth(textboxwidth)
         self.output_devices_box = QtWidgets.QComboBox()
+        self.output_devices_box.setFixedWidth(textboxwidth)
         self.input_devices_box = QtWidgets.QComboBox()
+        self.input_devices_box.setFixedWidth(textboxwidth)
+        self.samplerate_box = QtWidgets.QComboBox()
+        self.samplerate_box.setFixedWidth(textboxwidth)
         self.use_feedback_loop = QtWidgets.QCheckBox()
 
 
@@ -24,32 +31,33 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.channel_layout_input = [0, 1, 2]
 
         self.out_1_channel = QtWidgets.QComboBox()
-        self.out_1_channel.setMaximumSize(55, 50)
+        self.out_1_channel.setFixedWidth(numboxwidth)
         self.out_2_channel = QtWidgets.QComboBox()
-        self.out_2_channel.setMaximumSize(55, 50)
+        self.out_2_channel.setFixedWidth(numboxwidth)
         self.out_fb_channel = QtWidgets.QComboBox()
-        self.out_fb_channel.setMaximumSize(55, 50)
-        self.out_1_channel.activated.connect(self.update_output_channel_layout)
-        self.out_2_channel.activated.connect(self.update_output_channel_layout)
-        self.out_fb_channel.activated.connect(self.update_output_channel_layout)
+        self.out_fb_channel.setFixedWidth(numboxwidth)
+        self.out_1_channel.activated.connect(self.set_output_channel_layout)
+        self.out_2_channel.activated.connect(self.set_output_channel_layout)
+        self.out_fb_channel.activated.connect(self.set_output_channel_layout)
 
         self.in_l_channel = QtWidgets.QComboBox()
-        self.in_l_channel.setMaximumSize(55, 50)
+        self.in_l_channel.setFixedWidth(numboxwidth)
         self.in_r_channel = QtWidgets.QComboBox()
-        self.in_r_channel.setMaximumSize(55, 50)
+        self.in_r_channel.setFixedWidth(numboxwidth)
         self.in_fb_channel = QtWidgets.QComboBox()
-        self.in_fb_channel.setMaximumSize(55, 50)
-        self.in_l_channel.activated.connect(self.update_input_channel_layout)
-        self.in_r_channel.activated.connect(self.update_input_channel_layout)
-        self.in_fb_channel.activated.connect(self.update_input_channel_layout)
+        self.in_fb_channel.setFixedWidth(numboxwidth)
+        self.in_l_channel.activated.connect(self.set_input_channel_layout)
+        self.in_r_channel.activated.connect(self.set_input_channel_layout)
+        self.in_fb_channel.activated.connect(self.set_input_channel_layout)
 
-        self.use_feedback_loop.stateChanged.connect(self.update_channel_layout)
+        self.use_feedback_loop.stateChanged.connect(self.set_channel_layout)
 
         self.duplicate_channel_warning = QtWidgets.QLabel("Warning: Duplicate channel assignment!")
 
         self.api_box.activated.connect(self.update_api)
         self.output_devices_box.activated.connect(self.update_device)
         self.input_devices_box.activated.connect(self.update_device)
+        self.samplerate_box.activated.connect(self.set_samplerate)
 
         self.current_api_id = sd.default.hostapi
         if self.current_api_id < 0:
@@ -76,43 +84,56 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
 
         #self.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding,QtWidgets.QSizePolicy.MinimumExpanding)
-        layout = QtWidgets.QFormLayout()
-        layout.setVerticalSpacing(2)
+        layout = QtWidgets.QHBoxLayout()
+
+        left_list = QtWidgets.QFormLayout()
+        right_list = QtWidgets.QFormLayout()
+
+        left_list.setVerticalSpacing(2)
+        right_list.setVerticalSpacing(2)
 
         label1 = QtWidgets.QLabel("Select Audio Device:")
         headline_font = label1.font()
         headline_font.setBold(True)
         label1.setFont(headline_font)
-        layout.setAlignment(QtCore.Qt.AlignLeading)
+        left_list.setAlignment(QtCore.Qt.AlignLeading)
 
-        layout.addRow(label1)
-        layout.addRow("Audio API", self.api_box)
-        layout.addRow("Input Device", self.input_devices_box)
-        layout.addRow("Output Device", self.output_devices_box)
+        left_list.addRow(label1)
+        left_list.addRow("Audio API", self.api_box)
 
         verticalSpacer = QtWidgets.QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        layout.addItem(verticalSpacer)
+        left_list.addItem(verticalSpacer)
 
-        layout.addRow(QtWidgets.QLabel("Set In/Out Channels:", font=headline_font))
+        left_list.addRow("Input Device", self.input_devices_box)
+        left_list.addRow("Output Device", self.output_devices_box)
 
-        layout.addRow(QtWidgets.QLabel("Output Excitation:"), self.out_1_channel)
-        layout.addRow(QtWidgets.QLabel("Output Excitation 2:"), self.out_2_channel)
-        layout.addRow(QtWidgets.QLabel("Output Feedback Loop:"), self.out_fb_channel)
-        layout.addRow(QtWidgets.QLabel("Input Left Ear Mic:"), self.in_l_channel)
-        layout.addRow(QtWidgets.QLabel("Input Right Ear Mic:"), self.in_r_channel)
-        layout.addRow(QtWidgets.QLabel("Input Feedback Loop:"), self.in_fb_channel)
+        left_list.addItem(verticalSpacer)
 
-        layout.addItem(verticalSpacer)
+        left_list.addRow("Samplerate:", self.samplerate_box)
+
+        right_list.addRow(QtWidgets.QLabel("Set In/Out Channels:", font=headline_font))
+
+        right_list.addRow(QtWidgets.QLabel("Output Excitation:"), self.out_1_channel)
+        right_list.addRow(QtWidgets.QLabel("Output Excitation 2:"), self.out_2_channel)
+        right_list.addRow(QtWidgets.QLabel("Output Feedback Loop:"), self.out_fb_channel)
+        right_list.addRow(QtWidgets.QLabel("Input Left Ear Mic:"), self.in_l_channel)
+        right_list.addRow(QtWidgets.QLabel("Input Right Ear Mic:"), self.in_r_channel)
+        right_list.addRow(QtWidgets.QLabel("Input Feedback Loop:"), self.in_fb_channel)
+
+        right_list.addItem(verticalSpacer)
 
         self.use_feedback_loop.setText("Use Feedback Loop if possible")
-        layout.addRow(self.use_feedback_loop)
+        right_list.addRow(self.use_feedback_loop)
 
-        layout.addItem(verticalSpacer)
+        right_list.addItem(verticalSpacer)
 
-        layout.addRow("", self.duplicate_channel_warning)
+        right_list.addItem(verticalSpacer)
+        right_list.addRow(self.duplicate_channel_warning)
         self.duplicate_channel_warning.setVisible(False);
-        self.duplicate_channel_warning.setFont(QtGui.QFont('Arial', 15))
+        self.duplicate_channel_warning.setFont(QtGui.QFont('Arial', 11))
 
+        layout.addLayout(left_list)
+        layout.addLayout(right_list)
         self.setLayout(layout)
 
 
@@ -164,6 +185,8 @@ class AudioDeviceWidget(QtWidgets.QWidget):
             output_dev = -1
         sd.default.device = [input_dev, output_dev]
 
+        self.update_available_samplerates()
+
         # INPUT channels
         try:
             input_dev = sd.query_devices(sd.default.device[0])
@@ -202,7 +225,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         else:
             self.channel_layout_input[2] = -1
 
-        self.update_input_channel_layout()
+        self.set_input_channel_layout()
 
 
 
@@ -244,14 +267,25 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         else:
             self.channel_layout_output[2] = -1
 
-        self.update_output_channel_layout()
+        self.set_output_channel_layout()
 
-    def update_samplerates(self):
+    def update_available_samplerates(self):
+        # define supported samplerates
         samplerates = [44100, 48000, 88200, 96000]
         
-        #add the defautl devices
-        samplerates.append()
+        # add the current devices default samplerate
+        default_input_device = sd.query_devices(sd.default.device[0])
+        default_output_device = sd.query_devices(sd.default.device[1])
+        try:
+            samplerates.append(int(default_input_device['default_samplerate']))
+            samplerates.append(int(default_output_device['default_samplerate']))
+        except:
+            pass
 
+        samplerates = list(set(samplerates))
+        samplerates.sort()
+
+        # check if both devices support the samplerates
         for i in range(np.size(samplerates)):
             try:
                 sd.check_input_settings(samplerate=samplerates[i])
@@ -262,29 +296,38 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         if len(samplerates) == 0:
             print("Audio device does not support samplerates 44.1, 48, 88.2 or 96")
 
+        self.samplerate_box.clear()
+        for fs in samplerates:
+            self.samplerate_box.addItem(str(fs))
 
+        if 48000 in samplerates:
+            self.samplerate_box.setCurrentText(str(48000))
+        else:
+            self.samplerate_box.setCurrentText(str(samplerates[0]))
 
+    def set_samplerate(self):
+        sd.default.samplerate = int(self.samplerate_box.currentText())
+        self.measurement_ref.set_samplerate()
 
-
-    def update_output_channel_layout(self):
+    def set_output_channel_layout(self):
         out1 = self.out_1_channel.currentIndex()
         out2 = self.out_2_channel.currentIndex()
         out_fb = self.out_fb_channel.currentIndex()
 
         self.channel_layout_output = [out1, out2, out_fb]
 
-        self.update_channel_layout()
+        self.set_channel_layout()
 
-    def update_input_channel_layout(self):
+    def set_input_channel_layout(self):
         in_l = self.in_l_channel.currentIndex()
         in_r = self.in_r_channel.currentIndex()
         in_fb = self.in_fb_channel.currentIndex()
 
         self.channel_layout_input = [in_l, in_r, in_fb]
 
-        self.update_channel_layout()
+        self.set_channel_layout()
 
-    def update_channel_layout(self):
+    def set_channel_layout(self):
         duplicates =  self.check_for_channel_duplicates(self.channel_layout_input)
         duplicates += self.check_for_channel_duplicates(self.channel_layout_output)
 

@@ -73,7 +73,6 @@ The application is coded in Python, so to run it you need Python with a set of e
 ## Quick Start
 
 ### Before starting the application
-- The application will use the default audio device of the operating system. Please select the appropriate device before starting the application as selecting audio devices while running the application is currently not possible. 
 
 - SteamVR needs to be running in the background with both trackers connected. 
 
@@ -82,6 +81,17 @@ The application is coded in Python, so to run it you need Python with a set of e
 
 ### Configuration
 <img src="./resources/doc/configure_window.png" alt="Overview" width="600"/>
+
+#### Configure Audio Hardware
+- In the _Audio Device Status_ panel, you can select your audio input and output device, the samplerate and a custom channel assignment. This comes handy in case you want the input channels 1&2 for the measurements, but maybe input/output channel 7 for the feedback loop.
+- Channel Assignment:
+    - __Output Excitation__: During the measurements of HRIRs and the reference measurement, this is the channel where the measurement speaker is connected. During the measurement of the HPFC, this is for the headphone´s left channel.
+    - __Output Excitation 2__: This channel is only used during the HPCF measurement, where it is for the headphone´s right channel.
+    - __Output Feedback Loop__: This channel has to be directly connected to the __Input Feedback Loop__ channel. The excitation signal is played back on this channel, effectively recording a "dry" measurement which can be used for compensating the latency from the audio software. Depending on your audio hardware, you can use a digital audio channel (e.g. ADAT or AES/EBU) for more precision.
+    - __Input Left Ear Mic__: Channel for the left in-ear microphone. During the reference measurement, connect the measurement microphone to this channel.
+    - __Input Right Ear Mic__: Channel for the right in-ear microphone.
+    - __Input Feedback Loop__: See Output Feedback Loop.
+- Do not change the audio settings during a single measurement! If needed, you can change the channel configurations for HRIR, reference and HPCF measurements, but do not change the samplerate once you started.
 
 #### A) Calibration using Vive Trackers
 
