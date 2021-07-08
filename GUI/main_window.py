@@ -15,24 +15,21 @@ from GUI.audio_device_widget import AudioDeviceWidget
 reproduction_available = False
 
 
-class UiMainWindow(object):
+class UiMainWindow(QtWidgets.QMainWindow):
 
+    def __init__(self, measurement_ref):
+        super().__init__()
+        self.setObjectName("MainWindow")
 
+        self.cwidget = QtWidgets.QWidget()
+        self.setCentralWidget(self.cwidget)
 
-    def setupUi(self, MainWindow, measurement_ref):
-        MainWindow.setObjectName("MainWindow")
 
         self.measurement_ref = measurement_ref
 
-        self.centralwidget = QtWidgets.QWidget(MainWindow)
-        self.centralwidget.setObjectName("centralwidget")
-        MainWindow.setCentralWidget(self.centralwidget)
-        self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
-        self.gridLayout.setObjectName("gridLayout")
-        #self.gridLayout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
-        MainWindow.resize(1100, 900)
+        self.setWindowTitle("GuidedHRTFs")
 
-        self.myMainWindow = MainWindow
+
 
         # VISPY WIDGET
 
@@ -151,7 +148,7 @@ class UiMainWindow(object):
 
         # TAB WIDGET
 
-        self.tabWidget = QtWidgets.QTabWidget(self.centralwidget)
+        self.tabWidget = QtWidgets.QTabWidget(self)
         self.tabWidget.setEnabled(True)
         self.tabWidget.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
@@ -778,6 +775,8 @@ class UiMainWindow(object):
 
         ## Layout finalilzation
 
+        self.gridLayout = QtWidgets.QGridLayout()
+
         self.gridLayout.addWidget(self.tabWidget, 0, 1, 3, 1)
         self.gridLayout.addWidget(self.vpWidget, 0, 0, 1, 1)
         self.gridLayout.addWidget(self.device_status_widget, 1, 0, 1, 1)
@@ -786,27 +785,32 @@ class UiMainWindow(object):
 
         self.gridLayout.setColumnStretch(0, 10)
         self.gridLayout.setColumnStretch(1, 10)
+        self.cwidget.setLayout(self.gridLayout)
+        #self.gridLayout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
+
+        self.resize(1100, 600)
 
 
-        self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 22))
-        self.menubar.setObjectName("menubar")
-        MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QtWidgets.QStatusBar(MainWindow)
-        self.statusbar.setObjectName("statusbar")
-        MainWindow.setStatusBar(self.statusbar)
 
-        self.retranslateUi(MainWindow)
+        # self.menubar = QtWidgets.QMenuBar(MainWindow)
+        # self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 22))
+        # self.menubar.setObjectName("menubar")
+        # MainWindow.setMenuBar(self.menubar)
+        # self.statusbar = QtWidgets.QStatusBar(MainWindow)
+        # self.statusbar.setObjectName("statusbar")
+        # MainWindow.setStatusBar(self.statusbar)
+
         self.tabWidget.setCurrentIndex(0)
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        QtCore.QMetaObject.connectSlotsByName(self)
 
         self.measurement_ref.register_gui_handler(self)
 
 
+    def closeEvent(self, *args, **kwargs):
+        super(QtWidgets.QMainWindow, self).closeEvent(*args, **kwargs)
 
-    def retranslateUi(self, MainWindow):
+    def resizeEvent(self, event):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_config), _translate("MainWindow", "Configure"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_measure), _translate("MainWindow", "Measure"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_data), _translate("MainWindow", "Data List"))
