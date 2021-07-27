@@ -12,7 +12,6 @@ import os
 from GUI.audio_device_widget import AudioDeviceWidget
 
 
-reproduction_available = False
 
 
 class UiMainWindow(QtWidgets.QMainWindow):
@@ -189,14 +188,6 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.tab_hpc.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.tabWidget.addTab(self.tab_hpc, "")
 
-        self.tab_reproduction = QtWidgets.QWidget()
-        self.tab_reproduction.setEnabled(True)
-        self.tab_reproduction.setLayout(QtWidgets.QVBoxLayout())
-        self.tab_reproduction.layout().setAlignment(QtCore.Qt.AlignTop)
-
-        if reproduction_available:
-            self.tabWidget.addTab(self.tab_reproduction, "Reproduction")
-            self.tab_reproduction_index = self.tabWidget.count()-1
 
         # Config Tab
         #############################
@@ -758,20 +749,6 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.plot_hptf(np.array([]))
         self.plot_hpc_estimate(np.array([]), np.array([]))
 
-        ## TAB REPRODUCTION
-
-        self.player_box = QtWidgets.QGroupBox()
-        self.player_box.setLayout(QtWidgets.QHBoxLayout())
-
-        self.start_player_button = QtWidgets.QPushButton("Play")
-        self.start_player_button.clicked.connect(measurement_ref.start_reproduction)
-        self.player_box.layout().addWidget(self.start_player_button)
-
-        self.stop_player_button = QtWidgets.QPushButton("Stop")
-        self.stop_player_button.clicked.connect(measurement_ref.stop_reproduction)
-        self.player_box.layout().addWidget(self.stop_player_button)
-
-        self.tab_reproduction.layout().addWidget(self.player_box)
 
         ## Layout finalilzation
 
@@ -1028,10 +1005,6 @@ class UiMainWindow(QtWidgets.QMainWindow):
             else:
                 numRows = self.positions_table.model().rowCount(QtCore.QModelIndex())
                 self.positions_table.selectRow(numRows-1)
-            if index is self.tab_reproduction_index:
-                self.measurement_ref.init_reproduction()
-            else:
-                self.measurement_ref.close_reproduction()
 
         except AttributeError:
             pass

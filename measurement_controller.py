@@ -10,7 +10,6 @@ from grid_improving import angular_distance
 import os
 from grid_improving import pointrecommender
 from datetime import date
-from reproduction import pybinsim_player
 from pythonosc import udp_client
 import socket
 
@@ -67,10 +66,6 @@ class MeasurementController:
         today = date.today()
         self.current_date = today.strftime("%d_%m_%Y")
 
-        self.reproduction_mode = False
-        self.reproduction_running = False
-        self.reproduction_player = None
-
         self.send_osc_data = False
         self.osc_send_ip = '127.0.0.1'
         self.osc_send_port = 1337
@@ -110,11 +105,6 @@ class MeasurementController:
 
 
 
-        if self.reproduction_mode:
-            az, el, r = self.tracker.get_relative_position()
-            if self.reproduction_running:
-                self.reproduction_player.update_position(az, el)
-            return
 
 
         if self.measurement_running_flag:
@@ -563,44 +553,6 @@ class MeasurementController:
 
         self.gui_handle.plot_hpc_estimate(Hcl, Hcr)
 
-    def init_reproduction(self):
-        if not self.reproduction_mode:
-            print("Init reproduction")
-            try:
-
-                #self.reproduction_player = ir_player.IR_player(IR_filepath=self.get_current_file_path())
-                self.reproduction_player = pybinsim_player.PyBinSim_Player(IR_filepath=self.get_filepath_for_irs())
-                self.reproduction_mode = True
-
-            except FileNotFoundError:
-                print("No measurements found")
-        else:
-            pass
-
-
-    def close_reproduction(self):
-        if self.reproduction_mode:
-            print("Close")
-            self.reproduction_mode = False
-            self.stop_reproduction()
-            self.reproduction_player.close()
-            del self.reproduction_player
-        else:
-            pass
-
-
-    def start_reproduction(self):
-        if self.reproduction_mode:
-            if not self.reproduction_running:
-                print("Start")
-                self.reproduction_running = True
-                self.reproduction_player.start()
-
-    def stop_reproduction(self):
-        if self.reproduction_running:
-            print("Stop")
-            self.reproduction_player.stop()
-            self.reproduction_running = False
 
     def start_osc_send(self, ip=None, port=None, address=None):
         if self.tracker.tracking_mode == "OSC_direct":
