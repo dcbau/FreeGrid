@@ -1,6 +1,29 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-import sounddevice as sd
+import pyaudio
 import numpy as np
+
+def query_hostapis(p):
+    ## wrapper function to provice sounddevice-like api list from pyaudio
+    apis = ()
+    for i in range(p.get_host_api_count()):
+        api = p.get_host_api_info_by_index(i)
+        api = {
+            'name': api['name'],
+            'devices': [p.get_device_info_by_host_api_device_index(i, j)['index'] for j in range(api['deviceCount'])],
+            'default_input_device': api['defaultInputDevice'],
+            'default_output_device': api['defaultOutputDevice'],
+        }
+
+        apis = apis + tuple([api])
+
+    return apis
+
+def query_devices(p):
+    ## wrapper function to provice sounddevice-like device list from pyaudio
+
+    return tuple(p.get_device_info_by_index(i) for i in range(p.get_device_count()))
+
+
 
 class AudioDeviceWidget(QtWidgets.QWidget):
 
@@ -10,7 +33,10 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
         self.measurement_ref = measurement_ref
 
-        api_list = sd.query_hostapis()
+        self.p = pyaudio.PyAudio()
+        self.settings = measurement_ref.measurement.AudioDeviceConfig(self.p)
+
+        api_list = query_hostapis(self.p)
         textboxwidth = 120
         numboxwidth = 55
         self.api_box = QtWidgets.QComboBox()
@@ -59,7 +85,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.input_devices_box.activated.connect(self.update_device)
         self.samplerate_box.activated.connect(self.set_samplerate)
 
-        self.current_api_id = sd.default.hostapi
+        self.current_api_id = self.settings.hostapi
         if self.current_api_id < 0:
             self.current_api_id = 0
 
@@ -75,7 +101,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
                 if api['name'] == 'ASIO':
                     self.current_api_id = id
 
-        self.api_box.setCurrentText(sd.query_hostapis(self.current_api_id)['name'])
+        self.api_box.setCurrentText(query_hostapis(self.p)[self.current_api_id]['name'])
 
 
         self.update_api()
@@ -140,8 +166,8 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
     def update_api(self):
         # update the audio devices matching the API
-        current_api = sd.query_hostapis(self.api_ids[self.api_box.currentIndex()])
-        sd.default.device = [max(current_api['default_input_device'], 0), max(current_api['default_output_device'], 0)]
+        current_api = query_hostapis(self.p)[self.api_ids[self.api_box.currentIndex()]]
+        self.settings.device = [max(current_api['default_input_device'], 0), max(current_api['default_output_device'], 0)]
 
         self.input_devices_box.clear()
         self.input_dev_ids.clear()
@@ -149,23 +175,23 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.output_dev_ids.clear()
 
         for device_id in current_api['devices']:
-            device = sd.query_devices(device_id)
-            display_name = f"{device['name']} ({device['max_input_channels']} in, {device['max_output_channels']} out)"
-            if device['max_input_channels'] > 0:
+            device = query_devices(self.p)[device_id]
+            display_name = f"{device['name']} ({device['maxInputChannels']} in, {device['maxOutputChannels']} out)"
+            if device['maxInputChannels'] > 0:
                 self.input_devices_box.addItem(display_name)
                 self.input_dev_ids.append(device_id)
-                if device_id == sd.default.device[0]:
+                if device_id == self.settings.device[0]:
                     self.input_devices_box.setCurrentText(display_name)
-            if device['max_output_channels'] > 0:
+            if device['maxOutputChannels'] > 0:
                 self.output_devices_box.addItem(display_name)
                 self.output_dev_ids.append(device_id)
-                if device_id == sd.default.device[1]:
+                if device_id == self.settings.device[1]:
                     self.output_devices_box.setCurrentText(display_name)
 
-            if device_id == sd.default.device[0]:
+            if device_id == self.settings.device[0]:
                 self.input_devices_box.setCurrentText(display_name)
 
-            if device_id == sd.default.device[1]:
+            if device_id == self.settings.device[1]:
                 self.output_devices_box.setCurrentText(display_name)
 
         self.update_device()
@@ -183,15 +209,15 @@ class AudioDeviceWidget(QtWidgets.QWidget):
             output_dev = self.output_dev_ids[out_id]
         except IndexError:
             output_dev = -1
-        sd.default.device = [input_dev, output_dev]
+        self.settings.device = [input_dev, output_dev]
 
         self.update_available_samplerates()
 
         # INPUT channels
         try:
-            input_dev = sd.query_devices(sd.default.device[0])
-            num_in_ch = input_dev['max_input_channels']
-        except sd.PortAudioError:
+            input_dev = query_devices(self.p)[self.settings.device[0]]
+            num_in_ch = input_dev['maxInputChannels']
+        except IndexError:
             num_in_ch = 0
 
         self.in_l_channel.clear()
@@ -231,9 +257,9 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
         # OUTPUT channels
         try:
-            output_dev = sd.query_devices(sd.default.device[1])
-            num_out_ch = output_dev['max_output_channels']
-        except sd.PortAudioError:
+            output_dev = query_devices(self.p)[self.settings.device[1]]
+            num_out_ch = output_dev['maxOutputChannels']
+        except IndexError:
             num_out_ch = 0
 
         self.out_1_channel.clear()
@@ -269,13 +295,15 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
         self.set_output_channel_layout()
 
+        self.measurement_ref.set_audio_settings(self.settings)
+
     def update_available_samplerates(self):
         # define supported samplerates
         samplerates = [44100, 48000, 88200, 96000]
         
         # add the current devices default samplerate
-        default_input_device = sd.query_devices(sd.default.device[0])
-        default_output_device = sd.query_devices(sd.default.device[1])
+        default_input_device = query_devices(self.p)[self.settings.device[0]]
+        default_output_device = query_devices(self.p)[self.settings.device[1]]
         try:
             samplerates.append(int(default_input_device['default_samplerate']))
             samplerates.append(int(default_output_device['default_samplerate']))
@@ -288,9 +316,9 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         # check if both devices support the samplerates
         for i in range(np.size(samplerates)):
             try:
-                sd.check_input_settings(samplerate=samplerates[i])
-                sd.check_input_settings(samplerate=samplerates[i])
-            except sd.PortAudioError:
+                self.p.is_format_supported(rate=samplerates[i], input_device=self.settings.device[0], input_format=pyaudio.paInt16, input_channels=1)
+                self.p.is_format_supported(rate=samplerates[i], output_device=self.settings.device[1], output_format=pyaudio.paInt16, output_channels=1)
+            except ValueError:
                 samplerates.remove(samplerates[i])
 
         if len(samplerates) == 0:
@@ -306,8 +334,8 @@ class AudioDeviceWidget(QtWidgets.QWidget):
             self.samplerate_box.setCurrentText(str(samplerates[0]))
 
     def set_samplerate(self):
-        sd.default.samplerate = int(self.samplerate_box.currentText())
-        self.measurement_ref.set_samplerate()
+        self.settings.samplerate = int(self.samplerate_box.currentText())
+        self.measurement_ref.set_audio_settings(self.settings)
 
     def set_output_channel_layout(self):
         out1 = self.out_1_channel.currentIndex()

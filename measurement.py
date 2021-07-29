@@ -1,10 +1,20 @@
-import sounddevice as sd
+import pyaudio
 from scipy.signal import chirp, unit_impulse, butter, sosfilt, resample_poly
 import scipy.io.wavfile as wave
 from numpy.fft import fft, ifft, rfft, irfft
 import numpy as np
 import time
 
+class AudioDeviceConfig():
+    ## workaround class to provide settings like sounddevice´s default object
+
+    def __init__(self, p=None):
+        if p is None:
+            p = pyaudio.PyAudio()
+
+        self.hostapi = p.get_default_host_api_info()['index']
+        self.device = [p.get_default_input_device_info()['index'], p.get_default_output_device_info()['index']]
+        self.samplerate = None
 
 def deconv(x, y):
 
@@ -118,10 +128,9 @@ class Measurement():
 
     def __init__(self):
 
-        self.dummy_debugging = False
+        self.p = pyaudio.PyAudio()
 
-        if sd.default.samplerate is None:
-            sd.default.samplerate = 48000
+        self.dummy_debugging = False
 
         self.sweep_parameters = {
             'sweeplength_sec': 3.0,
@@ -158,6 +167,16 @@ class Measurement():
         self.recorded_sweep_r = None
         self.feedback_loop = None
 
+        self.audio_settings = None
+        self.set_audio_settings()
+
+        self.audio_stream = None
+
+        self.measurement_running = False
+        self.sample_counter = None
+        self.sample_is_playing = False
+        self.sample_data = None
+
         self.prepare_audio()
 
 
@@ -175,7 +194,20 @@ class Measurement():
         return self.sweep_parameters
 
     def get_samplerate(self):
-        return sd.default.samplerate
+        return self.audio_settings.samplerate
+
+    def set_audio_settings(self, audio_settings=None):
+
+        if audio_settings is None:
+            audio_settings=AudioDeviceConfig(self.p)
+
+        if audio_settings.samplerate is None:
+            audio_settings.samplerate = self.p.get_device_info_by_index(audio_settings.device[0])['defaultSampleRate']
+
+        self.audio_settings = audio_settings
+
+        self.prepare_audio()
+
 
     def set_channel_layout(self, in_channels, out_channels):
         """
@@ -210,26 +242,14 @@ class Measurement():
 
         self.prepare_audio()
 
-    def set_samplerate(self, fs=None):
-        '''To be called when samplerate change occured.
-        Parameters
-        ----------
-        fs :    New samplerate (int, optional) if not specified, that the samplerate has been set elsewhere via
-                sonddevice.default.samplerate'''
-
-        if fs is None:
-            if sd.default.samplerate is None:
-                sd.default.samplerate = 48000
-        else:
-            sd.default.samplerate = fs
-
-
-        self.prepare_audio()
 
     def prepare_audio(self):
         # whenever something changes regarding the audio signals, recompute everything. Could be more efficient, but this
         # way the code remains simple
-        fs = sd.default.samplerate
+
+        # TODO: destroy stream here!!!!
+
+        fs = self.audio_settings.samplerate
 
         # Make the sweep signals
 
@@ -274,6 +294,8 @@ class Measurement():
         self.sound_failed = np.zeros([np.size(sound_failed_src, 0), self.num_output_channels_used])
         self.sound_failed[:, out_channels[0:2]] = np.expand_dims(sound_failed_src, axis=1)
 
+        self.audio_stream = self.p.open(format=pyaudio.paFloat32, channels=)
+
 
     def play_sound(self, success):
         if success:
@@ -284,6 +306,18 @@ class Measurement():
 
     def interrupt_measurement(self):
         sd.stop()
+
+    def audio_callback(self, in_data, frame_count, time_info, status):
+        if self.measurement_running:
+            ones = np.ones(10) * 1
+            twos = np.ones(10) * 2
+            threes = np.ones(10) * 3
+            interleaved = np.empty(ones.size * 3, dtype=ones.dtype)
+            interleaved[0::3] = ones
+            interleaved[1::3] = twos
+            interleaved[2::3] = threes
+            interleaved.astype(np.float32).tostring()
+            out_data =
 
     def single_measurement(self, type=None):
 
@@ -318,6 +352,13 @@ class Measurement():
         # do measurement
         recorded = sd.playrec(excitation, channels=self.num_input_channels_used)
         sd.wait()
+
+        self.sample_counter = 0
+        self.measurement_running = True
+
+        while self.measurement_running == True:
+            time.sleep(0.1)
+
 
         # get the recorded signals
         if self.channel_layout_input[0] >= 0:
