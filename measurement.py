@@ -4,17 +4,17 @@ import scipy.io.wavfile as wave
 from numpy.fft import fft, ifft, rfft, irfft
 import numpy as np
 import time
+import threading
 
 class AudioDeviceConfig():
     ## workaround class to provide settings like sounddevice´s default object
 
-    def __init__(self, p=None):
-        if p is None:
-            p = pyaudio.PyAudio()
+    def __init__(self, p):
 
         self.hostapi = p.get_default_host_api_info()['index']
         self.device = [p.get_default_input_device_info()['index'], p.get_default_output_device_info()['index']]
         self.samplerate = None
+        self.frames_per_buffer = 1024
 
 def deconv(x, y):
 
@@ -152,7 +152,7 @@ class Measurement():
         # default channels at startup
         self.channel_layout_input = [0, 1, -1]
         self.channel_layout_output = [0, 1, -1]
-        self.num_input_channels_used = 2
+        self.num_input_channels_used = 0
         self.num_output_channels_used = 2
         self.feedback_loop_used = False
 
@@ -170,14 +170,21 @@ class Measurement():
         self.audio_settings = None
         self.set_audio_settings()
 
-        self.audio_stream = None
+        self.audio_stream_out = None
+        self.audio_stream_in = None
 
-        self.measurement_running = False
-        self.sample_counter = None
+
+        self.playback_done = threading.Event()
+        self.recording_buffer = None
+        self.recording_done = threading.Event()
+        self.measurement_type = 'hrir'
+        self.measurement_error = False
+        self.playback_index = None
+        self.recording_index = None
         self.sample_is_playing = False
         self.sample_data = None
 
-        self.prepare_audio()
+        #self.prepare_audio()
 
 
     def set_sweep_parameters(self, d_sweep_sec, d_post_silence_sec, f_start, f_end, amp_db, fade_out_samples):
@@ -208,6 +215,8 @@ class Measurement():
 
         self.prepare_audio()
 
+    def get_pa_handler(self):
+        return self.p
 
     def set_channel_layout(self, in_channels, out_channels):
         """
@@ -248,8 +257,15 @@ class Measurement():
         # way the code remains simple
 
         # TODO: destroy stream here!!!!
+        try:
+            self.audio_stream_out.close()
+            self.audio_stream_in.close()
+        except:
+            pass
 
-        fs = self.audio_settings.samplerate
+        time.sleep(0.3)
+
+        fs = int(self.audio_settings.samplerate)
 
         # Make the sweep signals
 
@@ -294,87 +310,171 @@ class Measurement():
         self.sound_failed = np.zeros([np.size(sound_failed_src, 0), self.num_output_channels_used])
         self.sound_failed[:, out_channels[0:2]] = np.expand_dims(sound_failed_src, axis=1)
 
-        self.audio_stream = self.p.open(format=pyaudio.paFloat32, channels=)
+
+
+        if self.num_input_channels_used > 0:
+            self.audio_stream_in = self.p.open(format=pyaudio.paFloat32,
+                                               channels=self.num_input_channels_used,
+                                               rate=fs,
+                                               input=True,
+                                               stream_callback=self.audio_callback_input,
+                                               input_device_index=self.audio_settings.device[0],
+                                               frames_per_buffer=self.audio_settings.frames_per_buffer)
+        if self.num_output_channels_used > 0:
+            self.audio_stream_out = self.p.open(format=pyaudio.paFloat32,
+                                               channels=self.num_output_channels_used,
+                                               rate=fs,
+                                               output=True,
+                                               stream_callback=self.audio_callback_output,
+                                               input_device_index=self.audio_settings.device[1],
+                                               frames_per_buffer=self.audio_settings.frames_per_buffer)
+
+        self.audio_stream_out.start_stream()
+
 
 
     def play_sound(self, success):
-        if success:
-            sd.play(self.sound_success)
-        else:
-            sd.play(self.sound_failed)
-        sd.wait()
+        pass
+        # if success:
+        #     sd.play(self.sound_success)
+        # else:
+        #     sd.play(self.sound_failed)
+        # sd.wait()
 
     def interrupt_measurement(self):
-        sd.stop()
+        self.playback_index = None
+        self.recording_index = None
+        # sd.stop()
 
-    def audio_callback(self, in_data, frame_count, time_info, status):
-        if self.measurement_running:
-            ones = np.ones(10) * 1
-            twos = np.ones(10) * 2
-            threes = np.ones(10) * 3
-            interleaved = np.empty(ones.size * 3, dtype=ones.dtype)
-            interleaved[0::3] = ones
-            interleaved[1::3] = twos
-            interleaved[2::3] = threes
-            interleaved.astype(np.float32).tostring()
-            out_data =
+    def audio_callback_output(self, in_data, frame_count, time_info, status):
+
+
+        interleaved = np.zeros(frame_count * self.num_output_channels_used)
+
+        if self.playback_index is not None:
+            if status != 0:
+                self.measurement_error = True
+                self.interrupt_measurement()
+
+            if self.measurement_type=='hpc':
+                excitation = self.excitation_hpc[:, 0]
+            else:
+                excitation = self.excitation[:, 0]
+
+            sample_length = np.size(excitation, 0)
+            start = self.playback_index
+            end = start+frame_count
+
+            if end >= sample_length:
+                chunk = np.append(excitation[start:sample_length], np.zeros(end - sample_length))
+                self.playback_index = 0
+                self.playback_index = None
+
+                self.playback_done.set()
+            else:
+                chunk = excitation[start:end]
+                self.playback_index = end
+
+            #print(f"Start: {start}, End: {end}, chunksize: {chunk.shape}, sample_length: {sample_length}, size_interleaved: {interleaved.size}")
+            print(f"PLAY Start: {start}, End: {end}")
+
+            # copy the excitation signal to the desired output channels
+            for i in range(len(self.channel_layout_output)):
+                if self.channel_layout_output[i] >= 0:
+                    interleaved[self.channel_layout_output[i]::self.num_output_channels_used] = chunk
+
+        return (interleaved.astype(np.float32).tostring(), pyaudio.paContinue)
+
+    def audio_callback_input(self, in_data, frame_count, time_info, status):
+
+        if self.recording_index is not None:
+
+            if status != 0:
+                self.measurement_error = True
+                self.interrupt_measurement()
+
+            buffer_length = np.size(self.recording_buffer, 0)
+            start = self.recording_index
+            end = start + frame_count
+
+            input = np.fromstring(in_data, dtype=np.float32)
+
+            if end >= buffer_length:
+                end = buffer_length
+                num_samples_to_copy = buffer_length - start
+                self.recording_index = None
+                print("LAST RECORD BUFFER")
+
+            else:
+                num_samples_to_copy = frame_count
+                self.recording_index = end
+
+            for i in range(self.num_input_channels_used):
+                self.recording_buffer[start:end, i] = input[i:num_samples_to_copy*self.num_input_channels_used:self.num_input_channels_used]
+
+            print(f"RECORD Start: {start}, End: {end}")
+
+            # AFTER last buffer is written, notify that recording is done
+            if self.recording_index is None:
+                print("SENDING RECORDING DONE SIGNAL")
+                self.recording_done.set()
+
+        return (None, pyaudio.paContinue)
 
     def single_measurement(self, type=None):
-
-        # little workaround of a problem with using ASIO from multiple threads
-        # https://stackoverflow.com/questions/39858212/python-sounddevice-play-on-threads
-        default_device = sd.query_devices(sd.default.device[0])
-        default_api = sd.query_hostapis(default_device['hostapi'])
-        if default_api['name'] == 'ASIO':
-            sd._terminate()
-            sd._initialize()
 
 
         self.recorded_sweep_l = []
         self.recorded_sweep_r = []
         self.feedback_loop = []
 
-        if type is 'hpc':
-            excitation = self.excitation_hpc
-        else:
-            excitation = self.excitation
 
         if not self.dummy_debugging:
             time.sleep(0.3)
 
-        try:
-            sd.check_input_settings(channels=self.num_input_channels_used)
-            sd.check_output_settings(channels=self.num_output_channels_used)
-        except:
-            print("Audio hardware error! Too many channels or unsupported samplerate")
-            return
 
-        # do measurement
-        recorded = sd.playrec(excitation, channels=self.num_input_channels_used)
-        sd.wait()
+        self.playback_index = 0
+        self.recording_index = 0
+        self.measurement_type = type
 
-        self.sample_counter = 0
-        self.measurement_running = True
+        if type=='hpc':
+            self.recording_buffer = np.zeros((np.size(self.excitation_hpc, 0), self.num_input_channels_used))
+        else:
+            self.recording_buffer = np.zeros((np.size(self.excitation, 0), self.num_input_channels_used))
 
-        while self.measurement_running == True:
-            time.sleep(0.1)
+        print("Waiting for measuement...")
+        self.playback_done.wait()
+        self.playback_done.clear()
+
+        print("Playback Done")
+
+        self.recording_done.wait()
+        self.recording_done.clear()
+        print("Recording Done")
+
+        self.recording_index = None
+        self.playback_index = None
+
+        # TODO handle measurement errors!
+        if self.measurement_error:
+            print("Measurement Failed due to audio error!")
+        else:
+            print("Measurement Succeeded")
 
 
         # get the recorded signals
         if self.channel_layout_input[0] >= 0:
-            self.recorded_sweep_l = recorded[:, self.channel_layout_input[0]]
+            self.recorded_sweep_l = self.recording_buffer[:, self.channel_layout_input[0]]
         else:
-            self.recorded_sweep_l = np.zeros(np.size(recorded, 0))
+            self.recorded_sweep_l = np.random.random_sample(np.size(self.recording_buffer, 0)) * 0.000001
 
         if self.channel_layout_input[1] >= 0:
-            self.recorded_sweep_r = recorded[:, self.channel_layout_input[1]]
+            self.recorded_sweep_r = self.recording_buffer[:, self.channel_layout_input[1]]
         else:
-            self.recorded_sweep_r = np.zeros(np.size(recorded, 0))
+            self.recorded_sweep_r = np.random.random_sample(np.size(self.recording_buffer, 0)) * 0.000001
 
         if self.feedback_loop_used:
-            self.feedback_loop = recorded[:, self.channel_layout_input[2]]
-            if abs(self.feedback_loop.max()) < 0.0001:
-                self.feedback_loop = np.random.random_sample(self.feedback_loop.shape) * 0.000001  # to avoid zero-division errors
+            self.feedback_loop = self.recording_buffer[:, self.channel_layout_input[2]]
         else:
             # if no FB loop, copy from original excitation sweep
             if type is 'hpc':
@@ -382,6 +482,10 @@ class Measurement():
             else:
                 self.feedback_loop = self.sweep_mono[:, 0]
 
+        if abs(self.feedback_loop.max()) < 0.0001:
+            self.feedback_loop = np.random.random_sample(self.feedback_loop.shape) * 0.000001  # to avoid zero-division errors
+
+        self.recording_buffer = None
 
 
 
@@ -401,8 +505,8 @@ class Measurement():
             if deconv_fc_lp is None:
                 deconv_fc_lp = 20000
 
-            ir_l = deconvolve(fb_loop, rec_l, self.fs, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
-            ir_r = deconvolve(fb_loop, rec_r, self.fs, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
+            ir_l = deconvolve(fb_loop, rec_l, self.audio_settings.samplerate, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
+            ir_r = deconvolve(fb_loop, rec_r, self.audio_settings.samplerate, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
             return [ir_l, ir_r]
         except:
             return

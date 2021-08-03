@@ -1,6 +1,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import pyaudio
 import numpy as np
+from measurement import AudioDeviceConfig
 
 def query_hostapis(p):
     ## wrapper function to provice sounddevice-like api list from pyaudio
@@ -33,8 +34,8 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
         self.measurement_ref = measurement_ref
 
-        self.p = pyaudio.PyAudio()
-        self.settings = measurement_ref.measurement.AudioDeviceConfig(self.p)
+        self.p = measurement_ref.get_pa_handler()
+        self.settings = AudioDeviceConfig(self.p)
 
         api_list = query_hostapis(self.p)
         textboxwidth = 120
@@ -162,6 +163,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         layout.addLayout(right_list)
         self.setLayout(layout)
 
+        self.p.terminate()
 
 
     def update_api(self):
@@ -313,13 +315,15 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         samplerates = list(set(samplerates))
         samplerates.sort()
 
+        # TODO: reenable the samplerate check, currently is_format_supported freezes without raising an error
+
         # check if both devices support the samplerates
-        for i in range(np.size(samplerates)):
-            try:
-                self.p.is_format_supported(rate=samplerates[i], input_device=self.settings.device[0], input_format=pyaudio.paInt16, input_channels=1)
-                self.p.is_format_supported(rate=samplerates[i], output_device=self.settings.device[1], output_format=pyaudio.paInt16, output_channels=1)
-            except ValueError:
-                samplerates.remove(samplerates[i])
+        # for i in range(np.size(samplerates)):
+        #     try:
+        #         self.p.is_format_supported(rate=samplerates[i], input_device=self.settings.device[0], input_format=pyaudio.paInt16, input_channels=1)
+        #         self.p.is_format_supported(rate=samplerates[i], output_device=self.settings.device[1], output_format=pyaudio.paInt16, output_channels=1)
+        #     except ValueError:
+        #         samplerates.remove(samplerates[i])
 
         if len(samplerates) == 0:
             print("Audio device does not support samplerates 44.1, 48, 88.2 or 96")
