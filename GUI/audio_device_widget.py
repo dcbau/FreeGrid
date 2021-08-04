@@ -63,9 +63,9 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.out_2_channel.setFixedWidth(numboxwidth)
         self.out_fb_channel = QtWidgets.QComboBox()
         self.out_fb_channel.setFixedWidth(numboxwidth)
-        self.out_1_channel.activated.connect(self.set_output_channel_layout)
-        self.out_2_channel.activated.connect(self.set_output_channel_layout)
-        self.out_fb_channel.activated.connect(self.set_output_channel_layout)
+        self.out_1_channel.activated.connect(self.set_channel_layout)
+        self.out_2_channel.activated.connect(self.set_channel_layout)
+        self.out_fb_channel.activated.connect(self.set_channel_layout)
 
         self.in_l_channel = QtWidgets.QComboBox()
         self.in_l_channel.setFixedWidth(numboxwidth)
@@ -73,9 +73,9 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.in_r_channel.setFixedWidth(numboxwidth)
         self.in_fb_channel = QtWidgets.QComboBox()
         self.in_fb_channel.setFixedWidth(numboxwidth)
-        self.in_l_channel.activated.connect(self.set_input_channel_layout)
-        self.in_r_channel.activated.connect(self.set_input_channel_layout)
-        self.in_fb_channel.activated.connect(self.set_input_channel_layout)
+        self.in_l_channel.activated.connect(self.set_channel_layout)
+        self.in_r_channel.activated.connect(self.set_channel_layout)
+        self.in_fb_channel.activated.connect(self.set_channel_layout)
 
         self.use_feedback_loop.stateChanged.connect(self.set_channel_layout)
 
@@ -163,7 +163,6 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         layout.addLayout(right_list)
         self.setLayout(layout)
 
-        self.p.terminate()
 
 
     def update_api(self):
@@ -198,7 +197,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
         self.update_device()
 
-    def update_device(self):
+    def update_device(self, notify=True):
 
         in_id = self.input_devices_box.currentIndex()
         try:
@@ -213,7 +212,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
             output_dev = -1
         self.settings.device = [input_dev, output_dev]
 
-        self.update_available_samplerates()
+        self.update_available_samplerates(notify)
 
         # INPUT channels
         try:
@@ -252,9 +251,6 @@ class AudioDeviceWidget(QtWidgets.QWidget):
             self.in_fb_channel.setCurrentText(str(self.channel_layout_input[2] + 1))
         else:
             self.channel_layout_input[2] = -1
-
-        self.set_input_channel_layout()
-
 
 
         # OUTPUT channels
@@ -295,11 +291,11 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         else:
             self.channel_layout_output[2] = -1
 
-        self.set_output_channel_layout()
+        self.set_channel_layout()
 
         self.measurement_ref.set_audio_settings(self.settings)
 
-    def update_available_samplerates(self):
+    def update_available_samplerates(self, notify=True):
         # define supported samplerates
         samplerates = [44100, 48000, 88200, 96000]
         
@@ -315,15 +311,13 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         samplerates = list(set(samplerates))
         samplerates.sort()
 
-        # TODO: reenable the samplerate check, currently is_format_supported freezes without raising an error
-
         # check if both devices support the samplerates
-        # for i in range(np.size(samplerates)):
-        #     try:
-        #         self.p.is_format_supported(rate=samplerates[i], input_device=self.settings.device[0], input_format=pyaudio.paInt16, input_channels=1)
-        #         self.p.is_format_supported(rate=samplerates[i], output_device=self.settings.device[1], output_format=pyaudio.paInt16, output_channels=1)
-        #     except ValueError:
-        #         samplerates.remove(samplerates[i])
+        for i in range(np.size(samplerates)):
+            try:
+                self.p.is_format_supported(rate=samplerates[i], input_device=self.settings.device[0], input_format=pyaudio.paInt16, input_channels=1)
+                self.p.is_format_supported(rate=samplerates[i], output_device=self.settings.device[1], output_format=pyaudio.paInt16, output_channels=1)
+            except ValueError:
+                samplerates.remove(samplerates[i])
 
         if len(samplerates) == 0:
             print("Audio device does not support samplerates 44.1, 48, 88.2 or 96")
@@ -337,29 +331,29 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         else:
             self.samplerate_box.setCurrentText(str(samplerates[0]))
 
-    def set_samplerate(self):
-        self.settings.samplerate = int(self.samplerate_box.currentText())
-        self.measurement_ref.set_audio_settings(self.settings)
+        self.set_samplerate(notify=False)
 
-    def set_output_channel_layout(self):
+    # called on selection event
+    def set_samplerate(self, notify=True):
+        self.settings.samplerate = int(self.samplerate_box.currentText())
+        if notify:
+            self.measurement_ref.set_audio_settings(self.settings)
+
+    # TODO: add notify flag, merge Measurement.set_channel_layout() and Measurement.set_audio_settings() to a single function
+    def set_channel_layout(self):
+
         out1 = self.out_1_channel.currentIndex()
         out2 = self.out_2_channel.currentIndex()
         out_fb = self.out_fb_channel.currentIndex()
 
         self.channel_layout_output = [out1, out2, out_fb]
 
-        self.set_channel_layout()
-
-    def set_input_channel_layout(self):
         in_l = self.in_l_channel.currentIndex()
         in_r = self.in_r_channel.currentIndex()
         in_fb = self.in_fb_channel.currentIndex()
 
         self.channel_layout_input = [in_l, in_r, in_fb]
 
-        self.set_channel_layout()
-
-    def set_channel_layout(self):
         duplicates =  self.check_for_channel_duplicates(self.channel_layout_input)
         duplicates += self.check_for_channel_duplicates(self.channel_layout_output)
 

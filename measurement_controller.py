@@ -38,7 +38,7 @@ class MeasurementController:
 
         self.measurement_done_lock = threading.Lock()
 
-        self.gui_handle = []
+        self.gui_handle = None
 
         self.measurements = np.array([])
         self.raw_signals = np.array([])
@@ -93,10 +93,11 @@ class MeasurementController:
     def callback_thread(self):
 
         # check for tracker status
-        if self.tracker.tracking_mode == "Vive":
-            self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
-        elif self.tracker.tracking_mode == "OSC_direct":
-            self.gui_handle.set_osc_status(self.tracker.osc_input_server.get_osc_receive_status())
+        if self.gui_handle is not None:
+            if self.tracker.tracking_mode == "Vive":
+                self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
+            elif self.tracker.tracking_mode == "OSC_direct":
+                self.gui_handle.set_osc_status(self.tracker.osc_input_server.get_osc_receive_status())
 
         if self.send_osc_data:
             az, el, r = self.tracker.get_relative_position()

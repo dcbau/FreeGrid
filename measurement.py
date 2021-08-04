@@ -167,8 +167,7 @@ class Measurement():
         self.recorded_sweep_r = None
         self.feedback_loop = None
 
-        self.audio_settings = None
-        self.set_audio_settings()
+
 
         self.audio_stream_out = None
         self.audio_stream_in = None
@@ -183,6 +182,12 @@ class Measurement():
         self.recording_index = None
         self.sample_is_playing = False
         self.sample_data = None
+
+        self.audio_settings = None
+        self.num_input_channels_used = 2 # TODO remove
+
+        self.set_audio_settings()
+
 
         #self.prepare_audio()
 
@@ -255,8 +260,8 @@ class Measurement():
     def prepare_audio(self):
         # whenever something changes regarding the audio signals, recompute everything. Could be more efficient, but this
         # way the code remains simple
+        print("Prepare Audio")
 
-        # TODO: destroy stream here!!!!
         try:
             self.audio_stream_out.close()
             self.audio_stream_in.close()
@@ -320,16 +325,23 @@ class Measurement():
                                                stream_callback=self.audio_callback_input,
                                                input_device_index=self.audio_settings.device[0],
                                                frames_per_buffer=self.audio_settings.frames_per_buffer)
+
+            self.audio_stream_in.start_stream()
+
         if self.num_output_channels_used > 0:
             self.audio_stream_out = self.p.open(format=pyaudio.paFloat32,
                                                channels=self.num_output_channels_used,
                                                rate=fs,
                                                output=True,
                                                stream_callback=self.audio_callback_output,
-                                               input_device_index=self.audio_settings.device[1],
+                                               output_device_index=self.audio_settings.device[1],
                                                frames_per_buffer=self.audio_settings.frames_per_buffer)
 
-        self.audio_stream_out.start_stream()
+            self.audio_stream_out.start_stream()
+
+        print(f"Audio Prepared: NInCh {self.num_input_channels_used}, NoutCh {self.num_output_channels_used}, samplerate: {fs}")
+        #print(f"Audio Device Input: {self.p.get_device_info_by_index(self.audio_settings.device[0])}")
+        #print(f"Audio Device Output: {self.p.get_device_info_by_index(self.audio_settings.device[1])}")
 
 
 
@@ -376,7 +388,7 @@ class Measurement():
                 self.playback_index = end
 
             #print(f"Start: {start}, End: {end}, chunksize: {chunk.shape}, sample_length: {sample_length}, size_interleaved: {interleaved.size}")
-            print(f"PLAY Start: {start}, End: {end}")
+            #print(f"PLAY Start: {start}, End: {end}")
 
             # copy the excitation signal to the desired output channels
             for i in range(len(self.channel_layout_output)):
@@ -403,7 +415,7 @@ class Measurement():
                 end = buffer_length
                 num_samples_to_copy = buffer_length - start
                 self.recording_index = None
-                print("LAST RECORD BUFFER")
+                #print("LAST RECORD BUFFER")
 
             else:
                 num_samples_to_copy = frame_count
@@ -412,11 +424,11 @@ class Measurement():
             for i in range(self.num_input_channels_used):
                 self.recording_buffer[start:end, i] = input[i:num_samples_to_copy*self.num_input_channels_used:self.num_input_channels_used]
 
-            print(f"RECORD Start: {start}, End: {end}")
+            #print(f"RECORD Start: {start}, End: {end}")
 
             # AFTER last buffer is written, notify that recording is done
             if self.recording_index is None:
-                print("SENDING RECORDING DONE SIGNAL")
+                #print("SENDING RECORDING DONE SIGNAL")
                 self.recording_done.set()
 
         return (None, pyaudio.paContinue)
@@ -446,11 +458,11 @@ class Measurement():
         self.playback_done.wait()
         self.playback_done.clear()
 
-        print("Playback Done")
+        #print("Playback Done")
 
         self.recording_done.wait()
         self.recording_done.clear()
-        print("Recording Done")
+        #print("Recording Done")
 
         self.recording_index = None
         self.playback_index = None
