@@ -276,6 +276,15 @@ class Measurement():
 
 
     def play_sound(self, success):
+
+        # little workaround of a problem with using ASIO from multiple threads
+        # https://stackoverflow.com/questions/39858212/python-sounddevice-play-on-threads
+        default_device = sd.query_devices(sd.default.device[0])
+        default_api = sd.query_hostapis(default_device['hostapi'])
+        if default_api['name'] == 'ASIO':
+            sd._terminate()
+            sd._initialize()
+
         if success:
             sd.play(self.sound_success)
         else:
