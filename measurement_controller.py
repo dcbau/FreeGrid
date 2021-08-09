@@ -60,7 +60,7 @@ class MeasurementController:
 
         self.guidance_running = False
         self.recommended_points = {}
-        self.point_recommender = pointrecommender.PointRecommender(self.tracker)
+        #self.point_recommender = pointrecommender.PointRecommender(self.tracker)
         #self.point_recommender.get_head_rotation_to_point(260, 40)
 
         today = date.today()
@@ -265,7 +265,7 @@ class MeasurementController:
                   'headWidth': headWidth,
                   'headLength': headLength,
                   'sweepParameters': self.measurement.sweep_parameters,
-                  'feedback_loop': self.measurement.feedback_loop_used
+                  'feedback_loop': self.measurement.audio_settings.feedback_loop_used
         }
 
         scipy.io.savemat(self.get_filepath_for_irs(), export)
@@ -307,7 +307,7 @@ class MeasurementController:
                   'referenceIR': self.measurements_reference,
                   'fs': self.measurement.get_samplerate(),
                   'sweepParameters': self.measurement.sweep_parameters,
-                  'feedback_loop': self.measurement.feedback_loop_used}
+                  'feedback_loop': self.measurement.audio_settings.feedback_loop_used}
 
 
         session_name = self.gui_handle.session_name.text()
@@ -442,7 +442,7 @@ class MeasurementController:
                   'hpir': self.hp_irs,
                   'beta': beta,
                   'fs': self.measurement.get_samplerate(),
-                  'feedback_loop': self.measurement.feedback_loop_used}
+                  'feedback_loop': self.measurement.audio_settings.feedback_loop_used}
 
         hp_name = self.gui_handle.headphone_name.text()
         filename = "headphone_ir_" + hp_name + "_" + self.current_date + ".mat"

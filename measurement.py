@@ -11,10 +11,34 @@ class AudioDeviceConfig():
 
     def __init__(self, p):
 
+        default_dev_input = p.get_default_input_device_info()
+        default_dev_output = p.get_default_output_device_info()
+
         self.hostapi = p.get_default_host_api_info()['index']
-        self.device = [p.get_default_input_device_info()['index'], p.get_default_output_device_info()['index']]
-        self.samplerate = None
+        self.device = [default_dev_input['index'], default_dev_output['index']]
+        self.samplerate = default_dev_output['defaultSampleRate']
         self.frames_per_buffer = 1024
+
+        # default channels at startup
+        self.feedback_loop_used = False
+        self.num_input_channels_used = min(default_dev_input['maxInputChannels'], 2)
+        self.num_output_channels_used = min(default_dev_output['maxOutputChannels'], 2)
+
+
+        # channel layout as zero indexed channel numbers
+        # output layout: [out_1, out_2, out_fb]
+        # input layout: [in_left, in_right, in_fb]
+        self.channel_layout_input = [-1, -1, -1]
+        if self.num_input_channels_used > 0:
+            self.channel_layout_input[0] = 0
+            if self.num_input_channels_used > 1:
+                self.channel_layout_input[1] = 1
+
+        self.channel_layout_output = [-1, -1, -1]
+        if self.num_output_channels_used > 0:
+            self.channel_layout_output[0] = 0
+            if self.num_output_channels_used > 1:
+                self.channel_layout_output[1] = 1
 
 def deconv(x, y):
 
@@ -149,12 +173,7 @@ class Measurement():
         self.sound_failed_singlechannel = self.sound_failed_singlechannel * 0.05 / 32768
         self.sound_success_singlechannel = self.sound_success_singlechannel * 0.05 / 32768
 
-        # default channels at startup
-        self.channel_layout_input = [0, 1, -1]
-        self.channel_layout_output = [0, 1, -1]
-        self.num_input_channels_used = 0
-        self.num_output_channels_used = 2
-        self.feedback_loop_used = False
+
 
         self.sweep_mono = None
         self.sweep_hpc_mono = None
@@ -184,9 +203,9 @@ class Measurement():
         self.sample_data = None
 
         self.audio_settings = None
-        self.num_input_channels_used = 2 # TODO remove
 
-        self.set_audio_settings()
+        print("INIT MEASUREMENT")
+        self.set_audio_settings(notify=False)
 
 
         #self.prepare_audio()
@@ -208,7 +227,7 @@ class Measurement():
     def get_samplerate(self):
         return self.audio_settings.samplerate
 
-    def set_audio_settings(self, audio_settings=None):
+    def set_audio_settings(self, audio_settings=None, notify=True):
 
         if audio_settings is None:
             audio_settings=AudioDeviceConfig(self.p)
@@ -218,43 +237,46 @@ class Measurement():
 
         self.audio_settings = audio_settings
 
-        self.prepare_audio()
+
+        if notify:
+            self.prepare_audio()
+
 
     def get_pa_handler(self):
         return self.p
 
-    def set_channel_layout(self, in_channels, out_channels):
-        """
-        To be called when the audio channel layout has changed. Setting a channel to -1 disables it
-
-        Parameters
-        ----------
-        in_channels : list of 3 ints with zero-indexed channel id, (-1 indicates disabled)
-            1st entry: input channel left ear
-            2nd entry: input channel right ear
-            3rd entry: input channel feedback loop
-
-        out_channels: list of 3 ints with zero-indexed channel id, (-1 indicates disabled)
-            1st entry: output channel 1
-            2nd entry: output channel 2
-            3rd entry: output channel feedback loop
-
-        """
-
-        if out_channels[2] < 0 or in_channels[2] < 0:
-            self.feedback_loop_used = False
-            in_channels[2] = -1
-            out_channels[2] = -1
-        else:
-            self.feedback_loop_used = True
-
-        self.channel_layout_input = in_channels
-        self.channel_layout_output = out_channels
-        self.num_output_channels_used = max(out_channels) + 1
-        self.num_input_channels_used = max(in_channels) + 1
-
-
-        self.prepare_audio()
+    # def set_channel_layout(self, in_channels, out_channels):
+    #     """
+    #     To be called when the audio channel layout has changed. Setting a channel to -1 disables it
+    #
+    #     Parameters
+    #     ----------
+    #     in_channels : list of 3 ints with zero-indexed channel id, (-1 indicates disabled)
+    #         1st entry: input channel left ear
+    #         2nd entry: input channel right ear
+    #         3rd entry: input channel feedback loop
+    #
+    #     out_channels: list of 3 ints with zero-indexed channel id, (-1 indicates disabled)
+    #         1st entry: output channel 1
+    #         2nd entry: output channel 2
+    #         3rd entry: output channel feedback loop
+    #
+    #     """
+    #
+    #     if out_channels[2] < 0 or in_channels[2] < 0:
+    #         self.feedback_loop_used = False
+    #         in_channels[2] = -1
+    #         out_channels[2] = -1
+    #     else:
+    #         self.feedback_loop_used = True
+    #
+    #     self.channel_layout_input = in_channels
+    #     self.channel_layout_output = out_channels
+    #     self.num_output_channels_used = max(out_channels) + 1
+    #     self.num_input_channels_used = max(in_channels) + 1
+    #
+    #
+    #     self.prepare_audio()
 
 
     def prepare_audio(self):
@@ -262,11 +284,7 @@ class Measurement():
         # way the code remains simple
         print("Prepare Audio")
 
-        try:
-            self.audio_stream_out.close()
-            self.audio_stream_in.close()
-        except:
-            pass
+        self.close_streams()
 
         time.sleep(0.3)
 
@@ -295,31 +313,31 @@ class Measurement():
         # Since portaudio does not support the useage of individual channels, the channel assignment is "faked" by
         # creating a multichannel audio file for playrec() and only playing the sweep on the selected output channels.
         # On the other side, only the selected input channels are used from the recorded multichannel wave file
-        out_channels = self.channel_layout_output
+        out_channels = self.audio_settings.channel_layout_output
 
-        if not self.feedback_loop_used:
+        if not self.audio_settings.feedback_loop_used:
             out_channels = out_channels[0:2]
 
 
         # make multichannel audiofile and assign the sweep to designated channels
-        self.excitation = np.zeros([np.size(self.sweep_mono, 0), self.num_output_channels_used])
+        self.excitation = np.zeros([np.size(self.sweep_mono, 0), self.audio_settings.num_output_channels_used])
         self.excitation[:, out_channels] = self.sweep_mono
 
         # same for HPC measurement
-        self.excitation_hpc = np.zeros([np.size(self.sweep_hpc_mono, 0), self.num_output_channels_used])
+        self.excitation_hpc = np.zeros([np.size(self.sweep_hpc_mono, 0), self.audio_settings.num_output_channels_used])
         self.excitation_hpc[:, out_channels] = self.sweep_hpc_mono
 
         # also for the sound fx
-        self.sound_success = np.zeros([np.size(sound_success_src, 0), self.num_output_channels_used])
+        self.sound_success = np.zeros([np.size(sound_success_src, 0), self.audio_settings.num_output_channels_used])
         self.sound_success[:, out_channels[0:2]] = np.expand_dims(sound_success_src, axis=1)
-        self.sound_failed = np.zeros([np.size(sound_failed_src, 0), self.num_output_channels_used])
+        self.sound_failed = np.zeros([np.size(sound_failed_src, 0), self.audio_settings.num_output_channels_used])
         self.sound_failed[:, out_channels[0:2]] = np.expand_dims(sound_failed_src, axis=1)
 
 
 
-        if self.num_input_channels_used > 0:
+        if self.audio_settings.num_input_channels_used > 0:
             self.audio_stream_in = self.p.open(format=pyaudio.paFloat32,
-                                               channels=self.num_input_channels_used,
+                                               channels=self.audio_settings.num_input_channels_used,
                                                rate=fs,
                                                input=True,
                                                stream_callback=self.audio_callback_input,
@@ -328,9 +346,9 @@ class Measurement():
 
             self.audio_stream_in.start_stream()
 
-        if self.num_output_channels_used > 0:
+        if self.audio_settings.num_output_channels_used > 0:
             self.audio_stream_out = self.p.open(format=pyaudio.paFloat32,
-                                               channels=self.num_output_channels_used,
+                                               channels=self.audio_settings.num_output_channels_used,
                                                rate=fs,
                                                output=True,
                                                stream_callback=self.audio_callback_output,
@@ -339,7 +357,7 @@ class Measurement():
 
             self.audio_stream_out.start_stream()
 
-        print(f"Audio Prepared: NInCh {self.num_input_channels_used}, NoutCh {self.num_output_channels_used}, samplerate: {fs}")
+        print(f"Audio Prepared: NInCh {self.audio_settings.num_input_channels_used}, NoutCh {self.audio_settings.num_output_channels_used}, samplerate: {fs}")
         #print(f"Audio Device Input: {self.p.get_device_info_by_index(self.audio_settings.device[0])}")
         #print(f"Audio Device Output: {self.p.get_device_info_by_index(self.audio_settings.device[1])}")
 
@@ -358,10 +376,18 @@ class Measurement():
         self.recording_index = None
         # sd.stop()
 
+    def close_streams(self):
+
+        try:
+            self.audio_stream_out.close()
+            self.audio_stream_in.close()
+        except:
+            pass
+
     def audio_callback_output(self, in_data, frame_count, time_info, status):
 
 
-        interleaved = np.zeros(frame_count * self.num_output_channels_used)
+        interleaved = np.zeros(frame_count * self.audio_settings.num_output_channels_used)
 
         if self.playback_index is not None:
             if status != 0:
@@ -391,9 +417,9 @@ class Measurement():
             #print(f"PLAY Start: {start}, End: {end}")
 
             # copy the excitation signal to the desired output channels
-            for i in range(len(self.channel_layout_output)):
-                if self.channel_layout_output[i] >= 0:
-                    interleaved[self.channel_layout_output[i]::self.num_output_channels_used] = chunk
+            for i in range(len(self.audio_settings.channel_layout_output)):
+                if self.audio_settings.channel_layout_output[i] >= 0:
+                    interleaved[self.audio_settings.channel_layout_output[i]::self.audio_settings.num_output_channels_used] = chunk
 
         return (interleaved.astype(np.float32).tostring(), pyaudio.paContinue)
 
@@ -421,8 +447,8 @@ class Measurement():
                 num_samples_to_copy = frame_count
                 self.recording_index = end
 
-            for i in range(self.num_input_channels_used):
-                self.recording_buffer[start:end, i] = input[i:num_samples_to_copy*self.num_input_channels_used:self.num_input_channels_used]
+            for i in range(self.audio_settings.num_input_channels_used):
+                self.recording_buffer[start:end, i] = input[i:num_samples_to_copy*self.audio_settings.num_input_channels_used:self.audio_settings.num_input_channels_used]
 
             #print(f"RECORD Start: {start}, End: {end}")
 
@@ -440,19 +466,23 @@ class Measurement():
         self.recorded_sweep_r = []
         self.feedback_loop = []
 
+        if self.audio_stream_in is None:
+            self.prepare_audio()
+
 
         if not self.dummy_debugging:
             time.sleep(0.3)
+
+        if type=='hpc':
+            self.recording_buffer = np.zeros((np.size(self.excitation_hpc, 0), self.audio_settings.num_input_channels_used))
+        else:
+            self.recording_buffer = np.zeros((np.size(self.excitation, 0), self.audio_settings.num_input_channels_used))
 
 
         self.playback_index = 0
         self.recording_index = 0
         self.measurement_type = type
 
-        if type=='hpc':
-            self.recording_buffer = np.zeros((np.size(self.excitation_hpc, 0), self.num_input_channels_used))
-        else:
-            self.recording_buffer = np.zeros((np.size(self.excitation, 0), self.num_input_channels_used))
 
         print("Waiting for measuement...")
         self.playback_done.wait()
@@ -475,18 +505,18 @@ class Measurement():
 
 
         # get the recorded signals
-        if self.channel_layout_input[0] >= 0:
-            self.recorded_sweep_l = self.recording_buffer[:, self.channel_layout_input[0]]
+        if self.audio_settings.channel_layout_input[0] >= 0:
+            self.recorded_sweep_l = self.recording_buffer[:, self.audio_settings.channel_layout_input[0]]
         else:
             self.recorded_sweep_l = np.random.random_sample(np.size(self.recording_buffer, 0)) * 0.000001
 
-        if self.channel_layout_input[1] >= 0:
-            self.recorded_sweep_r = self.recording_buffer[:, self.channel_layout_input[1]]
+        if self.audio_settings.channel_layout_input[1] >= 0:
+            self.recorded_sweep_r = self.recording_buffer[:, self.audio_settings.channel_layout_input[1]]
         else:
             self.recorded_sweep_r = np.random.random_sample(np.size(self.recording_buffer, 0)) * 0.000001
 
-        if self.feedback_loop_used:
-            self.feedback_loop = self.recording_buffer[:, self.channel_layout_input[2]]
+        if self.audio_settings.feedback_loop_used:
+            self.feedback_loop = self.recording_buffer[:, self.audio_settings.channel_layout_input[2]]
         else:
             # if no FB loop, copy from original excitation sweep
             if type is 'hpc':

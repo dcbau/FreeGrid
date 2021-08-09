@@ -50,13 +50,6 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.samplerate_box.setFixedWidth(textboxwidth)
         self.use_feedback_loop = QtWidgets.QCheckBox()
 
-
-        # channel layout as zero indexed channel numbers
-        # output layout: [out_1, out_2, out_fb]
-        # input layout: [in_left, in_right, in_fb]
-        self.channel_layout_output = [0, 1, 2]
-        self.channel_layout_input = [0, 1, 2]
-
         self.out_1_channel = QtWidgets.QComboBox()
         self.out_1_channel.setFixedWidth(numboxwidth)
         self.out_2_channel = QtWidgets.QComboBox()
@@ -105,7 +98,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.api_box.setCurrentText(query_hostapis(self.p)[self.current_api_id]['name'])
 
 
-        self.update_api()
+        self.update_api(notify=False)
 
 
 
@@ -163,9 +156,10 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         layout.addLayout(right_list)
         self.setLayout(layout)
 
+        self.measurement_ref.set_audio_settings(self.settings)
 
 
-    def update_api(self):
+    def update_api(self, notify=True):
         # update the audio devices matching the API
         current_api = query_hostapis(self.p)[self.api_ids[self.api_box.currentIndex()]]
         self.settings.device = [max(current_api['default_input_device'], 0), max(current_api['default_output_device'], 0)]
@@ -195,7 +189,10 @@ class AudioDeviceWidget(QtWidgets.QWidget):
             if device_id == self.settings.device[1]:
                 self.output_devices_box.setCurrentText(display_name)
 
-        self.update_device()
+        self.update_device(notify=False)
+
+        if notify:
+            self.measurement_ref.set_audio_settings(self.settings)
 
     def update_device(self, notify=True):
 
@@ -212,7 +209,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
             output_dev = -1
         self.settings.device = [input_dev, output_dev]
 
-        self.update_available_samplerates(notify)
+        self.update_available_samplerates()
 
         # INPUT channels
         try:
@@ -228,29 +225,29 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         if num_in_ch > 0:
             for channel in range(num_in_ch):
                 self.in_l_channel.addItem(str(channel + 1))
-            if self.channel_layout_input[0] == -1 or self.channel_layout_input[0] >= num_in_ch:
-                self.channel_layout_input[0] = 0
-            self.in_l_channel.setCurrentText(str(self.channel_layout_input[0] + 1))
+            if self.settings.channel_layout_input[0] == -1 or self.settings.channel_layout_input[0] >= num_in_ch:
+                self.settings.channel_layout_input[0] = 0
+            self.in_l_channel.setCurrentText(str(self.settings.channel_layout_input[0] + 1))
         else:
-            self.channel_layout_input[0] = -1
+            self.settings.channel_layout_input[0] = -1
 
         if num_in_ch > 1:
             for channel in range(num_in_ch):
                 self.in_r_channel.addItem(str(channel + 1))
-            if self.channel_layout_input[1] == -1 or self.channel_layout_input[1] >= num_in_ch:
-                self.channel_layout_input[1] = 1
-            self.in_r_channel.setCurrentText(str(self.channel_layout_input[1] + 1))
+            if self.settings.channel_layout_input[1] == -1 or self.settings.channel_layout_input[1] >= num_in_ch:
+                self.settings.channel_layout_input[1] = 1
+            self.in_r_channel.setCurrentText(str(self.settings.channel_layout_input[1] + 1))
         else:
-            self.channel_layout_input[1] = -1
+            self.settings.channel_layout_input[1] = -1
 
         if num_in_ch > 2:
             for channel in range(num_in_ch):
                 self.in_fb_channel.addItem(str(channel + 1))
-            if self.channel_layout_input[2] == -1 or self.channel_layout_input[2] >= num_in_ch:
-                self.channel_layout_input[2] = 2
-            self.in_fb_channel.setCurrentText(str(self.channel_layout_input[2] + 1))
+            if self.settings.channel_layout_input[2] == -1 or self.settings.channel_layout_input[2] >= num_in_ch:
+                self.settings.channel_layout_input[2] = 2
+            self.in_fb_channel.setCurrentText(str(self.settings.channel_layout_input[2] + 1))
         else:
-            self.channel_layout_input[2] = -1
+            self.settings.channel_layout_input[2] = -1
 
 
         # OUTPUT channels
@@ -267,35 +264,36 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         if num_out_ch > 0:
             for channel in range(num_out_ch):
                 self.out_1_channel.addItem(str(channel+1))
-            if self.channel_layout_output[0] == -1 or self.channel_layout_output[0] >= num_out_ch:
-                self.channel_layout_output[0] = 0
-            self.out_1_channel.setCurrentText(str(self.channel_layout_output[0] + 1))
+            if self.settings.channel_layout_output[0] == -1 or self.settings.channel_layout_output[0] >= num_out_ch:
+                self.settings.channel_layout_output[0] = 0
+            self.out_1_channel.setCurrentText(str(self.settings.channel_layout_output[0] + 1))
         else:
-            self.channel_layout_output[0] = -1
+            self.settings.channel_layout_output[0] = -1
 
         if num_out_ch > 1:
             for channel in range(num_out_ch):
                 self.out_2_channel.addItem(str(channel+1))
-            if self.channel_layout_output[1] == -1 or self.channel_layout_output[1] >= num_out_ch:
-                self.channel_layout_output[1] = 1
-            self.out_2_channel.setCurrentText(str(self.channel_layout_output[1] + 1))
+            if self.settings.channel_layout_output[1] == -1 or self.settings.channel_layout_output[1] >= num_out_ch:
+                self.settings.channel_layout_output[1] = 1
+            self.out_2_channel.setCurrentText(str(self.settings.channel_layout_output[1] + 1))
         else:
-            self.channel_layout_output[1] = -1
+            self.settings.channel_layout_output[1] = -1
 
         if num_out_ch > 2:
             for channel in range(num_out_ch):
                 self.out_fb_channel.addItem(str(channel+1))
-            if self.channel_layout_output[2] == -1 or self.channel_layout_output[2] >= num_out_ch:
-                self.channel_layout_output[2] = 2
-            self.out_fb_channel.setCurrentText(str(self.channel_layout_output[2] + 1))
+            if self.settings.channel_layout_output[2] == -1 or self.settings.channel_layout_output[2] >= num_out_ch:
+                self.settings.channel_layout_output[2] = 2
+            self.out_fb_channel.setCurrentText(str(self.settings.channel_layout_output[2] + 1))
         else:
-            self.channel_layout_output[2] = -1
+            self.settings.channel_layout_output[2] = -1
 
-        self.set_channel_layout()
+        self.set_channel_layout(notify=False)
 
-        self.measurement_ref.set_audio_settings(self.settings)
+        if notify:
+            self.measurement_ref.set_audio_settings(self.settings)
 
-    def update_available_samplerates(self, notify=True):
+    def update_available_samplerates(self):
         # define supported samplerates
         samplerates = [44100, 48000, 88200, 96000]
         
@@ -311,11 +309,13 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         samplerates = list(set(samplerates))
         samplerates.sort()
 
+        self.measurement_ref.close_streams()
+
         # check if both devices support the samplerates
         for i in range(np.size(samplerates)):
             try:
-                self.p.is_format_supported(rate=samplerates[i], input_device=self.settings.device[0], input_format=pyaudio.paInt16, input_channels=1)
-                self.p.is_format_supported(rate=samplerates[i], output_device=self.settings.device[1], output_format=pyaudio.paInt16, output_channels=1)
+                self.p.is_format_supported(rate=samplerates[i], input_device=self.settings.device[0], input_format=pyaudio.paFloat32, input_channels=1)
+                self.p.is_format_supported(rate=samplerates[i], output_device=self.settings.device[1], output_format=pyaudio.paFloat32, output_channels=1)
             except ValueError:
                 samplerates.remove(samplerates[i])
 
@@ -339,35 +339,45 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         if notify:
             self.measurement_ref.set_audio_settings(self.settings)
 
-    # TODO: add notify flag, merge Measurement.set_channel_layout() and Measurement.set_audio_settings() to a single function
-    def set_channel_layout(self):
+    def set_channel_layout(self, notify=True):
 
         out1 = self.out_1_channel.currentIndex()
         out2 = self.out_2_channel.currentIndex()
         out_fb = self.out_fb_channel.currentIndex()
 
-        self.channel_layout_output = [out1, out2, out_fb]
+        self.settings.channel_layout_output = [out1, out2, out_fb]
 
         in_l = self.in_l_channel.currentIndex()
         in_r = self.in_r_channel.currentIndex()
         in_fb = self.in_fb_channel.currentIndex()
 
-        self.channel_layout_input = [in_l, in_r, in_fb]
+        self.settings.channel_layout_input = [in_l, in_r, in_fb]
 
-        duplicates =  self.check_for_channel_duplicates(self.channel_layout_input)
-        duplicates += self.check_for_channel_duplicates(self.channel_layout_output)
+        duplicates =  self.check_for_channel_duplicates(self.settings.channel_layout_input)
+        duplicates += self.check_for_channel_duplicates(self.settings.channel_layout_output)
 
         self.duplicate_channel_warning.setVisible(bool(duplicates))
 
         if not self.use_feedback_loop.isChecked():
-            self.channel_layout_output[2] = -1
-            self.channel_layout_input[2] = -1
+            self.settings.channel_layout_output[2] = -1
+            self.settings.channel_layout_input[2] = -1
         else:
-            self.channel_layout_output[2] = self.out_fb_channel.currentIndex()
-            self.channel_layout_input[2] = self.in_fb_channel.currentIndex()
+            self.settings.channel_layout_output[2] = self.out_fb_channel.currentIndex()
+            self.settings.channel_layout_input[2] = self.in_fb_channel.currentIndex()
 
+        # force-deactivate feedback loop if no third channel is selected
+        if self.settings.channel_layout_output[2] < 0 or self.settings.channel_layout_input[2] < 0:
+            self.settings.feedback_loop_used = False
+            self.settings.channel_layout_input[2] = -1
+            self.settings.channel_layout_output[2] = -1
+        else:
+            self.settings.feedback_loop_used = True
 
-        self.measurement_ref.set_channel_layout(self.channel_layout_input, self.channel_layout_output)
+        self.settings.num_output_channels_used = max(self.settings.channel_layout_output) + 1
+        self.settings.num_input_channels_used = max(self.settings.channel_layout_input) + 1
+
+        if notify:
+            self.measurement_ref.set_audio_settings(self.settings)
 
     def check_for_channel_duplicates(self, channel_list):
         '''Returns True if a valid hardware channel is assigned for multiple in/out channels. Invalid channel
@@ -382,7 +392,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
     def get_current_channel_layout(self):
         if not self.use_feedback_loop.isChecked():
-            self.channel_layout_output[2] = -1
-            self.channel_layout_input[2] = -1
+            self.settings.channel_layout_output[2] = -1
+            self.settings.channel_layout_input[2] = -1
 
-        return self.channel_layout_input, self.channel_layout_output
+        return self.settings.channel_layout_input, self.settings.channel_layout_output
