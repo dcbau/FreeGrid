@@ -369,8 +369,8 @@ class Measurement():
             if deconv_fc_lp is None:
                 deconv_fc_lp = 20000
 
-            ir_l = deconvolve(fb_loop, rec_l, self.fs, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
-            ir_r = deconvolve(fb_loop, rec_r, self.fs, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
+            ir_l = deconvolve(fb_loop, rec_l, sd.default.samplerate, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
+            ir_r = deconvolve(fb_loop, rec_r, sd.default.samplerate, lowpass=[deconv_fc_lp, 4, 2], highpass=[deconv_fc_hp, 4, 2])
             return [ir_l, ir_r]
         except:
             return
