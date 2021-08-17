@@ -1,6 +1,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sounddevice as sd
 import numpy as np
+import os
 
 class AudioDeviceWidget(QtWidgets.QWidget):
 
@@ -148,6 +149,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         self.output_devices_box.clear()
         self.output_dev_ids.clear()
 
+
         for device_id in current_api['devices']:
             device = sd.query_devices(device_id)
             display_name = f"{device['name']} ({device['max_input_channels']} in, {device['max_output_channels']} out)"
@@ -167,6 +169,17 @@ class AudioDeviceWidget(QtWidgets.QWidget):
 
             if device_id == sd.default.device[1]:
                 self.output_devices_box.setCurrentText(display_name)
+
+        # TODO: check if this works on windows!
+        # with Windows, the names of the devices are truncated b default to the size of the combo box. This is a workaround
+        # to expand the view of the combo box
+        if os.name is not 'posix':
+            listOfStrings_input = [self.input_devices_box.itemText(i) for i in range(self.input_devices_box.count())]
+            self.input_devices_box.view().setFixedWidth(self.input_devices_box.fontMetrics().boundingRect(max(listOfStrings_input, key=len)).width() +10)
+
+            listOfStrings_output = [self.output_devices_box.itemText(i) for i in range(self.output_devices_box.count())]
+            self.output_devices_box.view().setFixedWidth(self.output_devices_box.fontMetrics().boundingRect(max(listOfStrings_output, key=len)).width() +10)
+
 
         self.update_device()
 

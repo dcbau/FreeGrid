@@ -1,15 +1,17 @@
 # GuidedHRTFsPython
-> __Current State Of Work__ (March 2021) 
+> __Current State Of Work__ (August 2021) 
 >  
 > - The project is still in a test phase. It works and provides good results, but needs further evaluation.
-> - The postprocessing and upsampling of the Head-Related Impulse Responses (HRIRs) is not part of the repository. Although this is a essential part of the entire project, the current scope of this application is the measurement procedure itself.    
+> - The postprocessing and upsampling of the Head-Related Impulse Responses (HRIRs) is not part of the repository as this is currently topic of research ([research project](www.th-koeln.de/reskue)).
 > - We are still looking for a better project name...
 
 ## Overview
 
-<img src="./resources/doc/overview.png" alt="Overview" width="400"/>
+<img src="./resources/doc/overview_test.png" alt="Overview" width="400"/>
 
-This project is a GUI-application for fast and easy Head-Related Transfer Function (HRTF) measurements. The measurement system can be used in almost any room, whether reverberant or anechoic. The system has low equipment requirements and is very flexible. It can be used with any loudspeaker, in-ear-microphones, audio interface, and commercially avaiblable tracking system. The user can control the resolution and accuracy of the resulting spatial sampling grid with the number of measurements, and also has the ability to more accurately resolve and prioritize individual directions of interest. Thus, the user is free to perform full-spherical measurements, horizontal measurements, or measurements only covering desired areas.
+This project is a GUI-application for fast and easy Head-Related Transfer Function (HRTF) measurements in regular rooms with only few additional hardware components. The system is based on a stationary loudspeaker and the HTC Vive system for tracking head movements (no HMD, just two [Trackers](https://www.vive.com/us/accessory/vive-tracker/)). A user can first measure some HRTFs for any number of freely selectable directions. In a second step, he can be guided with the help of an algorithm that suggests additional measurement positions for more uniform spherical coverage.
+
+> The system is not primarily intended for lay use at home. A certain amount of experience, or ambition, is required to set up the system.
 
 The measurement procedure is as follows:  
 
@@ -20,10 +22,6 @@ The measurement procedure is as follows:
 5. Perform as many Head-Related Impulse Response (HRIR) measurements as you like by simply moving your head to the disired direction  
 6. After that, the system can suggest additional measurement positions to improve the spherical coverage of the dataset  
 7. (Beneficial: With the microphones still in the ears, perform headphone measurements for one or more headphones to obtain individual headphone transfer functions and compensation filters)  
-
-> Currently, the system does not apply any post-processing or spatial upsampling to the measured HRIRs. This is done with an external Matlab script.
-
-At least on the first run, the procedure may not work as smoothly as advertised above. We recommend that you read the following notes for further clarification.
 
  <br>
  <br>
@@ -37,7 +35,7 @@ A good measurement loudspeaker with a sufficiently good magnitude and phase resp
 
 Furthermore, an audio interface for capturing the IRs is required. It should at least have two in and outputs. A third input/output is very helpful to have a feedback loop (directly connecting Out3 -> In3) so that the software can compensate any software or DA/AD-latency. Digitally controlled preamps provide a huge benefit for L/R level matching.
 ### Tracking System
-The application is customized for the use of the HTC VIVE system. This tracking system is widely available, easy to use, moderately priced, and offers very accurate and fast tracking capabilites. Unlike many other VR/AR applications, neither the headset nor the contollers are needed, only two additionally available [Trackers](https://www.vive.com/de/accessory/vive-tracker/). 
+The application is intended to be used with the HTC VIVE system. This tracking system is widely available, easy to use, moderately priced, and offers very accurate and fast tracking capabilites. Unlike many other VR/AR applications, neither the headset nor the contollers are needed, only two additionally available [Trackers](https://www.vive.com/de/accessory/vive-tracker/). 
 
 The application handles the Trackers (SteamVR is needed nevertheless). After performing a simple calibration routine, very accurate relative angles between head and loudspeaker can be measured. 
 
@@ -85,13 +83,13 @@ The application is coded in Python, so to run it you need Python with a set of e
 #### Configure Audio Hardware
 - In the _Audio Device Status_ panel, you can select your audio input and output device, the samplerate and a custom channel assignment. This comes handy in case you want the input channels 1&2 for the measurements, but maybe input/output channel 7 for the feedback loop.
 - Channel Assignment:
-    - __Output Excitation__: During the measurements of HRIRs and the reference measurement, this is the channel where the measurement speaker is connected. During the measurement of the HPFC, this is for the headphone´s left channel.
+    - __Output Excitation__: During the measurements of HRIRs and the center measurement, this is the channel where the measurement speaker is connected. During the measurement of the HPFC, this is for the headphone´s left channel.
     - __Output Excitation 2__: This channel is only used during the HPCF measurement, where it is for the headphone´s right channel.
     - __Output Feedback Loop__: This channel has to be directly connected to the __Input Feedback Loop__ channel. The excitation signal is played back on this channel, effectively recording a "dry" measurement which can be used for compensating the latency from the audio software. Depending on your audio hardware, you can use a digital audio channel (e.g. ADAT or AES/EBU) for more precision.
-    - __Input Left Ear Mic__: Channel for the left in-ear microphone. During the reference measurement, connect the measurement microphone to this channel.
+    - __Input Left Ear Mic__: Channel for the left in-ear microphone. During the center measurement, connect the measurement microphone to this channel.
     - __Input Right Ear Mic__: Channel for the right in-ear microphone.
     - __Input Feedback Loop__: See Output Feedback Loop.
-- Do not change the audio settings during a single measurement! If needed, you can change the channel configurations for HRIR, reference and HPCF measurements, but do not change the samplerate once you started.
+- Do not change the audio settings during a single measurement! If needed, you can change the channel configurations for HRIR, center and HPCF measurements, but do not change the samplerate once you started.
 
 #### A) Calibration using Vive Trackers
 
@@ -114,7 +112,7 @@ In case you are using another tracking system wich can communicate via OSC, you 
 
 1. Perform a center measurement with a reference microphone. Place the microphone where the head center will be during the measurements and connect the microphone to the left input (Ch1) of your audio interface. 
 2. Place the in-ear microphones in the ear canals and connect them to the left / right input of your audio interface (Ch1/Ch2). Set adequate levels for the output and input of the audio interface (see [notes on measurement setup](resources/doc/measurement-setup-notes.md) for help)
-3. Run some measurements. It is best to activate the _Auto Measurement Mode_, where a measurement is triggered when the head is still for 2 seconds. During the measurement, keep your head still for the entire time (even after the sweep is finished) until you hear the sound for a successfull measurement. 
+3. Perform measurements. It is best to activate the _Auto Measurement Mode_, where a measurement is triggered when the head is still for 2 seconds. During the measurement, keep your head still for the entire time (even after the sweep is finished) until you hear the sound for a successfull measurement. 
    > A good starting point is to perform around 30 measurements for a full spherical coverage. This should take around 5 minutes.
    
    You can pause the automatic measurement at any time to have a look at the measurements already done in the `Data List` tab. There, you can also delete erroneous measurements. The source positions of the measurements will also be shown in the virtual speaker position display.
@@ -142,14 +140,16 @@ In the plots above, you can see the magnitude responses of the HPIRs (left/right
  <br>
  <br>
 
-## Output & Post Processing
+## Data Export
+The application has no export functionality. The measurement data is bundled after each single measurement as a Matlab file (.mat) and stored by default in the folder "Measurements" relative to the root folder of the Python-application (The export folder can be customized in the Configure-panel). Three different .mat files are stored: 
+
+* **HRIRs**: Impulse repsonses and raw recorded signals for each HRIR, together with the corresponding source positions of every HRIR in [Az(0...360°), El(90...-90°), R(m)]. Furthermore, metadata such as the used sampling rate, head-dimension and sweep parameters are stored. The filename consists of `"measured_points_{session name}_{current date}.mat`.
+* **Center IR** IR and raw signals for the center measurement. If the center measurement is performed multiple times, every measurement is stored (in the same .mat-file).
+* **Headphone IRs**: IRs and raw signals for each HPIR measurement repetition with the regularization amount parameter _beta_ from the HPCF estimation. The HPCF estimate is not exported. The filename consists of `"headphone_ir_{hp name}_{current date}.mat`.
+
+> Note that if a .mat file with the same name already exists, it will be overwritten!
+
 The measurement system provides deconvolved HRIRs without further post-processing. Further post-processing and upsampling should be done seperately in Matlab, at least in the current state of work. Besides the HRIRs, additionaly the raw recorded sweeps and the feedback loop sweeps are stored (if no real feedback loop was recorded, the excitation signal is stored as the feedback loop).
-
-Currently, the measured HRIRs are immediately stored as a bundled .mat file after every measurement. The default save path is "$PROJECT_DIR/Measurements", but it can be changed to any path in the _Configure_ panel. Whenever a change is applied to the measurements (HRIR added removed), the export file is immediately updated. Three different .mat files are stored: 
-
-* **HRIRs**: IRs and raw signals for each HRIR, together with the corresponding source positions of every HRIR in [Az(0...360°), El(90...-90°), R(m)]. Furthermore, metadata such as the used sampling rate and head-dimension (if measured) are stored. The filename consists of `"measured_points_{session name}_{current date}.mat`. If multiple sessions are done (with different session names), each session is stored in a seperate file.
-* **Reference IR** IR and raw signals for the reference (center) measurement. If the reference measurement is performed multiple times, every measurement is stored (in the same .mat-file).
-* **Headphone IRs**: IRs and raw signals for each HPIR measurement repetition with the regularization value _beta_ from the HPCF estimation. The HPCF estimate is NOT exported. The filename consists of `"headphone_ir_{hp name}_{current date}.mat`. If multiple headphones are measured, multiple files are exported. 
 
 <br>
 <br>

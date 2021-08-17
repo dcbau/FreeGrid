@@ -34,7 +34,7 @@ class MeasurementController:
         self.measurement_valid = False
         self.measurement_history = np.array([])
         self.measurement_trigger = False
-        self.reference_measurement_trigger = False
+        self.center_measurement_trigger = False
 
         self.measurement_done_lock = threading.Lock()
 
@@ -44,9 +44,9 @@ class MeasurementController:
         self.raw_signals = np.array([])
         self.raw_feedbackloop = np.array([])
 
-        self.measurements_reference = np.array([])
-        self.raw_signals_reference = np.array([])
-        self.raw_feedbackloop_reference = np.array([])
+        self.measurements_center = np.array([])
+        self.raw_signals_center = np.array([])
+        self.raw_feedbackloop_center = np.array([])
 
         self.positions = np.array([])
         self.positions_list = MeasurementListModel()
@@ -72,14 +72,16 @@ class MeasurementController:
         self.osc_send_address = '/guided_hrtfs/angle'
         self.osc_send_client = None
 
+
+
     def register_gui_handler(self, handle):
         self.gui_handle = handle
 
     def trigger_measurement(self):
         self.measurement_trigger = True
 
-    def trigger_reference_measurement(self):
-        self.reference_measurement_trigger = True
+    def trigger_center_measurement(self):
+        self.center_measurement_trigger = True
 
     def trigger_auto_measurement(self):
         self.gui_handle.autoMeasurementTriggerProgress.setVisible(True)
@@ -146,10 +148,10 @@ class MeasurementController:
             self.measurement_valid = True
             run_measurement.start()
 
-        elif self.reference_measurement_trigger:
-            # start reference measurement
-            self.reference_measurement_trigger = False
-            run_measurement = StartReferenceMeasurementAsync(self)
+        elif self.center_measurement_trigger:
+            # start center measurement
+            self.center_measurement_trigger = False
+            run_measurement = StartCenterMeasurementAsync(self)
             run_measurement.start()
 
     def check_for_trigger_by_headmovement(self, ignore_autotriggermode = False):
@@ -212,8 +214,8 @@ class MeasurementController:
             self.positions_list.add_position(self.measurement_position.reshape(1, 3))
 
             # plot
-            self.gui_handle.plot_recordings(rec_l, rec_r, fb_loop)
-            self.gui_handle.plot_IRs(ir_l, ir_r)
+            self.gui_handle.plot_recordings(rec_l, rec_r, fb_loop, self.measurement.get_samplerate(), fb_loop_used=self.measurement.feedback_loop_used)
+            self.gui_handle.plot_IRs(ir_l, ir_r, self.measurement.get_samplerate())
             self.gui_handle.add_measurement_point(self.measurement_position[0], self.measurement_position[1])
 
             # store IRs (internally)
@@ -277,40 +279,40 @@ class MeasurementController:
 
         return filepath
 
-    def done_reference_measurement(self):
+    def done_center_measurement(self):
 
         self.measurement.play_sound(True)
 
         [rec_l, rec_r, fb_loop] = self.measurement.get_recordings()
-        self.gui_handle.plot_recordings(rec_l, rec_r, fb_loop)
+        self.gui_handle.plot_recordings(rec_l, rec_r, fb_loop, self.measurement.get_samplerate())
         [ir_l, ir_r] = self.measurement.get_irs()
-        self.gui_handle.plot_IRs(ir_l, np.zeros(np.size(ir_r)))
+        self.gui_handle.plot_IRs(ir_l, np.zeros(np.size(ir_r)), self.measurement.get_samplerate())
 
-        self.gui_handle.add_reference_point()
+        self.gui_handle.add_center_point()
 
         ir = np.array([[ir_l]]).astype(np.float32)
         raw = np.array([[rec_l]]).astype(np.float32)
         fb = np.array([[fb_loop]]).astype(np.float32)
 
-        if self.measurements_reference.any():
-            self.measurements_reference = np.concatenate((self.measurements_reference, ir))
-            self.raw_signals_reference = np.concatenate((self.raw_signals_reference, raw))
-            self.raw_feedbackloop_reference = np.concatenate((self.raw_feedbackloop_reference, fb))
+        if self.measurements_center.any():
+            self.measurements_center = np.concatenate((self.measurements_center, ir))
+            self.raw_signals_center = np.concatenate((self.raw_signals_center, raw))
+            self.raw_feedbackloop_center = np.concatenate((self.raw_feedbackloop_center, fb))
         else:
-            self.measurements_reference = ir
-            self.raw_signals_reference = raw
-            self.raw_feedbackloop_reference = fb
+            self.measurements_center = ir
+            self.raw_signals_center = raw
+            self.raw_feedbackloop_center = fb
 
-        export = {'ref_rawRecorded': self.raw_signals_reference,
-                  'ref_rawFeedbackLoop': self.raw_feedbackloop_reference,
-                  'referenceIR': self.measurements_reference,
+        export = {'center_rawRecorded': self.raw_signals_center,
+                  'center_rawFeedbackLoop': self.raw_feedbackloop_center,
+                  'centerIR': self.measurements_center,
                   'fs': self.measurement.get_samplerate(),
                   'sweepParameters': self.measurement.sweep_parameters,
                   'feedback_loop': self.measurement.feedback_loop_used}
 
 
         session_name = self.gui_handle.session_name.text()
-        filename = "reference_measurement_" + session_name + "_" + self.current_date + ".mat"
+        filename = "center_measurement_" + session_name + "_" + self.current_date + ".mat"
         filepath = os.path.join(self.output_path, filename)
         scipy.io.savemat(filepath, export)
 
@@ -551,7 +553,7 @@ class MeasurementController:
         Hcl = BP * np.conj(Hl_mean) / (Hl_mean * np.conj(Hl_mean) + beta * RF * np.conj(RF))
         Hcr = BP * np.conj(Hr_mean) / (Hr_mean * np.conj(Hr_mean) + beta * RF * np.conj(RF))
 
-        self.gui_handle.plot_hpc_estimate(Hcl, Hcr)
+        self.gui_handle.plot_hpc_estimate(Hcl, Hcr, fs)
 
 
     def start_osc_send(self, ip=None, port=None, address=None):
@@ -622,7 +624,7 @@ class StartSingleMeasurementAsync(threading.Thread):
         #print("stop")
         self.parent.done_hrir_measurement()
 
-class StartReferenceMeasurementAsync(threading.Thread):
+class StartCenterMeasurementAsync(threading.Thread):
     def __init__(self, parent):
         threading.Thread.__init__(self)
         self.parent = parent
@@ -631,4 +633,4 @@ class StartReferenceMeasurementAsync(threading.Thread):
         #print("run")
         self.parent.measurement.single_measurement()
         #print("stop")
-        self.parent.done_reference_measurement()
+        self.parent.done_center_measurement()

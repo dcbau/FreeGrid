@@ -331,7 +331,7 @@ class VispyCanvas(app.Canvas):
         self.speaker = Speaker(self.boxsize)
 
         self.meas_points = SpherePoints(radius=self.sphereradius, pointcolor=np.array([1.0, 0.0, 0.0, 1.0]))
-        self.ref_points = SpherePoints(radius=0, pointcolor=np.array([0.0, 0.0, 1.0, 1.0]))
+        self.center_points = SpherePoints(radius=0, pointcolor=np.array([0.0, 0.0, 1.0, 1.0]))
         self.recommendation_points = SpherePoints(radius=self.sphereradius, pointcolor=np.array([0.0, 1.0, 0.0, 1.0]))
 
 
@@ -406,7 +406,7 @@ class VispyCanvas(app.Canvas):
 
         self.meas_points.draw(self.program)
         self.recommendation_points.draw(self.program)
-        self.ref_points.draw(self.program)
+        self.center_points.draw(self.program)
 
         self.azimuthdisplay.draw(self.program, az)
         self.elevationdisplay.draw(self.program, az, el)

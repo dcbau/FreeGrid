@@ -4,12 +4,9 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from GUI.vispyWidget import VispyCanvas
 import numpy as np
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-import matplotlib
-from scipy.signal import resample
 import os
 from GUI.audio_device_widget import AudioDeviceWidget
+from GUI.plot_widget import PlotWidget, PlotWidget_HPIRs, PlotWidget_HPCF
 
 
 
@@ -139,10 +136,35 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.osc_status_box.hide()
 
 
+        # MANUAL AZ/EL/R box
+        self.azimuthBox = QtWidgets.QSpinBox()
+        self.azimuthBox.setMaximum(359)
+        self.azimuthBox.valueChanged.connect(self.manual_update_az)
+
+        self.elevationBox = QtWidgets.QSpinBox()
+        self.elevationBox.setMaximum(90)
+        self.elevationBox.setMinimum(-90)
+        self.elevationBox.valueChanged.connect(self.manual_update_el)
+
+        self.radiusBox = QtWidgets.QSpinBox()
+        self.radiusBox.setMinimum(20)
+        self.radiusBox.setMaximum(999)
+        self.radiusBox.valueChanged.connect(self.manual_update_radius)
 
 
+        self.manualAngleBox = QtWidgets.QGroupBox(
+            "Set angle manually (Only when VIVE trackers are disconnected)")
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(QtWidgets.QLabel("Azimuth °"))
+        layout.addWidget(self.azimuthBox)
+        layout.addWidget(QtWidgets.QLabel("Elevation °"))
+        layout.addWidget(self.elevationBox)
+        layout.addWidget(QtWidgets.QLabel("Radius cm"))
+        layout.addWidget(self.radiusBox)
 
+        layout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
 
+        self.manualAngleBox.setLayout(layout)
 
 
         # TAB WIDGET
@@ -539,31 +561,6 @@ class UiMainWindow(QtWidgets.QMainWindow):
         #############################
         #############################
 
-        self.azimuthBox = QtWidgets.QSpinBox()
-        self.azimuthBox.setMaximum(359)
-        self.azimuthBox.valueChanged.connect(self.manual_update_az)
-
-        self.elevationBox = QtWidgets.QSpinBox()
-        self.elevationBox.setMaximum(90)
-        self.elevationBox.setMinimum(-90)
-        self.elevationBox.valueChanged.connect(self.manual_update_el)
-
-        self.radiusBox = QtWidgets.QSpinBox()
-        self.radiusBox.setMinimum(20)
-        self.radiusBox.setMaximum(999)
-        self.radiusBox.valueChanged.connect(self.manual_update_radius)
-
-        self.manualAngleBox = QtWidgets.QGroupBox("Set angle manually (Only visible when VIVE trackers are Qdisconnected)")
-        layout = QtWidgets.QHBoxLayout()
-        layout.addWidget(QtWidgets.QLabel("Azimuth °"))
-        layout.addWidget(self.azimuthBox)
-        layout.addWidget(QtWidgets.QLabel("Elevation °"))
-        layout.addWidget(self.elevationBox)
-        layout.addWidget(QtWidgets.QLabel("Radius cm"))
-        layout.addWidget(self.radiusBox)
-
-        self.manualAngleBox.setLayout(layout)
-        self.tab_measure.layout().addWidget(self.manualAngleBox)
 
 
 
@@ -588,9 +585,9 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.startMeasurementGroupBox = QtWidgets.QGroupBox('Start Measurement')
         self.startMeasurementGroupBox.setLayout(QtWidgets.QGridLayout())
 
-        self.referenceTriggerButton = QtWidgets.QPushButton('Reference Measurement')
-        self.referenceTriggerButton.setObjectName("Reference Measurement")
-        self.referenceTriggerButton.clicked.connect(self.trigger_ref_measurement)
+        self.centerTriggerButton = QtWidgets.QPushButton('Center Measurement')
+        self.centerTriggerButton.setObjectName("Center Measurement")
+        self.centerTriggerButton.clicked.connect(self.trigger_center_measurement)
 
         self.measurementTriggerButton = QtWidgets.QPushButton('Single Measurement')
         self.measurementTriggerButton.setObjectName("Single Measurement")
@@ -607,7 +604,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.autoTriggerStopButton.clicked.connect(self.measurement_ref.stop_auto_measurement)
 
         #self.startMeasurementGroupBox.layout().addStretch()
-        self.startMeasurementGroupBox.layout().addWidget(self.referenceTriggerButton, 1, 0, 1, 1)
+        self.startMeasurementGroupBox.layout().addWidget(self.centerTriggerButton, 1, 0, 1, 1)
         self.startMeasurementGroupBox.layout().addWidget(self.measurementTriggerButton, 0, 1, 3, 1)
         self.startMeasurementGroupBox.layout().addWidget(self.autoTriggerButton, 1, 2, 1, 1)
         self.startMeasurementGroupBox.layout().addWidget(self.autoMeasurementTriggerProgress, 2, 2, 1, 1)
@@ -720,11 +717,8 @@ class UiMainWindow(QtWidgets.QMainWindow):
         #self.tab_hpc.layout().addWidget(self.plot_hpc_widget)
 
 
-        self.plot_hpirs = Figure()
-        self.plot_hpirs.set_facecolor("none")
-        self.plot_hpirs_canvas = FigureCanvas(self.plot_hpirs)
-        self.plot_hpirs_canvas.setStyleSheet("background-color:transparent;")
-        self.tab_hpc.layout().addWidget(self.plot_hpirs_canvas)
+        self.plot_hpirs_widget = PlotWidget_HPIRs()
+        self.tab_hpc.layout().addWidget(self.plot_hpirs_widget)
 
         self.reg_beta_layout = QtWidgets.QHBoxLayout()
         self.reg_beta_layout.setAlignment(QtCore.Qt.AlignCenter)
@@ -740,11 +734,10 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
         self.tab_hpc.layout().addLayout(self.reg_beta_layout)
 
-        self.plot_hpc = Figure()
-        self.plot_hpc.set_facecolor('none')
-        self.plot_hpc_canvas = FigureCanvas(self.plot_hpc)
-        self.plot_hpc_canvas.setStyleSheet("background-color:transparent;")
-        self.tab_hpc.layout().addWidget(self.plot_hpc_canvas)
+
+
+        self.plot_hpcf_widget = PlotWidget_HPCF()
+        self.tab_hpc.layout().addWidget(self.plot_hpcf_widget)
 
         self.plot_hptf(np.array([]))
         self.plot_hpc_estimate(np.array([]), np.array([]))
@@ -754,11 +747,12 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
         self.gridLayout = QtWidgets.QGridLayout()
 
-        self.gridLayout.addWidget(self.tabWidget, 0, 1, 3, 1)
+        self.gridLayout.addWidget(self.tabWidget, 0, 1, 4, 1)
         self.gridLayout.addWidget(self.vpWidget, 0, 0, 1, 1)
         self.gridLayout.addWidget(self.device_status_widget, 1, 0, 1, 1)
         self.gridLayout.addWidget(self.tracker_status_widget, 2, 0, 1, 1)
         self.gridLayout.addWidget(self.osc_status_box, 2, 0, 1, 1)
+        self.gridLayout.addWidget(self.manualAngleBox, 3, 0, 1, 1)
 
         self.gridLayout.setColumnStretch(0, 10)
         self.gridLayout.setColumnStretch(1, 10)
@@ -811,19 +805,19 @@ class UiMainWindow(QtWidgets.QMainWindow):
     def add_measurement_point(self, az, el):
         self.vispy_canvas.meas_points.add_point(az, el)
 
-    def add_reference_point(self):
+    def add_center_point(self):
         #self.measurementTriggerButton.setEnabled(True)
         #self.autoTriggerButton.setEnabled(True)
         #self.autoTriggerStopButton.setEnabled(True)
-        self.vispy_canvas.ref_points.add_point(0, 0)
+        self.vispy_canvas.center_points.add_point(0, 0)
 
     #def remove_measurement_point(self, az, el):
 
-    def plot_recordings(self, rec_l, rec_r, fb_loop):
-        self.plot_widget.plot_recordings(rec_l, rec_r, fb_loop)
+    def plot_recordings(self, rec_l, rec_r, fb_loop, fs, fb_loop_used=False):
+        self.plot_widget.plot_recordings(rec_l, rec_r, fb_loop, fs=fs, fb_loop_used=fb_loop_used)
 
-    def plot_IRs(self, ir_l, ir_r):
-        self.plot_widget.plot_IRs(ir_l, ir_r)
+    def plot_IRs(self, ir_l, ir_r, fs):
+        self.plot_widget.plot_IRs(ir_l, ir_r, fs=fs)
 
     def updateMeasurementList(self, measurement_data):
         pass
@@ -844,10 +838,27 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
         if status["tracker1"] == "Tracking" and status["tracker2"] == "Tracking" \
                 or self.measurement_ref.tracker.tracking_mode == "OSC_direct":
-            self.manualAngleBox.setVisible(False)
+            self.show_manual_angle_box(False)
         else:
-            self.manualAngleBox.setVisible(True)
+            self.show_manual_angle_box(True)
 
+    #TODO: check if this works with trackers available
+    def show_manual_angle_box(self, show):
+        if show:
+            if self.gridLayout.indexOf(self.manualAngleBox) is -1:
+                print("Show")
+                self.gridLayout.removeWidget(self.tabWidget)
+                self.gridLayout.addWidget(self.tabWidget, 0, 1, 4, 1)
+                self.gridLayout.addWidget(self.manualAngleBox, 3, 0, 1, 1)
+                self.manualAngleBox.setVisible(True)
+
+        else:
+            if self.gridLayout.indexOf(self.manualAngleBox) is not -1:
+                print("Hide")
+                self.gridLayout.removeWidget(self.tabWidget)
+                self.gridLayout.removeWidget(self.manualAngleBox)
+                self.manualAngleBox.setVisible(False)
+                self.gridLayout.addWidget(self.tabWidget, 0, 1, 3, 1)
 
     def updateCurrentAngle(self, az, el, r):
         r = r*100
@@ -865,7 +876,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.measurement_ref.tracker.offset_cm['head_y'] = self.offset_head_y.value()
 
     def select_folder_dialog(self):
-        path = QtWidgets.QFileDialog.getExistingDirectory(self.centralwidget,
+        path = QtWidgets.QFileDialog.getExistingDirectory(self.cwidget,
                                                           'Open Directory',
                                                           self.output_folder_select.text(),
                                                           QtWidgets.QFileDialog.ShowDirsOnly | QtWidgets.QFileDialog.DontResolveSymlinks)
@@ -962,9 +973,9 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
 
 
-    def trigger_ref_measurement(self):
+    def trigger_center_measurement(self):
         interval = 0.5 * 1000
-        QtCore.QTimer.singleShot(interval, self.measurement_ref.trigger_reference_measurement)
+        QtCore.QTimer.singleShot(interval, self.measurement_ref.trigger_center_measurement)
 
     def trigger_point_recommendation(self):
         az, el = self.measurement_ref.recommend_points(1)
@@ -992,7 +1003,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
             fb = self.measurement_ref.raw_feedbackloop[idx, 0, :]
 
             self.plot_widget2.plot_IRs(ir_l, ir_r, plot='spectrogram')
-            self.plot_widget2.plot_recordings(raw_l, raw_r, fb, plot='spectrogram')
+            self.plot_widget2.plot_recordings(raw_l, raw_r, fb, fs=self.measurement_ref.measurement.get_samplerate(), plot='spectrogram', fb_loop_used=self.measurement_ref.measurement.feedback_loop_used)
 
         except IndexError:
             print("Could not plot data: Invalid id")
@@ -1047,117 +1058,11 @@ class UiMainWindow(QtWidgets.QMainWindow):
     #    self.plot_hpc_widget.plot_recordings(rec_l, rec_r, fb_loop)
 
     def plot_hptf(self, hpc_irs, hpc_average=None, fs=48000):
-
-        try:
-            M = np.size(hpc_irs, 0)
-            N = np.size(hpc_irs, 2)
-        except IndexError:
-            M = 0
-            N = 0
-
-        plot_resolution = 1025
-        nyquist = int(N / 2 + 1)
-
-        f_vals = np.linspace(0, fs/2, plot_resolution)
-
-        matplotlib.rcParams.update({'font.size': 5})
-
-        self.plot_hpirs.clf()
-
-        ax1 = self.plot_hpirs.add_subplot(211)
-        ax1.clear()
-        ax1.set_title("Headphone IR L")
-        ax1.set_xscale('log')
-        #ax1.set_ylim(-12, 12)
-        ax1.set_xlim(20, 20000)
-        ax1.set_xticks([20, 100, 1000, 10000, 20000])
-
-        ax2 = self.plot_hpirs.add_subplot(212)
-        ax2.clear()
-        ax2.set_title("Headphone IR R")
-        ax2.set_xscale('log')
-        ax2.set_xlim(20, 20000)
-        ax2.set_xticks([20, 100, 1000, 10000, 20000])
-
-        for i in range(M):
-            ir = hpc_irs[i, 0, :]
-            magFilter = np.abs(np.fft.fft(ir))
-            magFilter = magFilter[:nyquist]
-            magFilter = 20 * np.log10(abs(magFilter))
-            magFilter = resample(magFilter, plot_resolution)
-            ax1.plot(f_vals, magFilter, linewidth=0.5)
-
-            ir = hpc_irs[i, 1, :]
-            magFilter = np.abs(np.fft.fft(ir))
-            magFilter = magFilter[:nyquist]
-            magFilter = 20 * np.log10(abs(magFilter))
-            magFilter = resample(magFilter, plot_resolution)
-            ax2.plot(f_vals, magFilter, linewidth=0.5)
-
-        y_low1, y_high1 = ax1.get_ylim()
-        y_low2, y_high2 = ax2.get_ylim()
-        y_low = min(y_low1, y_low2)
-        y_high = min(y_high1, y_high2)
-        ax1.set_ylim(y_low, y_high)
-        ax2.set_ylim(y_low, y_high)
-
-        # ax2 = self.plot_hpc.add_subplot(212)
-        # ax2.clear()
-        # ax2.set_title("Headphone IR R")
-        # ax2.set_xscale('log')
-        #
-        # for hpc in hpc_list['r']:
-        #     #ax2.plot(hpc)
-        #     ax2.magnitude_spectrum(hpc, Fs=fs, scale='dB')
-
-
-        self.plot_hpirs_canvas.draw()
+        self.plot_hpirs_widget.plot_hptf(hpc_irs, hpc_average=hpc_average, fs=fs)
 
     def plot_hpc_estimate(self, H_l, H_r, fs=48000):
+        self.plot_hpcf_widget.plot_hpcf(H_l, H_r, fs=fs)
 
-        matplotlib.rcParams.update({'font.size': 5})
-
-        ax = self.plot_hpc.gca()
-
-        ax.clear()
-        ax.set_title("Headphone Compensation (Estimate)")
-        ax.set_xscale('log')
-        ax.set_xlim(20, 20000)
-        ax.set_ylim(-30, 10)
-        ax.set_xticks([20, 100, 1000, 10000, 20000])
-
-        nq = int(np.size(H_l) / 2 + 1)
-        f_vals = np.linspace(0, 24000, nq)
-
-        try:
-            magFilter_l = H_l
-            magFilter_l = magFilter_l[:nq]
-            magFilter_l = 20 * np.log10(abs(magFilter_l))
-            l, = ax.plot(f_vals, magFilter_l, linewidth=2)
-            l.set_label("Left Ear")
-
-            magFilter_r = H_r
-            magFilter_r = magFilter_r[:nq]
-            magFilter_r = 20 * np.log10(abs(magFilter_r))
-            r, = ax.plot(f_vals, magFilter_r, linewidth=2)
-            r.set_label("Right Ear")
-
-            ax.legend()
-
-        except ValueError:
-            pass
-
-
-        # # set y limits according to displayed values
-        # low, high = ax.get_xlim()
-        # plotted_bin_ids = np.where((f_vals > low) & (f_vals < high))
-        #
-        # low_y = np.array([magFilter_l[plotted_bin_ids], magFilter_l[plotted_bin_ids]]).min()
-        # high_y = np.array([magFilter_r[plotted_bin_ids], magFilter_r[plotted_bin_ids]]).max()
-        #
-        # ax.set_ylim((low_y+5) + (5-np.mod((a+5), 5)), high_y)
-
-        self.plot_hpc_canvas.draw()
 
     def set_regularization_beta(self):
         self.measurement_ref.estimate_hpcf(self.regularization_beta_box.value())
@@ -1193,6 +1098,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
                 self.send_osc_box.setEnabled(True)
 
 
+
             if radioButton.sourcename == "OSC_direct":
                 self.vivetracker_box.hide()
                 self.osc_config_box.show()
@@ -1208,7 +1114,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
                 self.send_osc_box.setEnabled(False)
 
-                self.manualAngleBox.setVisible(False)
+                self.show_manual_angle_box(False)
 
 
     def set_osc_status(self, osc_status):
@@ -1295,129 +1201,4 @@ class InstructionsDialogBox(QtWidgets.QDialog):
 
         self.setLayout(self.layout)
 
-
-class PlotWidget(QtWidgets.QWidget):
-
-    def __init__(self, *args, **kwargs):
-        super(PlotWidget, self).__init__(*args, **kwargs)
-
-        layout = QtWidgets.QVBoxLayout()
-        self.setLayout(layout)
-
-        self.plot_tab_widget = QtWidgets.QTabWidget()
-        self.plot_tab_widget.setEnabled(True)
-        self.plot_tab_widget.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.plot_tab_widget.setTabPosition(QtWidgets.QTabWidget.South)
-        self.plot_tab_widget.setTabShape(QtWidgets.QTabWidget.Rounded)
-        self.plot_tab_widget.setIconSize(QtCore.QSize(32, 32))
-        self.plot_tab_widget.setDocumentMode(True)
-        self.plot_tab_widget.setTabsClosable(False)
-        self.plot_tab_widget.setMovable(False)
-        self.plot_tab_widget.setTabBarAutoHide(False)
-        self.plot_tab_widget.setObjectName("plot_tab_widget")
-
-        self.tab_rec = QtWidgets.QWidget()
-        self.tab_rec.setEnabled(True)
-        self.tab_rec.setObjectName("tab_rec")
-        self.tab_rec.setLayout(QtWidgets.QVBoxLayout())
-        self.plot_tab_widget.addTab(self.tab_rec, "")
-
-        self.tab_ir = QtWidgets.QWidget()
-        self.tab_ir.setEnabled(True)
-        self.tab_ir.setObjectName("tab_ir")
-        self.tab_ir.setLayout(QtWidgets.QVBoxLayout())
-        self.plot_tab_widget.addTab(self.tab_ir, "")
-
-        self.plot1 = Figure()
-        self.plot1.set_facecolor("none")
-        self.plot1_canvas = FigureCanvas(self.plot1)
-        self.plot1_canvas.setStyleSheet("background-color:transparent;")
-        self.tab_rec.layout().addWidget(self.plot1_canvas)
-
-        self.plot2 = Figure()
-        self.plot2.set_facecolor("none")
-        self.plot2_canvas = FigureCanvas(self.plot2)
-        self.plot2_canvas.setStyleSheet("background-color:transparent;")
-        self.tab_ir.layout().addWidget(self.plot2_canvas)
-
-        self.layout().addWidget(self.plot_tab_widget)
-
-        self.plot_tab_widget.setTabText(0, "REC")
-        self.plot_tab_widget.setTabText(1, "IR")
-
-        self.spec_nfft = 512
-
-        self.spec_noverlap = 300
-
-    def plot_recordings(self, rec_l, rec_r, fb_loop, fs=48000, plot='waveform'):
-        matplotlib.rcParams.update({'font.size': 5})
-
-        self.plot1.clf()
-
-        ax1 = self.plot1.add_subplot(311)
-        ax1.clear()
-        if plot == 'waveform':
-            ax1.plot(rec_l)
-        elif plot == 'spectrogram':
-            _,_,_, cax  = ax1.specgram(rec_l, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
-            self.plot1.colorbar(cax)
-
-        ax2 = self.plot1.add_subplot(312)
-        ax2.clear()
-        if plot == 'waveform':
-            ax2.plot(rec_r)
-        elif plot == 'spectrogram':
-            _,_,_, cax2  = ax2.specgram(rec_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
-            self.plot1.colorbar(cax2)
-
-        ax3 = self.plot1.add_subplot(313)
-        ax3.clear()
-        if plot == 'waveform':
-            ax3.plot(fb_loop)
-        elif plot == 'spectrogram':
-            _,_,_, cax3  = ax3.specgram(fb_loop, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
-            self.plot1.colorbar(cax3)
-
-        self.plot1_canvas.draw()
-
-
-    def plot_IRs(self, ir_l, ir_r, fs=48000, plot='waveform_log'):
-        matplotlib.rcParams.update({'font.size': 5})
-
-        self.plot2.clf()
-
-        ax1 = self.plot2.add_subplot(211)
-        ax1.clear()
-
-        if plot=='waveform_log':
-            t_vec = np.arange(0, np.size(ir_l)) / fs
-            logwaveform = 20*np.log10(np.abs(ir_l))
-            ax1.plot(t_vec, logwaveform)
-            ax1.set_ylim([-120, np.max([np.max(logwaveform), 12])])
-            ax1.set_xlabel('Seconds')
-        elif plot=='waveform':
-            t_vec = np.arange(0, np.size(ir_l)) / fs
-            ax1.plot(t_vec, ir_l)
-            ax1.set_xlabel('Seconds')
-        elif plot=='spectrogram':
-            _,_,_, cax = ax1.specgram(ir_l, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
-            self.plot2.colorbar(cax).set_label('dB')
-
-        ax2 = self.plot2.add_subplot(212)
-        ax2.clear()
-
-        if plot=='waveform_log':
-            t_vec = np.arange(0, np.size(ir_r)) / fs
-            logwaveform = 20 * np.log10(np.abs(ir_r))
-            ax2.plot(t_vec, logwaveform)
-            ax2.set_ylim([-120, np.max([np.max(logwaveform), 12])])
-            ax2.set_xlabel('Seconds')
-        elif plot == 'waveform':
-            t_vec = np.arange(0, np.size(ir_r)) / fs
-            ax2.plot(t_vec, ir_r)
-        elif plot=='spectrogram':
-            _,_,_, cax2 = ax2.specgram(ir_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
-            self.plot2.colorbar(cax2).set_label('dB')
-
-        self.plot2_canvas.draw()
 
