@@ -100,21 +100,18 @@ class MeasurementController:
         elif self.tracker.tracking_mode == "OSC_direct":
             self.gui_handle.set_osc_status(self.tracker.osc_input_server.get_osc_receive_status())
 
+        az, el, r = self.tracker.get_relative_position()
+
+        self.gui_handle.updateCurrentAngle(az, el, r)
+
         if self.send_osc_data:
-            az, el, r = self.tracker.get_relative_position()
             print(f"Sending OSC Data to {self.osc_send_address}")
             self.osc_send_client.send_message(self.osc_send_address, [az, el, r])
 
-
-
-
-
         if self.measurement_running_flag:
-
             # check for variance
             tolerance_angle = 2  # (degree)
             tolerance_radius = 0.1  # (meter)
-            az, el, r = self.tracker.get_relative_position()
             variance = angular_distance.angularDistance(az, el, self.measurement_position[0],
                                        self.measurement_position[1])
 
@@ -131,17 +128,15 @@ class MeasurementController:
             return
 
         if self.guidance_running:
-            az, el, r = self.tracker.get_relative_position()
             if self.point_recommender.update_position(az, el):
                 self.measurement_trigger = True
                 self.gui_handle.vispy_canvas.recommendation_points.clear_all_points()
 
         # check for measurement triggers
-        if self.measurement_trigger or self.check_for_trigger_by_headmovement():
+        if self.measurement_trigger or self.check_for_trigger_by_headmovement(az, el, r):
 
             # start a measurement
             self.measurement_trigger = False
-            az, el, r = self.tracker.get_relative_position()
             self.measurement_position = np.array([az, el, r])
             run_measurement = StartSingleMeasurementAsync(self)
             self.measurement_running_flag = True
@@ -154,7 +149,7 @@ class MeasurementController:
             run_measurement = StartCenterMeasurementAsync(self)
             run_measurement.start()
 
-    def check_for_trigger_by_headmovement(self, ignore_autotriggermode = False):
+    def check_for_trigger_by_headmovement(self, az, el, r, ignore_autotriggermode = False):
 
         # the warning should only be raised when auto_measurement, turning the warning off should always be possible
         # if self.tracker.vr_system_initialized:
@@ -174,7 +169,6 @@ class MeasurementController:
 
         tolerance_angle = 2  # (degree)
         tolerance_radius = 0.1  # (meter)
-        az, el, r = self.tracker.get_relative_position()
         variance = angular_distance.angularDistance(az, el, self.headmovement_ref_position[0],
                                    self.headmovement_ref_position[1])
         if (variance > tolerance_angle

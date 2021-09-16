@@ -2,13 +2,16 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from GUI.vispyWidget import VispyCanvas
 import numpy as np
 import os
 from GUI.audio_device_widget import AudioDeviceWidget
 from GUI.plot_widget import PlotWidget, PlotWidget_HPIRs, PlotWidget_HPCF
 
-
+use_vispy = True
+try:
+    from GUI.vispyWidget import VispyCanvas
+except ImportError:
+    use_vispy = False
 
 
 class UiMainWindow(QtWidgets.QMainWindow):
@@ -28,8 +31,6 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
 
         # VISPY WIDGET
-
-
         self.azimuthLabel = QtWidgets.QLabel("Az: ")
         self.azimuthLabel.setFont(QtGui.QFont("Arial", 24))
         self.azimuthLabel.setMaximumHeight(30)
@@ -40,37 +41,45 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.radiusLabel.setFont(QtGui.QFont("Arial", 15))
         self.radiusLabel.setMaximumHeight(30)
 
-
         self.vpWidget = QtWidgets.QGroupBox("Virtual Speaker Position")
         self.vpWidget.setObjectName("vpWidget")
         self.vpWidget.setLayout(QtWidgets.QGridLayout())
-        self.vpWidget.setMinimumSize(400, 400)
 
-        self.vispy_canvas = VispyCanvas(measurement_ref, self)
-        self.sliderTheta = QtWidgets.QSlider()
-        self.sliderPhi = QtWidgets.QSlider()
+        if use_vispy:
+            self.vpWidget.setMinimumSize(400, 400)
 
-        self.vpWidget.layout().addWidget(self.vispy_canvas.native, 0, 0, 4, 4)
-        self.vpWidget.layout().addWidget(self.sliderTheta, 5, 0, 1, 4)
-        self.vpWidget.layout().addWidget(self.sliderPhi, 0, 5, 4, 1)
+            self.vispy_canvas = VispyCanvas(self, measurement_ref)
+            self.sliderTheta = QtWidgets.QSlider()
+            self.sliderPhi = QtWidgets.QSlider()
+
+            self.vpWidget.layout().addWidget(self.vispy_canvas.native, 0, 0, 4, 4)
+            self.vpWidget.layout().addWidget(self.sliderTheta, 5, 0, 1, 4)
+            self.vpWidget.layout().addWidget(self.sliderPhi, 0, 5, 4, 1)
+
+            self.sliderTheta.setOrientation(QtCore.Qt.Horizontal)
+            self.sliderTheta.setObjectName("sliderTheta")
+            self.sliderTheta.valueChanged.connect(self.vispy_canvas.update_theta)
+
+            self.sliderPhi.setOrientation(QtCore.Qt.Vertical)
+            self.sliderPhi.setMinimum(-25)
+            self.sliderPhi.setMaximum(25)
+            self.sliderPhi.setValue(0)
+            self.sliderPhi.setObjectName("sliderPhi")
+            self.sliderPhi.valueChanged.connect(self.vispy_canvas.update_phi)
+
+            self.vpWidget.layout().addWidget(self.azimuthLabel, 6, 1, 1, 1)
+            self.vpWidget.layout().addWidget(self.elevationLabel, 6, 2, 1, 1)
+            self.vpWidget.layout().addWidget(self.radiusLabel, 6, 3, 1, 1)
+
+        else:
+            self.vp_missing_label = QtWidgets.QLabel("Vispy package missing or deactivated: \n3D speaker representation disabled.")
+            self.vpWidget.layout().addWidget(self.vp_missing_label, 1, 1, 1, 3)
+
+            self.vpWidget.layout().addWidget(self.azimuthLabel, 2, 1, 1, 1)
+            self.vpWidget.layout().addWidget(self.elevationLabel, 2, 2, 1, 1)
+            self.vpWidget.layout().addWidget(self.radiusLabel, 2, 3, 1, 1)
 
 
-
-        self.sliderTheta.setOrientation(QtCore.Qt.Horizontal)
-        self.sliderTheta.setObjectName("sliderTheta")
-        self.sliderTheta.valueChanged.connect(self.vispy_canvas.update_theta)
-
-        self.sliderPhi.setOrientation(QtCore.Qt.Vertical)
-        self.sliderPhi.setMinimum(-25)
-        self.sliderPhi.setMaximum(25)
-        self.sliderPhi.setValue(0)
-        self.sliderPhi.setObjectName("sliderPhi")
-        self.sliderPhi.valueChanged.connect(self.vispy_canvas.update_phi)
-
-
-        self.vpWidget.layout().addWidget(self.azimuthLabel, 6, 1, 1, 1)
-        self.vpWidget.layout().addWidget(self.elevationLabel, 6, 2, 1, 1)
-        self.vpWidget.layout().addWidget(self.radiusLabel, 6, 3, 1, 1)
 
 
 
@@ -803,13 +812,12 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.measurement_ref.tracker.fallback_angle[2] = self.radiusBox.value() / 100
 
     def add_measurement_point(self, az, el):
-        self.vispy_canvas.meas_points.add_point(az, el)
+        if use_vispy:
+            self.vispy_canvas.meas_points.add_point(az, el)
 
     def add_center_point(self):
-        #self.measurementTriggerButton.setEnabled(True)
-        #self.autoTriggerButton.setEnabled(True)
-        #self.autoTriggerStopButton.setEnabled(True)
-        self.vispy_canvas.center_points.add_point(0, 0)
+        if use_vispy:
+            self.vispy_canvas.center_points.add_point(0, 0)
 
     #def remove_measurement_point(self, az, el):
 
@@ -842,19 +850,16 @@ class UiMainWindow(QtWidgets.QMainWindow):
         else:
             self.show_manual_angle_box(True)
 
-    #TODO: check if this works with trackers available
     def show_manual_angle_box(self, show):
         if show:
-            if self.gridLayout.indexOf(self.manualAngleBox) is -1:
-                print("Show")
+            if self.gridLayout.indexOf(self.manualAngleBox) == -1:
                 self.gridLayout.removeWidget(self.tabWidget)
                 self.gridLayout.addWidget(self.tabWidget, 0, 1, 4, 1)
                 self.gridLayout.addWidget(self.manualAngleBox, 3, 0, 1, 1)
                 self.manualAngleBox.setVisible(True)
 
         else:
-            if self.gridLayout.indexOf(self.manualAngleBox) is not -1:
-                print("Hide")
+            if self.gridLayout.indexOf(self.manualAngleBox) != -1:
                 self.gridLayout.removeWidget(self.tabWidget)
                 self.gridLayout.removeWidget(self.manualAngleBox)
                 self.manualAngleBox.setVisible(False)
@@ -990,8 +995,9 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.point_recommender_groupbox.setEnabled(True)
 
     def data_table_selection(self, selected, deselected):
-        self.vispy_canvas.meas_points.deselect_points(deselected.row())
-        self.vispy_canvas.meas_points.select_point(selected.row())
+        if use_vispy:
+            self.vispy_canvas.meas_points.deselect_points(deselected.row())
+            self.vispy_canvas.meas_points.select_point(selected.row())
 
         #print("Data Table Selection: " + str(selected.row()))
         idx = selected.row()
@@ -1012,7 +1018,8 @@ class UiMainWindow(QtWidgets.QMainWindow):
     def tab_changed(self, index):
         try:
             if index is not self.tab_data_index:
-                self.vispy_canvas.meas_points.deselect_points()
+                if use_vispy:
+                    self.vispy_canvas.meas_points.deselect_points()
             else:
                 numRows = self.positions_table.model().rowCount(QtCore.QModelIndex())
                 self.positions_table.selectRow(numRows-1)
@@ -1166,6 +1173,30 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.sweep_parameters_dialog.close()
 
         return
+
+    def deactivate_vispy(self):
+        use_vispy = False
+
+        self.vpWidget.layout().removeWidget(self.vispy_canvas.native)
+        self.vpWidget.layout().removeWidget(self.sliderTheta)
+        self.vpWidget.layout().removeWidget(self.sliderPhi)
+
+        self.vispy_canvas.native.hide()
+        self.sliderTheta.hide()
+        self.sliderPhi.hide()
+
+
+
+        #del self.vispy_canvas
+        #del self.sliderPhi
+        #del self.sliderTheta
+
+        self.vp_missing_label = QtWidgets.QLabel(
+            "Vispy package missing or deactivated: \n3D speaker representation disabled.")
+        self.vpWidget.layout().addWidget(self.vp_missing_label, 1, 1, 1, 3)
+
+
+
 
 
 class InstructionsDialogBox(QtWidgets.QDialog):

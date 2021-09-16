@@ -91,7 +91,7 @@ class Sphere():
         # colors ##########################
 
         num_vertices, num_coords = vertices.shape
-        color = np.array([0.0, 0.0, 0.0, 0.2])
+        color = np.array([0.0, 0.0, 0.0, 0.3])
         pixel_colors = np.tile(color, (num_vertices, 1))
 
         self.colors = pixel_colors.astype(np.float32)

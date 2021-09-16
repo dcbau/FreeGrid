@@ -3,7 +3,6 @@ from scipy import special as sp
 from grid_improving.grid_creation import *
 import itertools
 import time
-import sound_field_analysis.lebedev
 import grid_improving.angular_distance
 
 
@@ -84,13 +83,7 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
     r2d = 1 / d2r
 
     if _correctionGrid is None:
-        lebedev_grid = sound_field_analysis.lebedev.genGrid(194)
-        az, el, r = grid_improving.angular_distance.cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
-        az = az * r2d
-        el = el * r2d
-        az = az % 360
-        el = 90 - el
-        _correctionGrid = np.transpose(np.array([az, el]))
+        _correctionGrid = np.load("grid_improving/lebedev_grids.npz")['leb194']
 
     inputGrid = _inputGrid * d2r
     correctionGrid = _correctionGrid * d2r
@@ -147,16 +140,9 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
     #convention: el = 0..180°
 
     d2r = np.pi / 180
-    r2d = 1 / d2r
 
     if _correctionGrid is None:
-        lebedev_grid = sound_field_analysis.lebedev.genGrid(194)
-        az, el, r = grid_improving.angular_distance.cart2sph(lebedev_grid.x, lebedev_grid.y, lebedev_grid.z)
-        az = az*r2d
-        el = el*r2d
-        az = az % 360
-        el = 90 - el
-        _correctionGrid = np.transpose(np.array([az, el]))
+        _correctionGrid = np.load("grid_improving/lebedev_grids.npz")['leb194']
 
     inputGrid = _inputGrid# * d2r
     correctionGrid = _correctionGrid# * d2r

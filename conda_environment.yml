@@ -2,15 +2,14 @@ name: Guided_HRTFs_env
 channels:
   - defaults
 dependencies:
-  - python=3.6
-  - pyqt
-  - pyopengl
-  - matplotlib
+  - pip
   - pip:
     - vispy==0.5.3
     - python-osc
-    - sound-field-analysis
     - openvr==1.3.2201 
     - pyquaternion
     - sounddevice
+    - PyQt5
+    - matplotlib
+    - scipy
 

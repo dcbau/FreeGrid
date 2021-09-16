@@ -55,8 +55,10 @@ class TrackerManager():
             }
 
             self.tracking_mode = "Vive"
-            self.osc_input_server = osc_input.OSCInputServer()
-            self.osc_input_server.start_listening()
+
+            self.osc_input_server = None
+
+
 
             self.acoustical_center_pos = None
 
@@ -287,6 +289,9 @@ class TrackerManager():
         def get_relative_position(self):
 
             if self.tracking_mode == "OSC_direct":
+                if self.osc_input_server is None:
+                    self.osc_input_server = osc_input.OSCInputServer()
+                    self.osc_input_server.start_listening()
                 try:
                     angles = self.osc_input_server.get_current_angle()
                 except:
@@ -308,7 +313,7 @@ class TrackerManager():
 
             if pose_head != False:
 
-                # MYSTERIOUS PROBLEM: The Y and Z Axis are flipped in the TrackerPose from openVR most of the times.
+                # MYSTERIOUS PROBLEM: The Y and Z Axis are switched in the TrackerPose from openVR most of the times.
                 mystery_flag = True #for testing debugging
 
                 # STEP1: get the correct translation between head and speaker
@@ -346,7 +351,7 @@ class TrackerManager():
 
                 if mystery_flag:
                     side = np.array([1.0, 0.0, 0.0])
-                    up = np.array([0.0, 0.0, -1.0]) # i don´t know why, but y and z axis are flipped somehow
+                    up = np.array([0.0, 0.0, -1.0]) # i don´t know why, but y and z axis are switched somehow
                     fwd = np.array([0.0, 1.0, 0.0]) #
                 else:
                     side = np.array([1.0, 0.0, 0.0])
@@ -444,4 +449,7 @@ class TrackerManager():
 
         def set_tracking_mode(self, trackingmode):
             self.tracking_mode = trackingmode
+
+
+
 
