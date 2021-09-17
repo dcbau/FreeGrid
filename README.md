@@ -48,26 +48,28 @@ The application can also receive external tracking data via Open Sound Control (
  <br>
  
 # Install Notes:
-The application requires Python with some external dependencies. We recommend using [conda](https://docs.conda.io/en/latest/) for this:
 
-1. Install conda (Miniconda is sufficient) and download/clone this repository
-2. Open a terminal window (or anaconda prompt) and navigate to the repository folder (where the `environment.yml` and `main.py` files are located). To create a new Python environment with all necessary dependencies run  
-    ```sh
-    conda env create -f environment.yml
+The application requires Python with some external dependencies. For package managing, you can choose between [conda](https://docs.conda.io/en/latest/) or [pip](https://pypi.org/project/pip/), for each of which a configuration file is included (`conda_environment.yml` & `pip_requirements.txt`).
+
+## Example install using __conda__ 
+1. Download or clone this repository.
+2. Install conda (Miniconda is sufficient) and download/clone this repository
+3. Open a terminal window (or anaconda powershell) and navigate to the repository folder (where the `conda_environment.yml` and `main.py` files are located). To create a new Python environment with all necessary dependencies run 
     ```
-3. Activate the new environment with    
+    conda env create -f conda_environment.yml
+    ```
+4. Activate the new environment with    
     ```
     conda activate Guided_HRTFs_env  
     ```  
-    (To use another environment name, edit the first line of the `environment.yml` file before creating.)
-4. To start the application run  
+    
+5. To start the application run  
     ```
     python main.py
     ```
     
-    
-> Note for macOS: The openvr dependency in `environment.yml` is set to an older version to comply with the no longer maintained SteamVR for macOS ('macos_default beta'). For Windows, the most recent version of openvr can be used (edit the `environment.yml` file accordingly). 
- 
+ > On some machines the _vispy_ package causes problems. You can uninstall the vispy package, then the graphical display of the loudspeaker position will be disabled.  
+
  <br>
  <br>
 
