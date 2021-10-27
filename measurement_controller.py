@@ -51,6 +51,9 @@ class MeasurementController:
         self.positions = np.array([])
         self.positions_list = MeasurementListModel()
 
+        self.speaker_relative_positions_hrir = np.array([])
+        self.speaker_relative_positions_center = np.array([])
+
         self.hp_irs = np.array([])
         self.raw_signals_hp = np.array([])
         self.raw_feedbackloop_hp = np.array([])
@@ -100,7 +103,7 @@ class MeasurementController:
         elif self.tracker.tracking_mode == "OSC_direct":
             self.gui_handle.set_osc_status(self.tracker.osc_input_server.get_osc_receive_status())
 
-        az, el, r = self.tracker.get_relative_position()
+        az, el, r, spdir_x, spdir_y, spdir_z = self.tracker.get_relative_position()
 
         self.gui_handle.updateCurrentAngle(az, el, r)
 
@@ -138,6 +141,7 @@ class MeasurementController:
             # start a measurement
             self.measurement_trigger = False
             self.measurement_position = np.array([az, el, r])
+            self.speaker_relative_position = np.array([spdir_x, spdir_y, spdir_z])
             run_measurement = StartSingleMeasurementAsync(self)
             self.measurement_running_flag = True
             self.measurement_valid = True
@@ -146,6 +150,7 @@ class MeasurementController:
         elif self.center_measurement_trigger:
             # start center measurement
             self.center_measurement_trigger = False
+            self.speaker_relative_position = np.array([spdir_x, spdir_y, spdir_z])
             run_measurement = StartCenterMeasurementAsync(self)
             run_measurement.start()
 
@@ -222,12 +227,14 @@ class MeasurementController:
                 self.raw_signals = np.concatenate((self.raw_signals, raw_rec))
                 self.raw_feedbackloop = np.concatenate((self.raw_feedbackloop, raw_fb))
                 self.positions = np.concatenate((self.positions, self.measurement_position.reshape(1, 3)))
+                self.speaker_relative_positions_hrir =  np.concatenate((self.speaker_relative_positions_hrir, self.speaker_relative_position.reshape(1, 3)))
 
             else:
                 self.measurements = ir
                 self.raw_signals = raw_rec
                 self.raw_feedbackloop = raw_fb
                 self.positions = self.measurement_position.reshape(1, 3)
+                self.speaker_relative_positions_hrir = self.speaker_relative_position.reshape(1, 3)
 
             # export
             self.save_to_file()
@@ -260,7 +267,8 @@ class MeasurementController:
                   'headWidth': headWidth,
                   'headLength': headLength,
                   'sweepParameters': self.measurement.sweep_parameters,
-                  'feedback_loop': self.measurement.feedback_loop_used
+                  'feedback_loop': self.measurement.feedback_loop_used,
+                  'speaker_relative_positions': self.speaker_relative_positions_hrir
         }
 
         scipy.io.savemat(self.get_filepath_for_irs(), export)
@@ -292,17 +300,22 @@ class MeasurementController:
             self.measurements_center = np.concatenate((self.measurements_center, ir))
             self.raw_signals_center = np.concatenate((self.raw_signals_center, raw))
             self.raw_feedbackloop_center = np.concatenate((self.raw_feedbackloop_center, fb))
+            self.speaker_relative_positions_center = np.concatenate(
+                (self.speaker_relative_positions_center, self.speaker_relative_position.reshape(1, 3)))
+
         else:
             self.measurements_center = ir
             self.raw_signals_center = raw
             self.raw_feedbackloop_center = fb
+            self.speaker_relative_positions_center = self.speaker_relative_position.reshape(1, 3))
 
         export = {'center_rawRecorded': self.raw_signals_center,
                   'center_rawFeedbackLoop': self.raw_feedbackloop_center,
                   'centerIR': self.measurements_center,
                   'fs': self.measurement.get_samplerate(),
                   'sweepParameters': self.measurement.sweep_parameters,
-                  'feedback_loop': self.measurement.feedback_loop_used}
+                  'feedback_loop': self.measurement.feedback_loop_used,
+                  'speaker_relative_positions': self.speaker_relative_positions_center}
 
 
         session_name = self.gui_handle.session_name.text()
@@ -358,6 +371,7 @@ class MeasurementController:
             self.raw_feedbackloop = np.delete(self.raw_feedbackloop, id, 0)
 
             self.positions = np.delete(self.positions, id, 0)
+            self.speaker_relative_positions_hrir = np.delete(self.speaker_relative_positions_hrir, id, 0)
 
             self.positions_list.remove_position(id)
 
@@ -376,6 +390,7 @@ class MeasurementController:
         self.raw_signals = np.array([])
         self.raw_feedbackloop = np.array([])
         self.positions = np.array([])
+        self.speaker_relative_positions_hrir = np.array([])  
 
         self.gui_handle.vispy_canvas.meas_points.clear_all_points()
         self.positions_list.remove_position(all_ids)

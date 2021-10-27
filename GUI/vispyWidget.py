@@ -387,7 +387,7 @@ class VispyCanvas(app.Canvas):
         view = np.dot(np.dot(rotate(self.theta, (0, 1, 0)), rotate(self.phi, (1, 0, 0))), translate((0, -0.5, -self.z)))
         self.program['u_view'] = view
 
-        az, el, r = self.measurement_ref.tracker.get_relative_position()
+        az, el, r, _, _, _ = self.measurement_ref.tracker.get_relative_position()
         self.current_azimuth = az
         self.current_elevation = el
 

@@ -309,7 +309,7 @@ class Measurement():
         self.recorded_sweep_r = []
         self.feedback_loop = []
 
-        if type is 'hpc':
+        if type == 'hpc':
             excitation = self.excitation_hpc
         else:
             excitation = self.excitation
@@ -345,7 +345,7 @@ class Measurement():
                 self.feedback_loop = np.random.random_sample(self.feedback_loop.shape) * 0.000001  # to avoid zero-division errors
         else:
             # if no FB loop, copy from original excitation sweep
-            if type is 'hpc':
+            if type == 'hpc':
                 self.feedback_loop = self.sweep_hpc_mono[:, 0]
             else:
                 self.feedback_loop = self.sweep_mono[:, 0]

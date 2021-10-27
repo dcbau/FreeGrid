@@ -112,7 +112,7 @@ class TrackerManager():
                     elif hasattr(self, 'controller2'):
                         self.tracker1 = self.controller2
 
-                if not hasattr(self, 'tracker2') and hasattr(self.tracker1):
+                if not hasattr(self, 'tracker2') and hasattr(self, 'tracker1'):
                     if hasattr(self, 'controller1') and self.controller1.id != self.tracker1.id:
                         self.tracker2 = self.controller1
                     elif hasattr(self, 'controller2') and self.controller2.id != self.tracker1.id:
@@ -180,6 +180,62 @@ class TrackerManager():
                 pose_base, pose_relative = self.get_tracker_data()
             except:
                 return False
+
+            self.calibrate_orientation_position_1 = pose_relative
+
+            head_tracker = Quaternion(convert_to_quaternion(pose_base))
+            reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
+
+            self.calibrationRotation = head_tracker.inverse * reference_tracker
+
+            # store inverted orientation to get speaker axis
+            q1 = Quaternion(axis=[0, 0, 1], angle=np.pi)
+            self.speaker_view['fwd'] = -np.array([pose_relative[0][2], pose_relative[1][2], pose_relative[2][2]])
+            self.speaker_view['up'] = np.array([pose_relative[0][1], pose_relative[1][1], pose_relative[2][1]])
+            self.speaker_view['side'] = -np.array([pose_relative[0][0], pose_relative[1][0], pose_relative[2][0]])
+
+            return True
+
+        def calibrate_orientation_refine(self):
+
+            try:
+                pose_base, pose_relative2 = self.get_tracker_data()
+            except:
+                return False
+
+            if not hasattr(self, 'calibrate_orientation_position_1'):
+                return
+
+            pose_relative1 = self.calibrate_orientation_position_1
+
+            # make the refinement vector
+            position1 = np.array([pose_relative1[0][3], pose_relative1[1][3], pose_relative1[2][3]])
+            position2 = np.array([pose_relative2[0][3], pose_relative2[1][3], pose_relative2[2][3]])
+            transvec = position2 - position1
+            transvec = transvec / np.linalg.norm(transvec)
+            #TODO double check if its the right vector
+            vec_forward = -np.array([pose_relative1[0][1], pose_relative1[1][1], pose_relative1[2][1]])
+            refine_R = self.align_vecA_to_vecB(vec_forward, transvec)
+
+            # apply to orientation components
+            fwd = np.dot(refine_R, np.array([pose_relative1[0][2], pose_relative1[1][2], pose_relative1[2][2]]))
+            up = np.dot(refine_R, np.array([pose_relative1[0][1], pose_relative1[1][1], pose_relative1[2][1]]))
+            side = np.dot(refine_R, np.array([pose_relative1[0][0], pose_relative1[1][0], pose_relative1[2][0]]))
+
+            # TODO das geht nicer
+            pose_relative = pose_relative1
+            pose_relative[0][0] = side[0]
+            pose_relative[1][0] = side[1]
+            pose_relative[2][0] = side[2]
+            pose_relative[0][1] = up[0]
+            pose_relative[1][1] = up[1]
+            pose_relative[2][1] = up[2]
+            pose_relative[0][2] = fwd[0]
+            pose_relative[1][2] = fwd[1]
+            pose_relative[2][2] = fwd[2]
+
+
+            # from now on business as usual
 
             head_tracker = Quaternion(convert_to_quaternion(pose_base))
             reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
@@ -414,22 +470,37 @@ class TrackerManager():
                 transvec_2 = translation_head - translation_speaker
                 speaker_directivity_vector = np.array([np.inner(self.speaker_view['side'], transvec_2), np.inner(self.speaker_view['up'], transvec_2), np.inner(self.speaker_view['fwd'], transvec_2)])
                 radius2 = np.linalg.norm(speaker_directivity_vector)
-                print(speaker_directivity_vector[0], speaker_directivity_vector[1], speaker_directivity_vector[2])
+                sp_dir_x =  int(100*speaker_directivity_vector[0])
+                sp_dir_y =  int(100*speaker_directivity_vector[1])
+                sp_dir_z = int(100*speaker_directivity_vector[2])
 
-                speaker_directivity_vector = source_direction_vector / radius2
+                speaker_directivity_vector = speaker_directivity_vector / radius2
                 az2 = np.rad2deg(np.arctan2(-speaker_directivity_vector[0], -speaker_directivity_vector[2]))
                 az2 = az2 % 360
 
-                el2 = np.rad2deg(np.arccos(-source_direction_vector[1]))
+                el2 = np.rad2deg(np.arccos(-speaker_directivity_vector[1]))
                 el2 = el2 - 90
 
-                print(f'Speaker Directivity Angle: Az: {az2}, El: {el2}, Distance')
+                #print(f'Speaker Directivity Angle: Az: {az2}, El: {el2}, Distance')
 
 
 
 
                 #print(az, el, radius)
-                return az, el, radius
+                return az, el, radius, sp_dir_x, sp_dir_y, sp_dir_z
+
+        def align_vecA_to_vecB(self, vector_a, vector_b):
+
+            v = np.cross(vector_a, vector_b)
+            s = np.linalg.norm(v)
+            c = np.dot(vector_a, vector_b)
+            vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+            r = np.eye(3) + vx + np.dot(vx,vx) * (1 - c) / (s ** 2)
+
+            print(r)
+
+            return r
+
 
         def get_tracker_data(self, only_tracker_1=False):
 

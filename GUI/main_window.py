@@ -421,6 +421,15 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
         self.calibrations_formlayout.addRow(self.calibrateButton, self.calibrate_orientation_label)
 
+        self.calibrate2Button = QtWidgets.QPushButton(self.tab_measure)
+        self.calibrate2Button.setText("Calibrate Orientation 2")
+        self.calibrate2Button.setObjectName("calibrate2Button")
+        # self.calibrateButton.setFixedSize(calibration_button_size)
+        self.calibrate2Button.setFixedWidth(calibration_button_width)
+        self.calibrate2Button.clicked.connect(lambda: self.calibrate(self.calibrate_orientation_2))
+        self.calibrate_orientation_label_2 = QtWidgets.QLabel("Uncalibrated")
+        self.calibrations_formlayout.addRow(self.calibrate2Button, self.calibrate_orientation_label_2)
+
 
         # Config Tab
         #   OSC Config Box
@@ -899,6 +908,13 @@ class UiMainWindow(QtWidgets.QMainWindow):
         if self.measurement_ref.tracker.calibrate_orientation():
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_orientation_label.setText("Calibrated")
+        else:
+            self.measurement_ref.measurement.play_sound(False)
+
+    def calibrate_orientation_2(self):
+        if self.measurement_ref.tracker.calibrate_orientation_refine():
+            self.measurement_ref.measurement.play_sound(True)
+            self.calibrate_orientation_label_2.setText("Calibrated")
         else:
             self.measurement_ref.measurement.play_sound(False)
 
