@@ -42,6 +42,13 @@ class TrackerManager():
             self.trackers_switched = False
             self.counter = 0
 
+            self.speaker_view = {
+                'fwd': None,
+                'up': None,
+                'side': None
+            }
+
+
             self.head_dimensions = {
                 'ear_pos_l': None,
                 'ear_pos_r': None,
@@ -93,6 +100,23 @@ class TrackerManager():
                     elif (not hasattr(self, 'controller2')):
                         self.controller2 = Device(TrackedDeviceClass_Controller, deviceID)
                         self.controller2.set_availability(self.vr_system.isTrackedDeviceConnected(deviceID))
+
+
+            # experimental: if not enough trackers are connected, use controllers instead
+            enable_controllers_as_trackers = True
+
+            if enable_controllers_as_trackers:
+                if not hasattr(self, 'tracker1'):
+                    if hasattr(self, 'controller1'):
+                        self.tracker1 = self.controller1
+                    elif hasattr(self, 'controller2'):
+                        self.tracker1 = self.controller2
+
+                if not hasattr(self, 'tracker2') and hasattr(self.tracker1):
+                    if hasattr(self, 'controller1') and self.controller1.id != self.tracker1.id:
+                        self.tracker2 = self.controller1
+                    elif hasattr(self, 'controller2') and self.controller2.id != self.tracker1.id:
+                        self.tracker2 = self.controller2
 
 
             # if(hasattr(self, 'tracker1')):
@@ -161,6 +185,12 @@ class TrackerManager():
             reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
 
             self.calibrationRotation = head_tracker.inverse * reference_tracker
+
+            # store inverted orientation to get speaker axis
+            q1 = Quaternion(axis=[0, 0, 1], angle=np.pi)
+            self.speaker_view['fwd'] = -np.array([pose_relative[0][2], pose_relative[1][2], pose_relative[2][2]])
+            self.speaker_view['up'] = np.array([pose_relative[0][1], pose_relative[1][1], pose_relative[2][1]])
+            self.speaker_view['side'] = -np.array([pose_relative[0][0], pose_relative[1][0], pose_relative[2][0]])
 
             return True
 
@@ -275,6 +305,7 @@ class TrackerManager():
 
             self.acoustical_center_pos = np.array([pose_acenter.m[0][3], pose_acenter.m[1][3], pose_acenter.m[2][3]])
 
+
             return True
 
 
@@ -330,6 +361,7 @@ class TrackerManager():
                 # get vector pointing from head center to speaker center
                 transvec = translation_speaker - translation_head
 
+
                 # STEP2: get the correct orientation of the head
 
                 # get the base tracker rotation in quaternions
@@ -365,17 +397,35 @@ class TrackerManager():
                 # STEP3: calculate direction vector to speaker relative to head coordinate system
                 # (head coordinate system = side, up, fwd)
 
-                direction_vector = np.array([np.inner(side, transvec), np.inner(up, transvec), np.inner(fwd, transvec)])
-                radius = np.linalg.norm(direction_vector)
-                direction_vector = direction_vector / radius
+                source_direction_vector = np.array([np.inner(side, transvec), np.inner(up, transvec), np.inner(fwd, transvec)])
+                radius = np.linalg.norm(source_direction_vector)
+                source_direction_vector = source_direction_vector / radius
 
                 # get spherical coordinates from direction vector
-                az = np.rad2deg(np.arctan2(-direction_vector[0], -direction_vector[2]))
+                az = np.rad2deg(np.arctan2(-source_direction_vector[0], -source_direction_vector[2]))
                 if az < 0:
                     az += 360
 
-                el = np.rad2deg(np.arccos(-direction_vector[1]))
+                el = np.rad2deg(np.arccos(-source_direction_vector[1]))
                 el = el - 90
+
+
+                # speaker directivity
+                transvec_2 = translation_head - translation_speaker
+                speaker_directivity_vector = np.array([np.inner(self.speaker_view['side'], transvec_2), np.inner(self.speaker_view['up'], transvec_2), np.inner(self.speaker_view['fwd'], transvec_2)])
+                radius2 = np.linalg.norm(speaker_directivity_vector)
+                print(speaker_directivity_vector[0], speaker_directivity_vector[1], speaker_directivity_vector[2])
+
+                speaker_directivity_vector = source_direction_vector / radius2
+                az2 = np.rad2deg(np.arctan2(-speaker_directivity_vector[0], -speaker_directivity_vector[2]))
+                az2 = az2 % 360
+
+                el2 = np.rad2deg(np.arccos(-source_direction_vector[1]))
+                el2 = el2 - 90
+
+                print(f'Speaker Directivity Angle: Az: {az2}, El: {el2}, Distance')
+
+
 
 
                 #print(az, el, radius)
