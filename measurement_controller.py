@@ -307,7 +307,7 @@ class MeasurementController:
             self.measurements_center = ir
             self.raw_signals_center = raw
             self.raw_feedbackloop_center = fb
-            self.speaker_relative_positions_center = self.speaker_relative_position.reshape(1, 3))
+            self.speaker_relative_positions_center = self.speaker_relative_position.reshape(1, 3)
 
         export = {'center_rawRecorded': self.raw_signals_center,
                   'center_rawFeedbackLoop': self.raw_feedbackloop_center,

@@ -384,7 +384,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.calibration_box.layout().addLayout(self.calibrations_formlayout)
 
 
-        calibration_button_width = 180
+        calibration_button_width = 230
         calibration_button_size = QtCore.QSize(calibration_button_width, 50)
 
 
@@ -426,6 +426,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.calibrate2Button.setObjectName("calibrate2Button")
         # self.calibrateButton.setFixedSize(calibration_button_size)
         self.calibrate2Button.setFixedWidth(calibration_button_width)
+        #self.calibrate2Button.setFixedHeight(self.calibrateButton.geometry().height() * 0.66)
         self.calibrate2Button.clicked.connect(lambda: self.calibrate(self.calibrate_orientation_2))
         self.calibrate_orientation_label_2 = QtWidgets.QLabel("Uncalibrated")
         self.calibrations_formlayout.addRow(self.calibrate2Button, self.calibrate_orientation_label_2)
@@ -492,7 +493,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.sweep_parameters_formlayout.addRow(self.f_end, QtWidgets.QLabel(text='Sweep stop frequency (Hz)'))
 
         self.amp_db = QtWidgets.QLineEdit(str(sweep_params['amp_db']))
-        self.sweep_parameters_formlayout.addRow(self.amp_db, QtWidgets.QLabel(text='Sweep gain (dB)'))
+        self.sweep_parameters_formlayout.addRow(self.amp_db, QtWidgets.QLabel(text='Sweep gain (dBFS)'))
 
         self.fade_out_samples = QtWidgets.QLineEdit(str(sweep_params['fade_out_samples']))
         self.sweep_parameters_formlayout.addRow(self.fade_out_samples, QtWidgets.QLabel(text='Fadeout before sweep end (samples)'))
@@ -912,7 +913,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
             self.measurement_ref.measurement.play_sound(False)
 
     def calibrate_orientation_2(self):
-        if self.measurement_ref.tracker.calibrate_orientation_refine():
+        if self.measurement_ref.tracker.calibrate_orientation(refinement_calibration=True):
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_orientation_label_2.setText("Calibrated")
         else:
@@ -1220,13 +1221,10 @@ class InstructionsDialogBox(QtWidgets.QDialog):
     def __init__(self, *args, **kwargs):
 
         instruction_text = \
-            "1. Mount tracker T1 on listener head. The orientation and exact position are not important, as long as it stays fixed. \n\n" \
-            "2. Check if tracker roles are correct by rotating tracker T2. The angles shouldn't change since only the position of tracker T2 is used. Switch tracker roles if necessary\n\n" \
-            "3. Hold tracker T2 to both ears (bottom center on ear canal) and calibrate each ear. Tracker T2 orientation does not matter here, but from now on tracker T1 (on the listeners head) has to stay fixed & stable on the head.\n\n" \
-            "4. Hold tracker T2 to acoustical center of speaker and calibrate it. Tracker orientation does not matter here\n\n" \
-            "5. Put tracker T2 on a planar surface (eg. on top of speaker, floor) pointing towards the same direction as frontal view of listener. Translation does not matter here\n\n" \
-            "NOTE: If acoustical center is calibrated, this calibrated position stays fixed. If the speaker is moved the calibration has to be repeated."
-
+            "1. Calibrate Tracker Offset: \n With the head tracker attached to the head, hold the calibration tracker to each ear (the bottom center of the tracker to the ear canal) and press the corresponding calibration button (Calibrate Left / Right Ear). \n\n" \
+            "2. Calibrate Speaker Position: \n Hold the calibration tracker to the acoustical center of the speaker and press the Calibrate Speaker button in the GUI. \n\n" \
+            "3. Calibrate Tracker Rotation: \n Place the calibration tracker on a planar surface (e.g. floor), pointing towards a desired view direction (LED on the tracker facing in opposite direction). Point the head into the same direction, so that the orientation of the calibration tracker matches the orientation of the head, and press the Calibrate Orientation button.\n\n" \
+            "For more details check README file"
 
         super(InstructionsDialogBox, self).__init__(*args, **kwargs)
 

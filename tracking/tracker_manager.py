@@ -33,6 +33,28 @@ def convert_to_quaternion(pose_mat):
 
     return np.array([r_w,r_x,r_y,r_z])
 
+
+
+
+def align_vecA_to_vecB(self, vector_a, vector_b):
+    '''Returns a rotation matrix that aligns unit vector A to unit vector B'''
+    v = np.cross(vector_a, vector_b)
+    s = np.linalg.norm(v)
+    c = np.dot(vector_a, vector_b)
+    vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+    r = np.eye(3) + vx + np.dot(vx, vx) * (1 - c) / (s ** 2)
+
+    return r
+
+def project_vec_on_plane(self, vector_a, n_plane):
+    '''Returns the projection of vector A on a plane represented by normal vector'''
+    #source: https://www.geeksforgeeks.org/vector-projection-using-python/
+
+    n_norm = np.sqrt(sum(n_plane ** 2))
+    projection_on_normal = (np.dot(vector_a, n_plane) / n_norm ** 2) * n_plane
+
+    return vector_a - projection_on_normal
+
 class TrackerManager():
 
 
@@ -172,16 +194,60 @@ class TrackerManager():
             # the controllers stop reporting
             return d
 
-        def calibrate_orientation(self):
+        def get_calibrated_position_from_pose(self, pose):
+            '''Apply calibrated offset to the translation part of a pose matrix and return resulting translation vector'''
+            translation_head = np.array([pose.m[0][3], pose.m[1][3], pose.m[2][3]])
 
-            #print("Calibration")
+            if self.head_dimensions['ear_center'] is not None:
+                offset_x = self.head_dimensions['ear_center'][0] * np.array([pose.m[0][0], pose.m[1][0], pose.m[2][0]])
+                offset_y = self.head_dimensions['ear_center'][1] * np.array([pose.m[0][1], pose.m[1][1], pose.m[2][1]])
+                offset_z = self.head_dimensions['ear_center'][2] * np.array([pose.m[0][2], pose.m[1][2], pose.m[2][2]])
+
+                translation_head = translation_head + offset_x + offset_y + offset_z
+
+            return translation_head
+
+        def calibrate_orientation(self, refinement_calibration=False):
 
             try:
                 pose_base, pose_relative = self.get_tracker_data()
             except:
                 return False
 
-            self.calibrate_orientation_position_1 = pose_relative
+            if self.head_dimensions['ear_center'] is not None and self.acoustical_center_pos is not None:
+
+                translation_head = self.get_calibrated_position_from_pose(pose_base)
+
+                # get vector pointing from head center to speaker center
+                C_corr = self.acoustical_center_pos - translation_head
+
+                # make the refinement vector
+                C_corr = C_corr / np.linalg.norm(C_corr)
+                #TODO check if vec_up is correctly the normal of the "floor"
+                vec_up = np.array([pose_relative[0][2], pose_relative[1][2], pose_relative[2][2]])
+                C_corr = project_vec_on_plane(C_corr, np.array([]))
+
+                vec_forward = -np.array([pose_relative[0][1], pose_relative[1][1],
+                                         pose_relative[2][1]])  # negative y-vector, determined empirically
+                refine_R = self.align_vecA_to_vecB(vec_forward, C_corr)
+
+                # apply to orientation components
+                fwd = np.dot(refine_R, np.array([pose_relative[0][2], pose_relative[1][2], pose_relative[2][2]]))
+                up = np.dot(refine_R, np.array([pose_relative[0][1], pose_relative[1][1], pose_relative[2][1]]))
+                side = np.dot(refine_R, np.array([pose_relative[0][0], pose_relative[1][0], pose_relative[2][0]]))
+
+                pose_relative[0][0] = side[0]
+                pose_relative[1][0] = side[1]
+                pose_relative[2][0] = side[2]
+                pose_relative[0][1] = up[0]
+                pose_relative[1][1] = up[1]
+                pose_relative[2][1] = up[2]
+                pose_relative[0][2] = fwd[0]
+                pose_relative[1][2] = fwd[1]
+                pose_relative[2][2] = fwd[2]
+
+            else:
+                self.calibrate_orientation_position_1 = pose_relative
 
             head_tracker = Quaternion(convert_to_quaternion(pose_base))
             reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
@@ -196,59 +262,6 @@ class TrackerManager():
 
             return True
 
-        def calibrate_orientation_refine(self):
-
-            try:
-                pose_base, pose_relative2 = self.get_tracker_data()
-            except:
-                return False
-
-            if not hasattr(self, 'calibrate_orientation_position_1'):
-                return
-
-            pose_relative1 = self.calibrate_orientation_position_1
-
-            # make the refinement vector
-            position1 = np.array([pose_relative1[0][3], pose_relative1[1][3], pose_relative1[2][3]])
-            position2 = np.array([pose_relative2[0][3], pose_relative2[1][3], pose_relative2[2][3]])
-            transvec = position2 - position1
-            transvec = transvec / np.linalg.norm(transvec)
-            #TODO double check if its the right vector
-            vec_forward = -np.array([pose_relative1[0][1], pose_relative1[1][1], pose_relative1[2][1]])
-            refine_R = self.align_vecA_to_vecB(vec_forward, transvec)
-
-            # apply to orientation components
-            fwd = np.dot(refine_R, np.array([pose_relative1[0][2], pose_relative1[1][2], pose_relative1[2][2]]))
-            up = np.dot(refine_R, np.array([pose_relative1[0][1], pose_relative1[1][1], pose_relative1[2][1]]))
-            side = np.dot(refine_R, np.array([pose_relative1[0][0], pose_relative1[1][0], pose_relative1[2][0]]))
-
-            # TODO das geht nicer
-            pose_relative = pose_relative1
-            pose_relative[0][0] = side[0]
-            pose_relative[1][0] = side[1]
-            pose_relative[2][0] = side[2]
-            pose_relative[0][1] = up[0]
-            pose_relative[1][1] = up[1]
-            pose_relative[2][1] = up[2]
-            pose_relative[0][2] = fwd[0]
-            pose_relative[1][2] = fwd[1]
-            pose_relative[2][2] = fwd[2]
-
-
-            # from now on business as usual
-
-            head_tracker = Quaternion(convert_to_quaternion(pose_base))
-            reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
-
-            self.calibrationRotation = head_tracker.inverse * reference_tracker
-
-            # store inverted orientation to get speaker axis
-            q1 = Quaternion(axis=[0, 0, 1], angle=np.pi)
-            self.speaker_view['fwd'] = -np.array([pose_relative[0][2], pose_relative[1][2], pose_relative[2][2]])
-            self.speaker_view['up'] = np.array([pose_relative[0][1], pose_relative[1][1], pose_relative[2][1]])
-            self.speaker_view['side'] = -np.array([pose_relative[0][0], pose_relative[1][0], pose_relative[2][0]])
-
-            return True
 
         def calibrate_headdimensions(self, pos, multiple_calls=True):
 
@@ -382,9 +395,9 @@ class TrackerManager():
                 try:
                     angles = self.osc_input_server.get_current_angle()
                 except:
-                    return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
+                    return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2], 0, 0, 0
 
-                return angles[0], angles[1], angles[2]
+                return angles[0], angles[1], angles[2], 0, 0, 0
 
             try:
                 if self.acoustical_center_pos is not None:
@@ -396,7 +409,7 @@ class TrackerManager():
                     translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
 
             except:
-                return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
+                return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2], 0, 0, 0
 
             if pose_head != False:
 
@@ -405,38 +418,19 @@ class TrackerManager():
 
                 # STEP1: get the correct translation between head and speaker
 
-                translation_head = np.array([pose_head.m[0][3], pose_head.m[1][3], pose_head.m[2][3]])
-
-                if self.head_dimensions['ear_center'] is not None:
-                    offset_x = self.head_dimensions['ear_center'][0] * np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
-                    offset_y = self.head_dimensions['ear_center'][1] * np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
-                    offset_z = self.head_dimensions['ear_center'][2] * np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
-
-                    translation_head = translation_head + offset_x + offset_y + offset_z
-
+                translation_head = self.get_calibrated_position_from_pose(pose_head)
                 # get vector pointing from head center to speaker center
                 transvec = translation_speaker - translation_head
-
 
                 # STEP2: get the correct orientation of the head
 
                 # get the base tracker rotation in quaternions
-                fwd = np.array([pose_head.m[0][2], pose_head.m[1][2], pose_head.m[2][2]])
-                up = np.array([pose_head.m[0][1], pose_head.m[1][1], pose_head.m[2][1]])
-                side = np.array([pose_head.m[0][0], pose_head.m[1][0], pose_head.m[2][0]])
-
-                r_w = np.sqrt(abs(1 + side[0] + up[1] + fwd[2])) / 2
-                r_x = (up[2] - fwd[1]) / (4 * r_w)
-                r_y = (fwd[0] - side[2]) / (4 * r_w)
-                r_z = (side[1] - up[0]) / (4 * r_w)
-
-                head_rotation = Quaternion(r_w, r_x, r_y, r_z)
+                head_rotation = Quaternion(convert_to_quaternion(pose_head))
 
                 # apply calibrated rotation
                 rotation = head_rotation * self.calibrationRotation
 
                 # make "new' direction vectors by rotating a normed set of orthogonal direction vectors
-
                 if mystery_flag:
                     side = np.array([1.0, 0.0, 0.0])
                     up = np.array([0.0, 0.0, -1.0]) # i don´t know why, but y and z axis are switched somehow
@@ -489,17 +483,7 @@ class TrackerManager():
                 #print(az, el, radius)
                 return az, el, radius, sp_dir_x, sp_dir_y, sp_dir_z
 
-        def align_vecA_to_vecB(self, vector_a, vector_b):
 
-            v = np.cross(vector_a, vector_b)
-            s = np.linalg.norm(v)
-            c = np.dot(vector_a, vector_b)
-            vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-            r = np.eye(3) + vx + np.dot(vx,vx) * (1 - c) / (s ** 2)
-
-            print(r)
-
-            return r
 
 
         def get_tracker_data(self, only_tracker_1=False):
