@@ -34,8 +34,6 @@ def convert_to_quaternion(pose_mat):
     return np.array([r_w,r_x,r_y,r_z])
 
 
-
-
 def align_vecA_to_vecB(self, vector_a, vector_b):
     '''Returns a rotation matrix that aligns unit vector A to unit vector B'''
     v = np.cross(vector_a, vector_b)
@@ -84,14 +82,8 @@ class TrackerManager():
             }
 
             self.tracking_mode = "Vive"
-
             self.osc_input_server = None
-
-
-
             self.acoustical_center_pos = None
-
-
 
             # initialize open VR
             try:
@@ -100,65 +92,18 @@ class TrackerManager():
                 return
 
             # get available trackers and controllers
-
+            self.trackers = []
+            self.controllers = []
 
             for deviceID in range(k_unMaxTrackedDeviceCount):
                 dev_class = self.vr_system.getTrackedDeviceClass(deviceID)
-                if(dev_class == TrackedDeviceClass_GenericTracker):
-                    if(not hasattr(self, 'tracker1')):
-                        if self.vr_system.isTrackedDeviceConnected(deviceID):
-                            self.tracker1 = Device(TrackedDeviceClass_GenericTracker, deviceID)
-                            self.tracker1.set_availability(True)
-                    elif (not hasattr(self, 'tracker2')):
-                        if self.vr_system.isTrackedDeviceConnected(deviceID):
-                            self.tracker2 = Device(TrackedDeviceClass_GenericTracker, deviceID)
-                            self.tracker2.set_availability(True)
-                elif(dev_class == TrackedDeviceClass_Controller):
-                    if(not hasattr(self, 'controller1')):
-                        self.controller1 = Device(TrackedDeviceClass_Controller, deviceID)
-                        self.controller1.set_availability(self.vr_system.isTrackedDeviceConnected(deviceID))
-                    elif (not hasattr(self, 'controller2')):
-                        self.controller2 = Device(TrackedDeviceClass_Controller, deviceID)
-                        self.controller2.set_availability(self.vr_system.isTrackedDeviceConnected(deviceID))
-
+                if dev_class == TrackedDeviceClass_GenericTracker:
+                    self.trackers.append(Device(TrackedDeviceClass_GenericTracker, deviceID, True))
+                elif dev_class == TrackedDeviceClass_Controller:
+                    self.controllers.append(Device(TrackedDeviceClass_GenericTracker, deviceID, True))
 
             # experimental: if not enough trackers are connected, use controllers instead
-            enable_controllers_as_trackers = True
-
-            if enable_controllers_as_trackers:
-                if not hasattr(self, 'tracker1'):
-                    if hasattr(self, 'controller1'):
-                        self.tracker1 = self.controller1
-                    elif hasattr(self, 'controller2'):
-                        self.tracker1 = self.controller2
-
-                if not hasattr(self, 'tracker2') and hasattr(self, 'tracker1'):
-                    if hasattr(self, 'controller1') and self.controller1.id != self.tracker1.id:
-                        self.tracker2 = self.controller1
-                    elif hasattr(self, 'controller2') and self.controller2.id != self.tracker1.id:
-                        self.tracker2 = self.controller2
-
-
-            # if(hasattr(self, 'tracker1')):
-            #     #print("Has tracker one!")
-            #     if(self.tracker1.is_available()):
-            #         pass
-            #         #print("Tracker 1 Available")
-            #
-            # if (hasattr(self, 'tracker2')):
-            #     #print("Has tracker two!")
-            #     if (self.tracker2.is_available()):
-            #         pass
-            #         #print("Tracker 2 Available")
-            #
-            # if (hasattr(self, 'controller1')):
-            #     #print("Has controller 1!")
-            #     pass
-            #
-            # if (hasattr(self, 'controller2')):
-            #     #print("Has controller 2!")
-            #     pass
-
+            self.trackers.extend(self.controllers)
 
             self.calibrationRotation = Quaternion()
             self.calibrate_orientation()
@@ -473,73 +418,48 @@ class TrackerManager():
                 el2 = np.rad2deg(np.arccos(-speaker_directivity_vector[1]))
                 el2 = el2 - 90
 
-                #print(f'Speaker Directivity Angle: Az: {az2}, El: {el2}, Distance')
-
-
-
-
-                #print(az, el, radius)
                 return az, el, radius, sp_dir_x, sp_dir_y, sp_dir_z
 
-
-
-
         def get_tracker_data(self, only_tracker_1=False):
-
-            #poseMatrix1 = []
-            #poseMatrix2 = []
 
             pose = self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseRawAndUncalibrated,
                                                                   1,
                                                                   k_unMaxTrackedDeviceCount)
-            pose1 = pose[self.tracker1.id]
-            if pose1.bDeviceIsConnected:
-                self.tracker1.isAvailable = True
-                if pose1.bPoseIsValid:
-                        self.tracker1.isActive = True
-                        poseMatrix1 = pose1.mDeviceToAbsoluteTracking
-                else:
-                        self.tracker1.isActive = False
-            else:
-                self.tracker1.isAvailable = False
+            pose_matrices = []
 
-            pose2 = pose[self.tracker2.id]
-            if pose2.bDeviceIsConnected:
-                self.tracker2.isAvailable = True
-                if pose2.bPoseIsValid:
-                    self.tracker2.isActive = True
-                    poseMatrix2 = pose2.mDeviceToAbsoluteTracking
+            for t in self.trackers:
+                t_pose = pose[t.id]
+                t.isAvailable = t_pose.bDeviceIsConnected
+                t.isActive = t_pose.bPoseIsValid
+                if t.isActive:
+                    pose_matrices.append(t_pose.mDeviceToAbsoluteTracking)
                 else:
-                    self.tracker1.isActive = False
-            else:
-                self.tracker1.isAvailable = False
-
+                    pose_matrices.append([])
 
             if self.trackers_switched:
-                if only_tracker_1:
-                    poseMatrix1 = []
-                return poseMatrix2, poseMatrix1
-            else:
-                if only_tracker_1:
-                    poseMatrix2 = []
-                return poseMatrix1, poseMatrix2
+                pose_matrices[0], pose_matrices[1] = pose_matrices[1], pose_matrices[0]
+
+            if only_tracker_1:
+                pose_matrices[1] = []
+
+            return pose_matrices[0], pose_matrices[1]
 
         def check_tracker_availability(self):
             tracker_status = {
                 "tracker1": "Unavailable",
                 "tracker2": "Unavailable"
             }
-            if (hasattr(self, 'tracker1')):
-                if self.tracker1.isActive:
+            if len(self.trackers) > 0:
+                if self.trackers[0].isActive:
                     tracker_status['tracker1'] = "Tracking"
-                elif self.tracker1.isAvailable:
+                elif self.trackers[0].isAvailable:
                     tracker_status['tracker1'] = "Available / Not tracking"
 
-            if (hasattr(self, 'tracker2')):
-                if self.tracker2.isActive:
-                    tracker_status['tracker2'] = "Tracking"
-                elif self.tracker2.isAvailable:
-                    tracker_status['tracker2'] = "Available / Not tracking"
+            if len(self.trackers) > 1:
+                if self.trackers[1].isActive:
+                    tracker_status['tracker1'] = "Tracking"
+                elif self.trackers[1].isAvailable:
+                    tracker_status['tracker1'] = "Available / Not tracking"
 
             return tracker_status
 
