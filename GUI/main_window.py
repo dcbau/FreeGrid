@@ -1095,18 +1095,6 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.measurement_ref.remove_all_hp_measurements()
         self.headphone_name.clear()
 
-    def warning_invalid_tracking(self, warning=True):
-        palette = self.tracker_status_widget.palette()
-        if warning:
-            palette.setColor(QtGui.QPalette.Window, QtGui.QColor('red'))
-        else:
-            palette.setColor(QtGui.QPalette.Window, QtGui.QColor('grey'))
-
-
-        self.tracker_status_widget.setPalette(palette)
-        self.tracker_status_widget.setAutoFillBackground(True)
-        self.tracker_status_widget.repaint()
-
     def select_tracking_input(self):
         radioButton = self.tracking_input_box.sender()
         if radioButton.isChecked():

@@ -92,7 +92,6 @@ class TrackerManager():
             self.acoustical_center_pos = None
 
 
-            self.vr_system_initialized = False
 
             # initialize open VR
             try:
@@ -100,7 +99,6 @@ class TrackerManager():
             except:
                 return
 
-            self.vr_system_initialized = True
             # get available trackers and controllers
 
 
@@ -545,12 +543,6 @@ class TrackerManager():
 
             return tracker_status
 
-        def check_if_tracking_is_valid(self):
-            if self.vr_system_initialized:
-                if not self.trackers_switched:
-                    return self.tracker1.isActive
-                else:
-                    return self.tracker2.isActive
 
         def set_tracking_mode(self, trackingmode):
             self.tracking_mode = trackingmode
