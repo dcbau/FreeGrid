@@ -33,8 +33,34 @@ def convert_to_quaternion(pose_mat):
 
     return np.array([r_w,r_x,r_y,r_z])
 
+def euler_from_quaternion(x, y, z, w):
+    """
+    Convert a quaternion into euler angles (roll, pitch, yaw)
+    roll is rotation around x in radians (counterclockwise)
+    pitch is rotation around y in radians (counterclockwise)
+    yaw is rotation around z in radians (counterclockwise)
+    """
+    # https: // automaticaddison.com / how - to - convert - a - quaternion - into - euler - angles - in -python /
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    roll_x = np.arctan2(t0, t1)
 
-def align_vecA_to_vecB(self, vector_a, vector_b):
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    pitch_y = np.arcsin(t2)
+
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw_z = np.arctan2(t3, t4)
+
+    np.rad2deg
+
+    print(np.rad2deg(roll_x), np.rad2deg(pitch_y), np.rad2deg(yaw_z))
+
+    return roll_x, pitch_y, yaw_z  # in radians
+
+def align_vecA_to_vecB(vector_a, vector_b):
     '''Returns a rotation matrix that aligns unit vector A to unit vector B'''
     v = np.cross(vector_a, vector_b)
     s = np.linalg.norm(v)
@@ -44,7 +70,7 @@ def align_vecA_to_vecB(self, vector_a, vector_b):
 
     return r
 
-def project_vec_on_plane(self, vector_a, n_plane):
+def project_vec_on_plane(vector_a, n_plane):
     '''Returns the projection of vector A on a plane represented by normal vector'''
     #source: https://www.geeksforgeeks.org/vector-projection-using-python/
 
@@ -150,7 +176,23 @@ class TrackerManager():
 
             return translation_head
 
-        def calibrate_orientation(self, refinement_calibration=False):
+        def calibrate_body_orientation(self):
+            # TODO add check that this is only done if everything else is calibrated
+            try:
+                pose_base, pose_relative = self.get_tracker_data()
+            except:
+                return False
+
+            head_tracker = Quaternion(convert_to_quaternion(pose_base))
+            body_tracker = Quaternion(convert_to_quaternion(pose_relative))
+
+            self.calibrationBodyRotation = body_tracker.inverse * head_tracker
+
+            # TODO make correct calibration matrix!!
+
+            return True
+
+        def calibrate_orientation(self):
 
             try:
                 pose_base, pose_relative = self.get_tracker_data()
@@ -166,13 +208,12 @@ class TrackerManager():
 
                 # make the refinement vector
                 C_corr = C_corr / np.linalg.norm(C_corr)
-                #TODO check if vec_up is correctly the normal of the "floor"
                 vec_up = np.array([pose_relative[0][2], pose_relative[1][2], pose_relative[2][2]])
-                C_corr = project_vec_on_plane(C_corr, np.array([]))
+                C_corr = project_vec_on_plane(C_corr, vec_up)
 
                 vec_forward = -np.array([pose_relative[0][1], pose_relative[1][1],
                                          pose_relative[2][1]])  # negative y-vector, determined empirically
-                refine_R = self.align_vecA_to_vecB(vec_forward, C_corr)
+                refine_R = align_vecA_to_vecB(vec_forward, C_corr)
 
                 # apply to orientation components
                 fwd = np.dot(refine_R, np.array([pose_relative[0][2], pose_relative[1][2], pose_relative[2][2]]))
@@ -418,6 +459,12 @@ class TrackerManager():
                 el2 = np.rad2deg(np.arccos(-speaker_directivity_vector[1]))
                 el2 = el2 - 90
 
+
+                # HATO (Head-Above-Torso-Orientation)
+                # assumption:
+                # T2 * d_HATO * d_offset = T1
+                # d_HATO = T1 * inv(T2) * inv(d_offset)
+                # TODO continue here!
                 return az, el, radius, sp_dir_x, sp_dir_y, sp_dir_z
 
         def get_tracker_data(self, only_tracker_1=False):
