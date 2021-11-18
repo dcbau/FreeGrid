@@ -25,7 +25,6 @@ class Device():
         return self.id
 
 def convert_to_quaternion(pose_mat):
-    # Per issue #2, adding a abs() so that sqrt only results in real numbers
     r_w = np.sqrt(abs(1+pose_mat[0][0]+pose_mat[1][1]+pose_mat[2][2]))/2
     r_x = (pose_mat[2][1]-pose_mat[1][2])/(4*r_w)
     r_y = (pose_mat[0][2]-pose_mat[2][0])/(4*r_w)
@@ -33,13 +32,16 @@ def convert_to_quaternion(pose_mat):
 
     return np.array([r_w,r_x,r_y,r_z])
 
-def euler_from_quaternion(x, y, z, w):
+def euler_from_quaternion(q):
     """
-    Convert a quaternion into euler angles (roll, pitch, yaw)
-    roll is rotation around x in radians (counterclockwise)
-    pitch is rotation around y in radians (counterclockwise)
-    yaw is rotation around z in radians (counterclockwise)
+    Convert a quaternion (PyQuaternion object) into euler angles (yaw, pitch, roll)
+    yaw is rotation around z in degree (counterclockwise)
+    pitch is rotation around y in degree (counterclockwise)
+    roll is rotation around x in degree (counterclockwise)
     """
+    # TODO check if element index order is correct
+    w, x, y, z = q.elements[0], q.elements[1], q.elements[2], q.elements[3]
+
     # https: // automaticaddison.com / how - to - convert - a - quaternion - into - euler - angles - in -python /
     t0 = +2.0 * (w * x + y * z)
     t1 = +1.0 - 2.0 * (x * x + y * y)
@@ -54,11 +56,7 @@ def euler_from_quaternion(x, y, z, w):
     t4 = +1.0 - 2.0 * (y * y + z * z)
     yaw_z = np.arctan2(t3, t4)
 
-    np.rad2deg
-
-    print(np.rad2deg(roll_x), np.rad2deg(pitch_y), np.rad2deg(yaw_z))
-
-    return roll_x, pitch_y, yaw_z  # in radians
+    return np.rad2deg(yaw_z), np.rad2deg(pitch_y), np.rad2deg(roll_x)
 
 def align_vecA_to_vecB(vector_a, vector_b):
     '''Returns a rotation matrix that aligns unit vector A to unit vector B'''
@@ -176,19 +174,24 @@ class TrackerManager():
 
             return translation_head
 
-        def calibrate_body_orientation(self):
+        def calibrate_orientation_torso(self):
             # TODO add check that this is only done if everything else is calibrated
             try:
                 pose_base, pose_relative = self.get_tracker_data()
+                if pose_base == [] or pose_relative == []:
+                    return False
             except:
                 return False
 
             head_tracker = Quaternion(convert_to_quaternion(pose_base))
-            body_tracker = Quaternion(convert_to_quaternion(pose_relative))
+            torso_tracker = Quaternion(convert_to_quaternion(pose_relative))
 
-            self.calibrationBodyRotation = body_tracker.inverse * head_tracker
+            # HATO (Head-Above-Torso-Orientation)
+            # assume: HATO_rotation * offset_rotation * TorsoTracker = HeadTracker
+            # assume: HATO_rotation is zero
+            # => offset_rotation = HeadTracker * inv(TorsoTracker)
 
-            # TODO make correct calibration matrix!!
+            self.calibrationRotation_torso = torso_tracker.inverse * head_tracker
 
             return True
 
@@ -196,6 +199,8 @@ class TrackerManager():
 
             try:
                 pose_base, pose_relative = self.get_tracker_data()
+                if pose_base == [] or pose_relative == []:
+                    return False
             except:
                 return False
 
@@ -236,6 +241,7 @@ class TrackerManager():
             head_tracker = Quaternion(convert_to_quaternion(pose_base))
             reference_tracker = Quaternion(convert_to_quaternion(pose_relative))
 
+            # assume: reference tracker(real head orientation) = head tracker  * offset
             self.calibrationRotation = head_tracker.inverse * reference_tracker
 
             # store inverted orientation to get speaker axis
@@ -372,6 +378,7 @@ class TrackerManager():
 
         def get_relative_position(self):
 
+            # OSC tracking
             if self.tracking_mode == "OSC_direct":
                 if self.osc_input_server is None:
                     self.osc_input_server = osc_input.OSCInputServer()
@@ -379,96 +386,135 @@ class TrackerManager():
                 try:
                     angles = self.osc_input_server.get_current_angle()
                 except:
+
                     return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2], 0, 0, 0
 
                 return angles[0], angles[1], angles[2], 0, 0, 0
 
+            # SteamVR tracking
             try:
-                if self.acoustical_center_pos is not None:
-                    pose_head, _ = self.get_tracker_data(only_tracker_1=True)
-                    translation_speaker = self.acoustical_center_pos
-                else:
-                    # if speaker is not calibrated yet, the live tracking speaker pose is used
-                    pose_head, pose_speaker = self.get_tracker_data()
-                    translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
-
+                pose_head, pose_relative = self.get_tracker_data()
             except:
+                # you produce an error, put you to return. no trial no nothing
                 return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2], 0, 0, 0
 
-            if pose_head != False:
+            if self.acoustical_center_pos is not None:
+                translation_speaker = self.acoustical_center_pos
+            elif pose_relative !=[]:
+                # if speaker is not calibrated yet, the live tracking speaker pose is used
+                translation_speaker = np.array([pose_relative.m[0][3], pose_relative.m[1][3], pose_relative.m[2][3]])
+            else:
+                # right to return, right away
+                return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2], 0, 0, 0
 
-                # MYSTERIOUS PROBLEM: The Y and Z Axis are switched in the TrackerPose from openVR most of the times.
-                mystery_flag = True #for testing debugging
+            if not pose_head:
+                # believe it or not, return, right away
+                return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2], 0, 0, 0
 
-                # STEP1: get the correct translation between head and speaker
+            # MYSTERIOUS PROBLEM: The Y and Z Axis are switched in the TrackerPose from openVR most of the times.
+            mystery_flag = True #for testing debugging
 
-                translation_head = self.get_calibrated_position_from_pose(pose_head)
-                # get vector pointing from head center to speaker center
-                transvec = translation_speaker - translation_head
+            # STEP1: get the correct translation between head and speaker
 
-                # STEP2: get the correct orientation of the head
+            translation_head = self.get_calibrated_position_from_pose(pose_head)
+            # get vector pointing from head center to speaker center
+            transvec = translation_speaker - translation_head
 
-                # get the base tracker rotation in quaternions
-                head_rotation = Quaternion(convert_to_quaternion(pose_head))
+            # STEP2: get the correct orientation of the head
 
-                # apply calibrated rotation
-                rotation = head_rotation * self.calibrationRotation
+            # get the head tracker rotation in quaternions
+            head_rotation = Quaternion(convert_to_quaternion(pose_head))
 
-                # make "new' direction vectors by rotating a normed set of orthogonal direction vectors
-                if mystery_flag:
-                    side = np.array([1.0, 0.0, 0.0])
-                    up = np.array([0.0, 0.0, -1.0]) # i don´t know why, but y and z axis are switched somehow
-                    fwd = np.array([0.0, 1.0, 0.0]) #
-                else:
-                    side = np.array([1.0, 0.0, 0.0])
-                    up = np.array([0.0, 1.0, 0.0])
-                    fwd = np.array([0.0, 0.0, 1.0])
+            # apply calibrated rotation
+            # assume: real head orientation = head tracker * offset
+            rotation = head_rotation * self.calibrationRotation
 
-                side = rotation.rotate(side)
-                up = rotation.rotate(up)
-                fwd = rotation.rotate(fwd)
+            # make "new' direction vectors by rotating a normed set of orthogonal direction vectors
+            if mystery_flag:
+                side = rotation.rotate(np.array([1.0, 0.0, 0.0]))
+                up = rotation.rotate(np.array([0.0, 0.0, -1.0])) # i don´t know why, but y and z axis are switched somehow
+                fwd = rotation.rotate(np.array([0.0, 1.0, 0.0])) #
+            else:
+                side = rotation.rotate(np.array([1.0, 0.0, 0.0]))
+                up = rotation.rotate(np.array([0.0, 1.0, 0.0]))
+                fwd = rotation.rotate(np.array([0.0, 0.0, 1.0]))
 
-                # STEP3: calculate direction vector to speaker relative to head coordinate system
-                # (head coordinate system = side, up, fwd)
+            # STEP3: calculate direction vector to speaker relative to head coordinate system
+            # (head coordinate system = side, up, fwd)
 
-                source_direction_vector = np.array([np.inner(side, transvec), np.inner(up, transvec), np.inner(fwd, transvec)])
-                radius = np.linalg.norm(source_direction_vector)
-                source_direction_vector = source_direction_vector / radius
+            source_direction_vector = np.array([np.inner(side, transvec), np.inner(up, transvec), np.inner(fwd, transvec)])
+            radius = np.linalg.norm(source_direction_vector)
+            source_direction_vector = source_direction_vector / radius
 
-                # get spherical coordinates from direction vector
-                az = np.rad2deg(np.arctan2(-source_direction_vector[0], -source_direction_vector[2]))
-                if az < 0:
-                    az += 360
+            # get spherical coordinates from direction vector
+            az = np.rad2deg(np.arctan2(-source_direction_vector[0], -source_direction_vector[2]))
+            if az < 0:
+                az += 360
 
-                el = np.rad2deg(np.arccos(-source_direction_vector[1]))
-                el = el - 90
+            el = np.rad2deg(np.arccos(-source_direction_vector[1]))
+            el = el - 90
 
-
-                # speaker directivity
-                transvec_2 = translation_head - translation_speaker
-                speaker_directivity_vector = np.array([np.inner(self.speaker_view['side'], transvec_2), np.inner(self.speaker_view['up'], transvec_2), np.inner(self.speaker_view['fwd'], transvec_2)])
-                radius2 = np.linalg.norm(speaker_directivity_vector)
-                sp_dir_x =  int(100*speaker_directivity_vector[0])
-                sp_dir_y =  int(100*speaker_directivity_vector[1])
-                sp_dir_z = int(100*speaker_directivity_vector[2])
-
-                speaker_directivity_vector = speaker_directivity_vector / radius2
-                az2 = np.rad2deg(np.arctan2(-speaker_directivity_vector[0], -speaker_directivity_vector[2]))
-                az2 = az2 % 360
-
-                el2 = np.rad2deg(np.arccos(-speaker_directivity_vector[1]))
-                el2 = el2 - 90
+            source_direction = [az, el, radius]
 
 
-                # HATO (Head-Above-Torso-Orientation)
-                # assumption:
-                # T2 * d_HATO * d_offset = T1
-                # d_HATO = T1 * inv(T2) * inv(d_offset)
-                # TODO continue here!
-                return az, el, radius, sp_dir_x, sp_dir_y, sp_dir_z
+            # speaker directivity
+            transvec_2 = translation_head - translation_speaker
+            speaker_directivity_vector = np.array([np.inner(self.speaker_view['side'], transvec_2), np.inner(self.speaker_view['up'], transvec_2), np.inner(self.speaker_view['fwd'], transvec_2)])
+            radius2 = np.linalg.norm(speaker_directivity_vector)
+            sp_dir_x = int(100*speaker_directivity_vector[0])
+            sp_dir_y = int(100*speaker_directivity_vector[1])
+            sp_dir_z = int(100*speaker_directivity_vector[2])
+
+            speaker_directivity_vector = speaker_directivity_vector / radius2
+            az2 = np.rad2deg(np.arctan2(-speaker_directivity_vector[0], -speaker_directivity_vector[2]))
+            az2 = az2 % 360
+
+            el2 = np.rad2deg(np.arccos(-speaker_directivity_vector[1]))
+            el2 = el2 - 90
+
+            speaker_directivity = [az2, el2, radius2]
+
+            # HATO (Head-Above-Torso-Orientation)
+
+            HATO_tracking_enabled = True
+            if HATO_tracking_enabled and pose_relative:
+                torso_rotation = Quaternion(convert_to_quaternion(pose_relative))
+
+                # ASSUME:
+                # (quaternion multiplication is noncommutative, rotation is logically applied from left to right)
+                # (general rule: TotalRotation
+                # H = HeadTracker rotation, T = TorsoTracker rotation, dR = delta rotation, dHATO = HATO rotation, dOS = offset rotation
+                # https://math.stackexchange.com/questions/2124361/quaternions-multiplication-order-to-rotate-unrotate
+                # H = T * dR
+                #   => dR = T^-1 * H
+                #
+                # dR = dOS * dHATO !OR! dR = dHATO * dOS
+                #   => dHATO = dOS^-1 * dR !OR! dHATO = dR * dOS^-1
+                #
+                # ==> dHATO = dOS^-1 * T^-1 * H !OR! dHATO = T^-1 * H * dOS^-1
+                #
+                # where dOS was calibrated in self.calibrate_orientation_torso() as:
+                # dOS = T0^-1 * H0,  with T0 and H0 calibrated without HATO rotation
+
+                # TODO check if quaternion mulitplication order is correct
+                HATO_rotation_v1 = self.calibrationRotation_torso.inverse * torso_rotation.inverse * head_rotation
+                HATO_rotation_v2 = torso_rotation.inverse * head_rotation * self.calibrationRotation_torso.inverse
+                # TODO if it all works, move inversion to calibration step
+
+                HATO_ypr_v1 = euler_from_quaternion(HATO_rotation_v1)
+                HATO_ypr_v2 = euler_from_quaternion(HATO_rotation_v1)
+                print(f'V1: {[round(a) for a in HATO_ypr_v1]}')
+                print(f'V2: {[round(a) for a in HATO_ypr_v2]}')
+
+                HATO_ypr = 0,0,0
+            else:
+                HATO_ypr = [np.nan, np.nan, np.nan]
+
+            return {"SourceDirection": source_direction, "SpeakerDirectivity": speaker_directivity, "HATO": HATO_ypr}
+
 
         def get_tracker_data(self, only_tracker_1=False):
-
+            'Will raise an error if communcation with SteamVR fails. Returns [] for an inactive/disconnected tracker'
             pose = self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseRawAndUncalibrated,
                                                                   1,
                                                                   k_unMaxTrackedDeviceCount)

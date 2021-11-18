@@ -913,7 +913,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
             self.measurement_ref.measurement.play_sound(False)
 
     def calibrate_orientation_2(self):
-        if self.measurement_ref.tracker.calibrate_body_orientation():
+        if self.measurement_ref.tracker.calibrate_orientation_torso():
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_orientation_label_2.setText("Calibrated")
         else:
