@@ -1039,7 +1039,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         for index in indexes:
             id = index.row()
             dialog = QtWidgets.QMessageBox
-            ret = dialog.question(self.myMainWindow,'', "Are you sure you want to delete this measurement?", dialog.Yes | dialog.No)
+            ret = dialog.question(self,'', "Are you sure you want to delete this measurement?", dialog.Yes | dialog.No)
 
             if ret == dialog.Yes:
                 #print("Deleting Measurement " + str(id))
