@@ -1,4 +1,4 @@
-name: Guided_HRTFs_env
+name: freegrid_env
 channels:
   - defaults
 dependencies:
