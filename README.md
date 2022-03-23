@@ -1,15 +1,14 @@
-# GuidedHRTFsPython
-> __Current State Of Work__ (August 2021) 
+# FreeGrid
+> __Current State Of Work__ (March 2022) 
 >  
 > - The project is still in a test phase. It works and provides good results, but needs further evaluation.
 > - The postprocessing and upsampling of the Head-Related Impulse Responses (HRIRs) is not part of the repository as this is currently topic of research ([research project](https://www.th-koeln.de/reskue)).
-> - We are still looking for a better project name...
 
 # Overview
 
 <img src="./resources/doc/overview.png" alt="Overview" width="400"/>
 
-GuidedHRTFs is a GUI-application for fast and easy Head-Related Transfer Function (HRTF) measurements in regular rooms with only few additional hardware components. The system is based on a stationary loudspeaker and the HTC Vive system for tracking head movements (no HMD, just two [Trackers](https://www.vive.com/us/accessory/vive-tracker/)). A user can first measure some HRTFs for any number of freely selectable directions. In a second step, he can be guided with the help of an algorithm that suggests additional measurement positions for more uniform spherical coverage.
+FreeGrid is a GUI-application for fast and easy Head-Related Transfer Function (HRTF) measurements in regular rooms with only few additional hardware components. The system is based on a stationary loudspeaker and the HTC Vive system for tracking head movements (no HMD, just two [Trackers](https://www.vive.com/us/accessory/vive-tracker/)). A user can first measure some HRTFs for any number of freely selectable directions. In a second step, he can be guided with the help of an algorithm that suggests additional measurement positions for more uniform spherical coverage.
 
 > The system is not primarily intended for lay use at home. A certain amount of experience, or ambition, is required to set up the system.
 
@@ -60,7 +59,7 @@ The application requires Python with some external dependencies. For package man
     ```
 4. Activate the new environment with    
     ```
-    conda activate Guided_HRTFs_env  
+    conda activate freegrid_env  
     ```  
     
 5. To start the application run  
