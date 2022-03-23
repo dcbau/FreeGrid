@@ -19,20 +19,30 @@ class OSCInputServer(object):
         self.osc_identifier_angle = "/guided_hrtfs/angle"
         osc_dispatcher.map(self.osc_identifier_angle, self.direct_angle_input)
 
-        self.server = osc_server.ThreadingOSCUDPServer(
-            (self.ip, self.port), osc_dispatcher)
+        self.osc_timeout_sec = 1
 
-        self.server.allow_reuse_address = True
 
         self.angles = np.array([0, 0, 1])
 
-        self.osc_timeout_sec = 1
         self.receiving = False
+        try:
+            self.server = osc_server.ThreadingOSCUDPServer(
+                (self.ip, self.port), osc_dispatcher)
+            self.is_connected = True
 
-        self.timeout = threading.Timer(self.osc_timeout_sec, self.osc_stopped_receiving)
+            # timer to indicate incoming messages for a short period of time, is updated everytime a message is incoming
+            self.timeout = threading.Timer(self.osc_timeout_sec, self.osc_stopped_receiving)
+            self.server.allow_reuse_address = True
+
+        except:
+            self.is_connected = False
+
+
+
+
+
 
     def direct_angle_input(self, address, az, el, r):
-
         self.timeout.cancel()
         self.receiving = True
 
@@ -43,12 +53,16 @@ class OSCInputServer(object):
         self.timeout = threading.Timer(self.osc_timeout_sec, self.osc_stopped_receiving)
         self.timeout.start()
 
+
     def osc_stopped_receiving(self):
         self.receiving = False
 
     def get_current_ip_and_port(self):
-        ethernet_ip = socket.gethostbyname(socket.gethostname())
-        return ethernet_ip, self.port
+        if self.is_connected:
+            ethernet_ip = socket.gethostbyname(socket.gethostname())
+            return ethernet_ip, self.port
+        else:
+            return "Not connected", f"Port {self.port} might be already in use"
 
     def get_osc_identifiers(self):
         return self.osc_identifier_angle
@@ -60,11 +74,14 @@ class OSCInputServer(object):
         return self.receiving
 
     def start_listening(self):
-
-        osc_thread = threading.Thread(target=self.server.serve_forever, name='OSC_THREAD')
-        osc_thread.daemon = True
-        osc_thread.start()
+        if self.is_connected:
+            osc_thread = threading.Thread(target=self.server.serve_forever, name='OSC_THREAD')
+            osc_thread.daemon = True
+            osc_thread.start()
 
     def close(self):
-        self.server.server_close()
-        self.server.shutdown()
+        try:
+            self.server.server_close()
+            self.server.shutdown()
+        except:
+            pass

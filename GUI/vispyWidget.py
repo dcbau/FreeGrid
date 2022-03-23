@@ -310,33 +310,23 @@ class SpherePoints():
 
 class VispyCanvas(app.Canvas):
 
-    def __init__(self, measurement_ref, parent_window, theta=0, phi=45, z=6.0):
+    def __init__(self, parent_window, measurement_ref, theta=0, phi=45, z=6.0):
 
+        self.measurement_ref = measurement_ref
         self.parent_window = parent_window
 
-        self.calibrationPosition = np.empty([3, 4])
-
-        #self.tracker = tracker_ref
-        self.measurement_ref = measurement_ref
-
-        app.Canvas.__init__(self, size=(200, 200), title='plot3d',
-                            keys='interactive')
-
-
+        app.Canvas.__init__(self, size=(200, 200), title='plot3d')
 
         self.sphereradius = 1.5
-        self.boxsize = 0.4
+        self.speaker_size = 0.4
 
-        self.sphere = Sphere(self.sphereradius, 15, 20)
-        self.speaker = Speaker(self.boxsize)
+        self.sphere = Sphere(self.sphereradius, 20, 25)
+        self.speaker = Speaker(self.speaker_size)
 
         self.meas_points = SpherePoints(radius=self.sphereradius, pointcolor=np.array([1.0, 0.0, 0.0, 1.0]))
         self.center_points = SpherePoints(radius=0, pointcolor=np.array([0.0, 0.0, 1.0, 1.0]))
         self.recommendation_points = SpherePoints(radius=self.sphereradius, pointcolor=np.array([0.0, 1.0, 0.0, 1.0]))
 
-
-
-        #self.tracker_orientation = TrackerOrientation(self.tracker)
         self.azimuthdisplay = AzimuthAngleDisplay(self.sphereradius)
         self.elevationdisplay = ElevationAngleDisplay(self.sphereradius)
 
@@ -397,21 +387,25 @@ class VispyCanvas(app.Canvas):
         view = np.dot(np.dot(rotate(self.theta, (0, 1, 0)), rotate(self.phi, (1, 0, 0))), translate((0, -0.5, -self.z)))
         self.program['u_view'] = view
 
-        self.sphere.draw(self.program)
-
         az, el, r = self.measurement_ref.tracker.get_relative_position()
         self.current_azimuth = az
         self.current_elevation = el
-        self.speaker.draw(self.program, az, el, self.sphereradius)
 
-        self.meas_points.draw(self.program)
-        self.recommendation_points.draw(self.program)
-        self.center_points.draw(self.program)
+        try:
+            self.sphere.draw(self.program)
 
-        self.azimuthdisplay.draw(self.program, az)
-        self.elevationdisplay.draw(self.program, az, el)
+            self.speaker.draw(self.program, az, el, self.sphereradius)
 
-        self.parent_window.updateCurrentAngle(az, el, r)
+            self.meas_points.draw(self.program)
+            self.recommendation_points.draw(self.program)
+            self.center_points.draw(self.program)
+
+            self.azimuthdisplay.draw(self.program, az)
+            self.elevationdisplay.draw(self.program, az, el)
+
+        except:
+            self.parent_window.deactivate_vispy()
+
 
 
 
