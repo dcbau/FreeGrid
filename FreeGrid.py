@@ -1,8 +1,8 @@
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets
 import sys
 
 from GUI.main_window import UiMainWindow
-from measurement_controller import MeasurementController
+from components.measurement_controller import MeasurementController
 import warnings
 
 import pkg_resources

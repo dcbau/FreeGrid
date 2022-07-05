@@ -773,9 +773,9 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_hpc), _translate("MainWindow", "Headphone Compensation"))
 
 
-        self.positions_table.setColumnWidth(0, self.positions_table.width() / 3)
-        self.positions_table.setColumnWidth(1, self.positions_table.width() / 3)
-        self.positions_table.setColumnWidth(2, self.positions_table.width() / 3)
+        self.positions_table.setColumnWidth(0, int(self.positions_table.width() / 3))
+        self.positions_table.setColumnWidth(1, int(self.positions_table.width() / 3))
+        self.positions_table.setColumnWidth(2, int(self.positions_table.width() / 3))
 
 
 
@@ -955,7 +955,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
 
     def trigger_center_measurement(self):
-        interval = 0.5 * 1000
+        interval = int(0.5 * 1000)
         QtCore.QTimer.singleShot(interval, self.measurement_ref.trigger_center_measurement)
 
     def trigger_point_recommendation(self):

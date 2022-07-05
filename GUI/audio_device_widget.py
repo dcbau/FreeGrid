@@ -173,7 +173,7 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         # TODO: check if this works on windows!
         # with Windows, the names of the devices are truncated b default to the size of the combo box. This is a workaround
         # to expand the view of the combo box
-        if os.name is not 'posix':
+        if os.name != 'posix':
             listOfStrings_input = [self.input_devices_box.itemText(i) for i in range(self.input_devices_box.count())]
             self.input_devices_box.view().setFixedWidth(self.input_devices_box.fontMetrics().boundingRect(max(listOfStrings_input, key=len)).width() +10)
 

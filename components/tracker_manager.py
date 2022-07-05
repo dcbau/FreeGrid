@@ -3,7 +3,7 @@ import time
 import numpy as np
 #import pyshtools
 from pyquaternion import Quaternion
-from tracking import osc_input
+from components import osc_input
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -309,6 +309,7 @@ class TrackerManager():
                     translation_speaker = np.array([pose_speaker.m[0][3], pose_speaker.m[1][3], pose_speaker.m[2][3]])
 
             except:
+                #self.fallback_angle[0] += 0.001
                 return self.fallback_angle[0], self.fallback_angle[1], self.fallback_angle[2]
 
             if pose_head != False:

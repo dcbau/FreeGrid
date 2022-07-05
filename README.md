@@ -64,7 +64,7 @@ The application requires Python with some external dependencies. For package man
     
 5. To start the application run  
     ```
-    python main.py
+    python FreeGrid.py
     ```
     
  > On some machines the _vispy_ package causes problems. You can uninstall the vispy package, then the graphical display of the loudspeaker position will be disabled.  

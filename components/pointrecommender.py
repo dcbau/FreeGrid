@@ -1,5 +1,5 @@
 import sounddevice as sd
-import grid_improving.grid_filling
+import components.grid_filling
 import numpy as np
 from enum import Enum
 import scipy.io.wavfile as wave
@@ -252,7 +252,7 @@ class PointRecommender():
 
         existing_pointset[:, 1] = 90 - existing_pointset[:, 1]
         #newpoints = grid_improving.grid_filling.addSamplepoints(existing_pointset, 1)
-        newpoints2 = grid_improving.grid_filling.addSamplepoints_geometric(existing_pointset, num_new_points)
+        newpoints2 = components.grid_filling.addSamplepoints_geometric(existing_pointset, num_new_points)
 
         #print("NewPoints1: ")
         #print(newpoints)

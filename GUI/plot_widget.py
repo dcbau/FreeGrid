@@ -90,25 +90,25 @@ class PlotWidget(QtWidgets.QWidget):
             self.plot1.colorbar(cax)
             ax1.set_ylabel('Frequency in Hz')
 
+        ax1.set_title("Recorded Signal Ch1 (Left)", loc='left')
 
+        if rec_r is not None:
+            ax2 = self.plot1.add_subplot(312)
+            ax2.clear()
+            if plot == 'waveform':
+                ax2.plot(t, rec_r, color=self.plot_color, linewidth=self.plot_linewidth)
+                ax2.set_ylim([-1, 1])
+                ax2.set_yticks([-1, -0.5, 0, 0.5, 1])
+                ax2.set_ylabel('Amplitude')
+                ax2.grid(linestyle='--', alpha=0.5, linewidth=0.5)
+                #ax2.set_xlim([0, t[-1]])
 
+            elif plot == 'spectrogram':
+                _,_,_, cax2  = ax2.specgram(rec_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
+                self.plot1.colorbar(cax2)
+                ax2.set_ylabel('Frequency in Hz')
 
-
-        ax2 = self.plot1.add_subplot(312)
-        ax2.clear()
-        if plot == 'waveform':
-            ax2.plot(t, rec_r, color=self.plot_color, linewidth=self.plot_linewidth)
-            ax2.set_ylim([-1, 1])
-            ax2.set_yticks([-1, -0.5, 0, 0.5, 1])
-            ax2.set_ylabel('Amplitude')
-            ax2.grid(linestyle='--', alpha=0.5, linewidth=0.5)
-            #ax2.set_xlim([0, t[-1]])
-
-        elif plot == 'spectrogram':
-            _,_,_, cax2  = ax2.specgram(rec_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
-            self.plot1.colorbar(cax2)
-            ax2.set_ylabel('Frequency in Hz')
-
+            ax2.set_title("Recorded Signal Ch2 (Right)", loc='left')
 
         ax3 = self.plot1.add_subplot(313)
         ax3.clear()
@@ -127,8 +127,6 @@ class PlotWidget(QtWidgets.QWidget):
 
         ax3.set_xlabel('Time in s')
 
-        ax1.set_title("Recorded Signal Ch1 (Left)", loc='left')
-        ax2.set_title("Recorded Signal Ch2 (Right)", loc='left')
         if fb_loop_used:
             ax3.set_title("Recorded Signal Ch3 (Feedback Loop)", loc='left')
         else:
@@ -175,37 +173,38 @@ class PlotWidget(QtWidgets.QWidget):
             self.plot2.colorbar(cax).set_label('dB')
             #ax1.set_ylabel('Frequency in Hz')
 
-        #ax1.get_xaxis().set_visible(False)
-
-        ax2 = self.plot2.add_subplot(212, sharex=ax1)
-        ax2.clear()
-
-        if plot=='waveform_log':
-            t = np.arange(0, np.size(ir_r)) / fs
-            logwaveform = 20 * np.log10(np.abs(ir_r))
-            ax2.plot(t, logwaveform, color=self.plot_color, linewidth=self.plot_linewidth)
-            ax2.set_ylim([-120, np.max([np.max(logwaveform), 12])])
-            ax2.set_yticks([-120, -90, -60, -36, -24, -12, 0, np.max([np.max(logwaveform), 12])])
-            ax2.set_ylabel("Magnitude in dB")
-            ax2.grid(linestyle='--', alpha=0.5, linewidth=0.5)
-            #ax2.set_xlim([0, t[-1]])
-
-
-        elif plot == 'waveform':
-            t = np.arange(0, np.size(ir_r)) / fs
-            ax2.plot(t, ir_r, color=self.plot_color, linewidth=self.plot_linewidth)
-            ax2.set_ylabel('Amplitude')
-            #ax2.set_xlim([0, t[-1]])
-
-        elif plot=='spectrogram':
-            _,_,_, cax2 = ax2.specgram(ir_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
-            self.plot2.colorbar(cax2).set_label('dB')
-            ax2.set_ylabel('Frequency in Hz')
-
-        ax2.set_xlabel('Time in s')
-
         ax1.set_title("Impulse Response Ch1 (Left)", loc='left')
-        ax2.set_title("Impulse Response Ch2 (Right)", loc='left')
+
+
+        if ir_r is not None:
+            ax2 = self.plot2.add_subplot(212, sharex=ax1)
+            ax2.clear()
+
+            if plot=='waveform_log':
+                t = np.arange(0, np.size(ir_r)) / fs
+                logwaveform = 20 * np.log10(np.abs(ir_r))
+                ax2.plot(t, logwaveform, color=self.plot_color, linewidth=self.plot_linewidth)
+                ax2.set_ylim([-120, np.max([np.max(logwaveform), 12])])
+                ax2.set_yticks([-120, -90, -60, -36, -24, -12, 0, np.max([np.max(logwaveform), 12])])
+                ax2.set_ylabel("Magnitude in dB")
+                ax2.grid(linestyle='--', alpha=0.5, linewidth=0.5)
+                #ax2.set_xlim([0, t[-1]])
+
+
+            elif plot == 'waveform':
+                t = np.arange(0, np.size(ir_r)) / fs
+                ax2.plot(t, ir_r, color=self.plot_color, linewidth=self.plot_linewidth)
+                ax2.set_ylabel('Amplitude')
+                #ax2.set_xlim([0, t[-1]])
+
+            elif plot=='spectrogram':
+                _,_,_, cax2 = ax2.specgram(ir_r, NFFT=self.spec_nfft, Fs=fs, noverlap=self.spec_noverlap, vmin=-200)
+                self.plot2.colorbar(cax2).set_label('dB')
+                ax2.set_ylabel('Frequency in Hz')
+
+            ax2.set_xlabel('Time in s')
+            ax2.set_title("Impulse Response Ch2 (Right)", loc='left')
+
 
         self.plot2_canvas.draw()
 
@@ -262,7 +261,7 @@ class PlotWidget_HPIRs(QtWidgets.QWidget):
 
         ax2.set_xlabel('Frequency in Hz')
 
-        if M is not 0:
+        if M != 0:
             _hpc_irs = np.copy(hpc_irs)
 
             #normalize

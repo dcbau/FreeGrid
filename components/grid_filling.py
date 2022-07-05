@@ -1,9 +1,8 @@
 import numpy as np
 from scipy import special as sp
-from grid_improving.grid_creation import *
 import itertools
 import time
-import grid_improving.angular_distance
+import components.angular_distance
 
 
 
@@ -67,7 +66,7 @@ def calculateDensityAreas(inputGrid, resolution):
         #         minDist = d
         # nearestNeighbors[i] = minDist
 
-        ds = grid_improving.angular_distance.getDistances(Az[i], 90 - El[i], inputGrid[:, 0], 90 - inputGrid[:, 1])
+        ds = components.angular_distance.getDistances(Az[i], 90 - El[i], inputGrid[:, 0], 90 - inputGrid[:, 1])
         nearestNeighbors[i] = np.amin(ds)
 
     return Az, El, nearestNeighbors
@@ -83,7 +82,7 @@ def addSamplepoints(_inputGrid, nNewPoints, use_loop=True, _correctionGrid=None,
     r2d = 1 / d2r
 
     if _correctionGrid is None:
-        _correctionGrid = np.load("grid_improving/lebedev_grids.npz")['leb194']
+        _correctionGrid = np.load("resources/lebedev_grids.npz")['leb194']
 
     inputGrid = _inputGrid * d2r
     correctionGrid = _correctionGrid * d2r
@@ -185,7 +184,7 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
 
         for i in range(nNewPoints):
             for j in range(np.size(inputGrid, 0)):
-                d = grid_improving.angular_distance.angularDistance(inputGrid[j, 0], 90 - inputGrid[j, 1], grid[i, 0], 90 - grid[i, 1], return_format='deg')
+                d = components.angular_distance.angularDistance(inputGrid[j, 0], 90 - inputGrid[j, 1], grid[i, 0], 90 - grid[i, 1], return_format='deg')
                 if d < min_distance:
                     min_distance = d
 
@@ -195,7 +194,7 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
         for c in new_point_combis:
             p1 = grid[c[0], :]
             p2 = grid[c[1], :]
-            d = grid_improving.angular_distance.angularDistance(p1[0], 90 - p1[1], p2[0], 90 - p2[1])
+            d = components.angular_distance.angularDistance(p1[0], 90 - p1[1], p2[0], 90 - p2[1])
             if d < min_distance:
                 min_distance = d
 
