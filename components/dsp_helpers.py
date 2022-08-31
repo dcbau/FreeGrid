@@ -137,7 +137,7 @@ def deconvolve(x, y, fs, max_inv_dyn=None, lowpass=None, highpass=None):
 
     return h
 
-def make_excitation_sweep(fs, num_channels=1, d_sweep_sec=3, d_post_silence_sec=1, f_start=20, f_end=20000, amp_db=-20, fade_out_samples=0):
+def make_excitation_sweep(fs, num_channels=1, d_sweep_sec=3, d_post_silence_sec=1, f_start=20, f_end=20000, amp_db=-20, fade_out_samples=100):
 
     amplitude_lin = 10 ** (amp_db / 20)
 
