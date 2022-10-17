@@ -1,20 +1,21 @@
-import time
-
-from components.measurement_list import MeasurementListModel
-from components.tracker_manager import TrackerManager
-from components.dsp_helpers import make_HPCF, deconvolve, deconvolve_stereo
 import threading
 from PyQt5 import QtCore
-from components.measurement import Measurement
 import numpy as np
 import scipy.io
 import scipy.signal.windows
-from components import angular_distance, pointrecommender
 import os
 from datetime import date
 from pythonosc import udp_client
 import socket
 import logging
+
+from components.measurement_list import MeasurementListModel
+from components.openvr_headtracking import OpenVR_Tracker_Manager
+from components.dsp_helpers import make_HPCF, deconvolve, deconvolve_stereo
+from components.measurement import Measurement
+from components import angular_distance, pointrecommender, osc_input
+
+
 
 logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s',)
@@ -23,8 +24,11 @@ logging.basicConfig(level=logging.DEBUG,
 class MeasurementController:
 
     def __init__(self):
-        self.tracker = TrackerManager()
+        self.headtracking = OpenVR_Tracker_Manager()
         self.measurement = Measurement()
+        self.tracking_mode = "Vive"
+        self.osc_input_server = None
+        self.fallback_angle = np.array([0.0, 0.0, 1.0])
 
         self.headmovement_trigger_counter = 0
         self.headmovement_ref_position = [0, 0, 1]
@@ -67,7 +71,7 @@ class MeasurementController:
 
         self.guidance_running = False
         self.recommended_points = {}
-        self.point_recommender = pointrecommender.PointRecommender(self.tracker)
+        self.point_recommender = pointrecommender.PointRecommender(self.headtracking)
         #self.point_recommender.get_head_rotation_to_point(260, 40)
 
         today = date.today()
@@ -79,6 +83,10 @@ class MeasurementController:
         self.osc_send_address = '/guided_hrtfs/angle'
         self.osc_send_client = None
 
+        self.fast_mode = False
+        if self.fast_mode:
+            self.measurement.sweep_parameters['sweeplength_sec'] = 0.05
+            self.measurement.sweep_parameters['post_silence_sec'] = 0.4
 
 
     def register_gui_handler(self, handle):
@@ -99,18 +107,42 @@ class MeasurementController:
         self.gui_handle.autoMeasurementTriggerProgress.setVisible(False)
         self.auto_trigger_by_headmovement = False
 
+    def set_tracking_mode(self, trackingmode):
+        """ Set the tracking input mode. Currently only modes 'Vive' and 'OSC_direct' are supported"""
+        self.tracking_mode = trackingmode
+
+        if self.tracking_mode == "OSC_direct":
+            if self.osc_input_server is None:
+                self.osc_input_server = osc_input.OSCInputServer()
+                self.osc_input_server.start_listening()
+
+    def get_tracking_angles(self):
+        if self.tracking_mode == "OSC_direct":
+            try:
+                angles = self.osc_input_server.get_current_angle()
+            except:
+                angles = self.fallback_angle
+
+        if self.tracking_mode == "Vive":
+            angles = self.headtracking.get_relative_position()
+            if not angles:
+                angles = self.fallback_angle
+
+        return angles
+
+
     # main callback thread
     def callback_thread(self):
 
         #print(f'Active Threads: {threading.active_count()}, MRunning: {self.measurement_running_flag}')
 
         # check for tracker status
-        if self.tracker.tracking_mode == "Vive":
-            self.gui_handle.update_tracker_status(self.tracker.check_tracker_availability())
-        elif self.tracker.tracking_mode == "OSC_direct":
-            self.gui_handle.set_osc_status(self.tracker.osc_input_server.get_osc_receive_status())
+        if self.tracking_mode == "Vive":
+            self.gui_handle.update_tracker_status(self.headtracking.check_tracker_availability())
+        elif self.tracking_mode == "OSC_direct":
+            self.gui_handle.set_osc_status(self.osc_input_server.get_osc_receive_status())
 
-        az, el, r = self.tracker.get_relative_position()
+        az, el, r = self.get_tracking_angles()
 
         self.gui_handle.updateCurrentAngle(az, el, r)
 
@@ -179,6 +211,9 @@ class MeasurementController:
         # this function has to be called by a periodic timer callback and checks if the user´s head has remained still for a defined time interval
 
         hold_still_interval_sec = 1
+        if self.fast_mode:
+            hold_still_interval_sec = 0.5
+
         hold_still_num_callbacks = hold_still_interval_sec*1000 / self.timer_interval_ms
 
         tolerance_angle = 2  # (degree)
@@ -240,7 +275,9 @@ class MeasurementController:
         self.measurement_tolerance_check = False
 
         if self.measurement_valid:
-            self.measurement.play_sound(True)
+
+            if not self.fast_mode:
+                self.measurement.play_sound(True)
 
             measurement_pos = self.measurement_position # make thread copy before new measurement starts and overwirtes self.measurement_position
 
@@ -290,9 +327,8 @@ class MeasurementController:
 
             # enable point recommendation after 6 measurements
             self.numMeasurements += 1
-            if self.numMeasurements >= 3:
+            if self.numMeasurements >= 6:
                 self.gui_handle.enable_point_recommendation()
-
 
         else:
             self.measurement.play_sound(False)
@@ -300,10 +336,10 @@ class MeasurementController:
 
     def save_to_file(self):
 
-        headWidth = self.tracker.head_dimensions['head_width']
+        headWidth = self.headtracking.head_dimensions['head_width']
         if headWidth is None:
             headWidth = "Not available"
-        headLength = self.tracker.head_dimensions['head_length']
+        headLength = self.headtracking.head_dimensions['head_length']
         if headLength is None:
             headLength = "Not available"
         export = {'rawRecorded': self.raw_signals,
@@ -543,7 +579,7 @@ class MeasurementController:
 
 
     def start_osc_send(self, ip=None, port=None, address=None):
-        if self.tracker.tracking_mode == "OSC_direct":
+        if self.tracking_mode == "OSC_direct":
             return False
 
         if self.update_osc_parameters(ip, port, address):

@@ -95,7 +95,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         # TRACKER STATUS WIDGET
 
         self.tracker_status_widget = QtWidgets.QGroupBox("Vive Tracker Status")
-        tracker_status = self.measurement_ref.tracker.check_tracker_availability()
+        tracker_status = self.measurement_ref.headtracking.check_tracker_availability()
 
         self.tracker1_status_label = QtWidgets.QLabel(tracker_status["tracker1"])
         self.tracker2_status_label = QtWidgets.QLabel(tracker_status["tracker2"])
@@ -445,6 +445,8 @@ class UiMainWindow(QtWidgets.QMainWindow):
         # get current parameters
         sweep_params = self.measurement_ref.measurement.get_sweep_parameters()
 
+        self.sweep_parameters_formlayout.addRow(QtWidgets.QLabel(text='Warning: Do not change parameters between measurements of a session. \nFinish the session first with "Clear / Start New".', font=QtGui.QFont("Helvetica", weight=QtGui.QFont.Bold)))
+
         # add row entries for each parameter
         self.sweeplength_sec = QtWidgets.QLineEdit(str(sweep_params['sweeplength_sec']))
         self.sweep_parameters_formlayout.addRow(self.sweeplength_sec, QtWidgets.QLabel(text='Sweep length (sec)'))
@@ -780,12 +782,12 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
 
     def manual_update_az(self):
-        self.measurement_ref.tracker.fallback_angle[0] = self.azimuthBox.value()
+        self.measurement_ref.fallback_angle[0] = self.azimuthBox.value()
 
     def manual_update_el(self):
-        self.measurement_ref.tracker.fallback_angle[1] = self.elevationBox.value()
+        self.measurement_ref.fallback_angle[1] = self.elevationBox.value()
     def manual_update_radius(self):
-        self.measurement_ref.tracker.fallback_angle[2] = self.radiusBox.value() / 100
+        self.measurement_ref.fallback_angle[2] = self.radiusBox.value() / 100
 
     def add_measurement_point(self, az, el):
         if use_vispy:
@@ -807,8 +809,8 @@ class UiMainWindow(QtWidgets.QMainWindow):
         pass
 
     def switch_trackers(self):
-        self.measurement_ref.tracker.switch_trackers()
-        if self.measurement_ref.tracker.trackers_switched:
+        self.measurement_ref.headtracking.switch_trackers()
+        if self.measurement_ref.headtracking.trackers_switched:
             self.tracker1_label = QtWidgets.QLabel("Tracker 1:")
             self.tracker2_label = QtWidgets.QLabel("(Head) Tracker 2:")
         else:
@@ -821,7 +823,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.tracker2_status_label.setText(status["tracker2"])
 
         if status["tracker1"] == "Tracking" and status["tracker2"] == "Tracking" \
-                or self.measurement_ref.tracker.tracking_mode == "OSC_direct":
+                or self.measurement_ref.tracking_mode == "OSC_direct":
             self.show_manual_angle_box(False)
         else:
             self.show_manual_angle_box(True)
@@ -848,13 +850,13 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.radiusLabel.setText("Radius: %.0fcm" % r)
 
     def set_offset_speaker_z(self):
-        self.measurement_ref.tracker.offset_cm['speaker_z'] = self.offset_speaker_z.value()
+        self.measurement_ref.headtracking.offset_cm['speaker_z'] = self.offset_speaker_z.value()
 
     def set_offset_speaker_y(self):
-        self.measurement_ref.tracker.offset_cm['speaker_y'] = self.offset_speaker_y.value()
+        self.measurement_ref.headtracking.offset_cm['speaker_y'] = self.offset_speaker_y.value()
 
     def set_offset_head_y(self):
-        self.measurement_ref.tracker.offset_cm['head_y'] = self.offset_head_y.value()
+        self.measurement_ref.headtracking.offset_cm['head_y'] = self.offset_head_y.value()
 
     def select_folder_dialog(self):
         path = QtWidgets.QFileDialog.getExistingDirectory(self.cwidget,
@@ -872,7 +874,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         QtCore.QTimer.singleShot(interval, calibration_function)
 
     def calibrate_orientation(self):
-        if self.measurement_ref.tracker.calibrate_orientation():
+        if self.measurement_ref.headtracking.calibrate_orientation():
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_orientation_label.setText("Calibrated")
         else:
@@ -884,69 +886,69 @@ class UiMainWindow(QtWidgets.QMainWindow):
     # head_front and head_right are for yielding the correct anthropometric head length
 
     def calibrate_left_ear(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('left_ear', multiple_calls=False):
+        if self.measurement_ref.headtracking.calibrate_headdimensions('left_ear', multiple_calls=False):
             self.calibrate_ear_left_label.setText(f"Calibrated")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
             self.measurement_ref.measurement.play_sound(True)
         else:
             self.measurement_ref.measurement.play_sound(False)
-            if self.measurement_ref.tracker.head_dimensions['ear_pos_l'] is not None:
+            if self.measurement_ref.headtracking.head_dimensions['ear_pos_l'] is not None:
                 self.calibrate_ear_left_label.setText(f"Recalibration failed")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_l']}")
 
     def calibrate_right_ear(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('right_ear', multiple_calls=False):
+        if self.measurement_ref.headtracking.calibrate_headdimensions('right_ear', multiple_calls=False):
             self.calibrate_ear_right_label.setText(f"Calibrated")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
             self.measurement_ref.measurement.play_sound(True)
         else:
             self.measurement_ref.measurement.play_sound(False)
-            if self.measurement_ref.tracker.head_dimensions['ear_pos_r'] is not None:
+            if self.measurement_ref.headtracking.head_dimensions['ear_pos_r'] is not None:
                 self.calibrate_ear_right_label.setText(f"Recalibration failed")#, {self.measurement_ref.tracker.head_dimensions['ear_pos_r']}")
 
 
     def calibrate_head_left(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('left'):
+        if self.measurement_ref.headtracking.calibrate_headdimensions('left'):
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_left_head_label.setText("Calibrated")
-            if self.measurement_ref.tracker.head_dimensions['head_width'] is not None:
-                self.head_width_label.setText(f"Head Width: {self.measurement_ref.tracker.head_dimensions['head_width']:.3f}")
+            if self.measurement_ref.headtracking.head_dimensions['head_width'] is not None:
+                self.head_width_label.setText(f"Head Width: {self.measurement_ref.headtracking.head_dimensions['head_width']:.3f}")
         else:
             self.calibrate_left_head_label.setText("Calibration Failed")
             self.measurement_ref.measurement.play_sound(False)
 
 
     def calibrate_head_right(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('right'):
+        if self.measurement_ref.headtracking.calibrate_headdimensions('right'):
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_right_head_label.setText("Calibrated")
-            if self.measurement_ref.tracker.head_dimensions['head_width'] is not None:
-                self.head_width_label.setText(f"Head Width: {self.measurement_ref.tracker.head_dimensions['head_width']:.3f}")
+            if self.measurement_ref.headtracking.head_dimensions['head_width'] is not None:
+                self.head_width_label.setText(f"Head Width: {self.measurement_ref.headtracking.head_dimensions['head_width']:.3f}")
         else:
             self.calibrate_right_head_label.setText("Calibration Failed")
             self.measurement_ref.measurement.play_sound(False)
 
 
     def calibrate_head_front(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('front'):
+        if self.measurement_ref.headtracking.calibrate_headdimensions('front'):
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_front_head_label.setText("Calibrated")
-            if self.measurement_ref.tracker.head_dimensions['head_length'] is not None:
-                self.head_length_label.setText(f"Head Length: {self.measurement_ref.tracker.head_dimensions['head_length']:.3f}")
+            if self.measurement_ref.headtracking.head_dimensions['head_length'] is not None:
+                self.head_length_label.setText(f"Head Length: {self.measurement_ref.headtracking.head_dimensions['head_length']:.3f}")
         else:
             self.calibrate_front_head_label.setText("Calibration Failed")
             self.measurement_ref.measurement.play_sound(False)
 
 
     def calibrate_head_back(self):
-        if self.measurement_ref.tracker.calibrate_headdimensions('back'):
+        if self.measurement_ref.headtracking.calibrate_headdimensions('back'):
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_back_head_label.setText("Calibrated")
-            if self.measurement_ref.tracker.head_dimensions['head_length'] is not None:
-                self.head_length_label.setText(f"Head Length: {self.measurement_ref.tracker.head_dimensions['head_length']:.3f}")
+            if self.measurement_ref.headtracking.head_dimensions['head_length'] is not None:
+                self.head_length_label.setText(f"Head Length: {self.measurement_ref.headtracking.head_dimensions['head_length']:.3f}")
         else:
             self.calibrate_back_head_label.setText("Calibration Failed")
 
 
     def calibrate_acoustical_centre(self):
-        if self.measurement_ref.tracker.calibrate_acoustical_center():
+        if self.measurement_ref.headtracking.calibrate_acoustical_center():
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_acoustical_center_label.setText(f'Calibrated')#, {self.measurement_ref.tracker.acoustical_center_pos}')
         else:
@@ -1076,7 +1078,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
                 self.osc_status_box.hide()
                 self.tracker_status_widget.show()
 
-                self.measurement_ref.tracker.set_tracking_mode(radioButton.sourcename)
+                self.measurement_ref.set_tracking_mode(radioButton.sourcename)
 
                 self.send_osc_box.setEnabled(True)
 
@@ -1089,9 +1091,9 @@ class UiMainWindow(QtWidgets.QMainWindow):
                 self.tracker_status_widget.hide()
                 self.osc_status_box.show()
 
-                self.measurement_ref.tracker.set_tracking_mode(radioButton.sourcename)
+                self.measurement_ref.set_tracking_mode(radioButton.sourcename)
 
-                ip, port = self.measurement_ref.tracker.osc_input_server.get_current_ip_and_port()
+                ip, port = self.measurement_ref.osc_input_server.get_current_ip_and_port()
                 self.osc_ip_label.setText(f"Current Host IP: {ip}")
                 self.osc_port_label.setText(f"OSC Server Port: {port}")
 

@@ -265,15 +265,15 @@ class PointRecommender():
         return az, el
 
 def get_head_rotation_to_point(az, el):
-    '''
-    Gives the view direction (how to turn the head in a yaw and pitch/roll movement),
+    """
+    Get the view direction (how to turn the head in a yaw and pitch/roll movement),
     so a speaker placed in frontal direction has the given azimuth and elevation
     relative to the head. To reduce backpain, the elevation is achived by either pitch OR roll,
     the unused return value is set to zero.
     @param az: Azimuth angle 0° ... 360°
     @param el: Elevation angle -90° ... - + 90°
     @return yaw, pitch, roll: View direction, either [yaw, pitch, 0] or [yaw, 0, roll]
-    '''
+    """
     ## First angle version (yaw/pitch)
 
     # calculate angle
