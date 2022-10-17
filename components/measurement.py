@@ -22,6 +22,7 @@ class Measurement():
         if sd.default.samplerate is None:
             sd.default.samplerate = 48000
 
+        '''Default parameters for the HRIR and CenterIR measurements'''
         self.sweep_parameters = {
             'sweeplength_sec': 1.0,
             'post_silence_sec': 0.5,
@@ -31,7 +32,7 @@ class Measurement():
             'fade_out_samples': 200
         }
 
-        #read sound files
+        # read sound files
         self.sound_success_fs, self.sound_success_singlechannel = wave.read('resources/soundfx_success.wav')
         self.sound_failed_fs, self.sound_failed_singlechannel = wave.read('resources/soundfx_failed.wav')
 

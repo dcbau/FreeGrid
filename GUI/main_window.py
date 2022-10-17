@@ -445,6 +445,8 @@ class UiMainWindow(QtWidgets.QMainWindow):
         # get current parameters
         sweep_params = self.measurement_ref.measurement.get_sweep_parameters()
 
+        self.sweep_parameters_formlayout.addRow(QtWidgets.QLabel(text='Warning: Do not change parameters between measurements of a session. \nFinish the session first with "Clear / Start New".', font=QtGui.QFont("Helvetica", weight=QtGui.QFont.Bold)))
+
         # add row entries for each parameter
         self.sweeplength_sec = QtWidgets.QLineEdit(str(sweep_params['sweeplength_sec']))
         self.sweep_parameters_formlayout.addRow(self.sweeplength_sec, QtWidgets.QLabel(text='Sweep length (sec)'))
@@ -1098,7 +1100,6 @@ class UiMainWindow(QtWidgets.QMainWindow):
                 self.send_osc_box.setEnabled(False)
 
                 self.show_manual_angle_box(False)
-                np.convolve()
 
 
     def set_osc_status(self, osc_status):

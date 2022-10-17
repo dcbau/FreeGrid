@@ -1,20 +1,21 @@
-import time
-
-from components.measurement_list import MeasurementListModel
-from components.openvr_headtracking import OpenVR_Tracker_Manager
-from components.dsp_helpers import make_HPCF, deconvolve, deconvolve_stereo
 import threading
 from PyQt5 import QtCore
-from components.measurement import Measurement
 import numpy as np
 import scipy.io
 import scipy.signal.windows
-from components import angular_distance, pointrecommender, osc_input
 import os
 from datetime import date
 from pythonosc import udp_client
 import socket
 import logging
+
+from components.measurement_list import MeasurementListModel
+from components.openvr_headtracking import OpenVR_Tracker_Manager
+from components.dsp_helpers import make_HPCF, deconvolve, deconvolve_stereo
+from components.measurement import Measurement
+from components import angular_distance, pointrecommender, osc_input
+
+
 
 logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-10s) %(message)s',)
@@ -82,6 +83,10 @@ class MeasurementController:
         self.osc_send_address = '/guided_hrtfs/angle'
         self.osc_send_client = None
 
+        self.fast_mode = False
+        if self.fast_mode:
+            self.measurement.sweep_parameters['sweeplength_sec'] = 0.05
+            self.measurement.sweep_parameters['post_silence_sec'] = 0.4
 
 
     def register_gui_handler(self, handle):
@@ -206,6 +211,9 @@ class MeasurementController:
         # this function has to be called by a periodic timer callback and checks if the user´s head has remained still for a defined time interval
 
         hold_still_interval_sec = 1
+        if self.fast_mode:
+            hold_still_interval_sec = 0.5
+
         hold_still_num_callbacks = hold_still_interval_sec*1000 / self.timer_interval_ms
 
         tolerance_angle = 2  # (degree)
@@ -267,7 +275,9 @@ class MeasurementController:
         self.measurement_tolerance_check = False
 
         if self.measurement_valid:
-            self.measurement.play_sound(True)
+
+            if not self.fast_mode:
+                self.measurement.play_sound(True)
 
             measurement_pos = self.measurement_position # make thread copy before new measurement starts and overwirtes self.measurement_position
 
@@ -317,9 +327,8 @@ class MeasurementController:
 
             # enable point recommendation after 6 measurements
             self.numMeasurements += 1
-            if self.numMeasurements >= 3:
+            if self.numMeasurements >= 6:
                 self.gui_handle.enable_point_recommendation()
-
 
         else:
             self.measurement.play_sound(False)
