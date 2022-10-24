@@ -948,7 +948,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
 
 
     def calibrate_acoustical_centre(self):
-        if self.measurement_ref.headtracking.calibrate_acoustical_center():
+        if self.measurement_ref.headtracking.calibrate_emitter_position():
             self.measurement_ref.measurement.play_sound(True)
             self.calibrate_acoustical_center_label.setText(f'Calibrated')#, {self.measurement_ref.tracker.acoustical_center_pos}')
         else:

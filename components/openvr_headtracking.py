@@ -349,15 +349,17 @@ class OpenVR_Tracker_Manager:
         pose = self.vr_system.getDeviceToAbsoluteTrackingPose(TrackingUniverseRawAndUncalibrated,
                                                               1,
                                                               k_unMaxTrackedDeviceCount)
-        pose1 = pose[self.tracker1.id]
         self.update_tracker_status_from_pose(pose, self.tracker1)
         if self.tracker1.isActive:
+            pose1 = pose[self.tracker1.id]
             pose_matrix1 = pose1.mDeviceToAbsoluteTracking
 
-        pose2 = pose[self.tracker2.id]
-        self.update_tracker_status_from_pose(pose2)
+        self.update_tracker_status_from_pose(pose, self.tracker2)
         if self.tracker2.isActive:
+            pose2 = pose[self.tracker2.id]
             pose_matrix2 = pose2.mDeviceToAbsoluteTracking
+        else:
+            pose_matrix2 = []
 
         if only_tracker_1:
             pose_matrix2 = []

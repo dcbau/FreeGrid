@@ -83,10 +83,10 @@ class MeasurementController:
         self.osc_send_address = '/guided_hrtfs/angle'
         self.osc_send_client = None
 
-        self.fast_mode = False
+        self.fast_mode = True
         if self.fast_mode:
             self.measurement.sweep_parameters['sweeplength_sec'] = 0.05
-            self.measurement.sweep_parameters['post_silence_sec'] = 0.4
+            self.measurement.sweep_parameters['post_silence_sec'] = 0.5
 
 
     def register_gui_handler(self, handle):

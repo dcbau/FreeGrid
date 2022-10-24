@@ -299,12 +299,15 @@ class AudioDeviceWidget(QtWidgets.QWidget):
         samplerates.sort()
 
         # check if both devices support the samplerates
+
+        id = 0
         for i in range(np.size(samplerates)):
             try:
-                sd.check_input_settings(samplerate=samplerates[i])
-                sd.check_input_settings(samplerate=samplerates[i])
+                sd.check_input_settings(samplerate=samplerates[id])
+                sd.check_input_settings(samplerate=samplerates[id])
+                id += 1
             except sd.PortAudioError:
-                samplerates.remove(samplerates[i])
+                samplerates.remove(samplerates[id])
 
         if len(samplerates) == 0:
             print("Audio device does not support samplerates 44.1, 48, 88.2 or 96")
