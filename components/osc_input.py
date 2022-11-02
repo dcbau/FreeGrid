@@ -12,7 +12,10 @@ class OSCInputServer(object):
     def __init__(self):
 
         # osc default settings
-        self.ip = '127.0.0.1'
+        try:
+            self.ip = socket.gethostbyname(socket.gethostname())
+        except:
+            self.ip = '127.0.0.1'
         self.port = 2222
 
         osc_dispatcher = dispatcher.Dispatcher()
@@ -45,10 +48,9 @@ class OSCInputServer(object):
     def direct_angle_input(self, address, az, el, r):
         self.timeout.cancel()
         self.receiving = True
-
-        self.angles[0] = az
-        self.angles[1] = el
-        self.angles[2] = r
+        self.angles[0] = az / 100
+        self.angles[1] = el / 100
+        self.angles[2] = r / 100
 
         self.timeout = threading.Timer(self.osc_timeout_sec, self.osc_stopped_receiving)
         self.timeout.start()
@@ -60,6 +62,7 @@ class OSCInputServer(object):
     def get_current_ip_and_port(self):
         if self.is_connected:
             ethernet_ip = socket.gethostbyname(socket.gethostname())
+            ethernet_ip = self.ip
             return ethernet_ip, self.port
         else:
             return "Not connected", f"Port {self.port} might be already in use"

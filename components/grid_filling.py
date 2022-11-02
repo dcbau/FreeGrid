@@ -141,7 +141,7 @@ def addSamplepoints_geometric(_inputGrid, nNewPoints, _correctionGrid=None):
     d2r = np.pi / 180
 
     if _correctionGrid is None:
-        _correctionGrid = np.load("grid_improving/lebedev_grids.npz")['leb194']
+        _correctionGrid = np.load("resources/lebedev_grids.npz")['leb194']
 
     inputGrid = _inputGrid# * d2r
     correctionGrid = _correctionGrid# * d2r

@@ -83,7 +83,7 @@ class MeasurementController:
         self.osc_send_address = '/guided_hrtfs/angle'
         self.osc_send_client = None
 
-        self.fast_mode = True
+        self.fast_mode = False
         if self.fast_mode:
             self.measurement.sweep_parameters['sweeplength_sec'] = 0.05
             self.measurement.sweep_parameters['post_silence_sec'] = 0.5
@@ -168,7 +168,8 @@ class MeasurementController:
                 if (variance > tolerance_angle
                         or abs(r - self.measurement_position[2]) > tolerance_radius):
                     self.measurement_valid = False
-                    self.measurement.interrupt_measurement()
+                    if not self.fast_mode:
+                        self.measurement.interrupt_measurement()
 
             return
 
