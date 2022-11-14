@@ -11,10 +11,10 @@ matplotlib.rcParams.update({'xtick.labelsize': 7})
 matplotlib.rcParams.update({'ytick.labelsize': 7})
 matplotlib.rcParams.update({'axes.titleweight': 'bold'})
 
-class PlotWidget(QtWidgets.QWidget):
+class SignalPlotWidget(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
-        super(PlotWidget, self).__init__(*args, **kwargs)
+        super(SignalPlotWidget, self).__init__(*args, **kwargs)
 
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)

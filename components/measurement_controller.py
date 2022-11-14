@@ -176,7 +176,7 @@ class MeasurementController:
         if self.guidance_running:
             if self.point_recommender.update_position(az, el):
                 self.measurement_trigger = True
-                self.gui_handle.vispy_canvas.recommendation_points.clear_all_points()
+                self.gui_handle.remove_recommendation_point(None)
 
         # check for measurement triggers
         if self.measurement_trigger or self.check_for_trigger_by_headmovement(az, el, r):
@@ -423,7 +423,7 @@ class MeasurementController:
             self.recommended_points['el'] = el
             print("Recommend Point: " + str(az) + " | " + str(el))
             for i in range(np.size(az)):
-                self.gui_handle.vispy_canvas.recommendation_points.add_point(az[i], el[i])
+                self.gui_handle.add_recommendation_point(az[i], el[i])
 
             return az, el
 
@@ -434,7 +434,7 @@ class MeasurementController:
         if bool(self.recommended_points):
 
             self.recommended_points = {}
-            self.gui_handle.vispy_canvas.recommendation_points.clear_all_points()
+            self.gui_handle.remove_recommendation_point(None)
             self.point_recommender.stop()
             self.guidance_running = False
 
@@ -458,7 +458,7 @@ class MeasurementController:
 
             self.positions_list.remove_position(id)
 
-            self.gui_handle.vispy_canvas.meas_points.remove_point(id)
+            self.gui_handle.remove_measurement_point(id)
 
 
             self.save_to_file()
@@ -474,7 +474,7 @@ class MeasurementController:
         self.raw_feedbackloop = np.array([])
         self.positions = np.array([])
 
-        self.gui_handle.vispy_canvas.meas_points.clear_all_points()
+        self.gui_handle.remove_measurement_point(None)
         self.positions_list.remove_position(all_ids)
 
     def hp_measurement(self):

@@ -5,9 +5,10 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
 import os
 from GUI.audio_device_widget import AudioDeviceWidget
-from GUI.plot_widget import PlotWidget, PlotWidget_HPIRs, PlotWidget_HPCF
+from GUI.signal_plot_widget import SignalPlotWidget, PlotWidget_HPIRs, PlotWidget_HPCF
+from GUI.grid_plot_widget import GridPlotWidget
 
-use_vispy = True
+use_vispy = False
 try:
     from GUI.vispyWidget import VispyCanvas
 except ImportError:
@@ -67,17 +68,15 @@ class UiMainWindow(QtWidgets.QMainWindow):
             self.sliderPhi.setObjectName("sliderPhi")
             self.sliderPhi.valueChanged.connect(self.vispy_canvas.update_phi)
 
-            self.vpWidget.layout().addWidget(self.azimuthLabel, 6, 1, 1, 1)
-            self.vpWidget.layout().addWidget(self.elevationLabel, 6, 2, 1, 1)
-            self.vpWidget.layout().addWidget(self.radiusLabel, 6, 3, 1, 1)
 
         else:
-            self.vp_missing_label = QtWidgets.QLabel("Vispy package missing or deactivated: \n3D speaker representation disabled.")
-            self.vpWidget.layout().addWidget(self.vp_missing_label, 1, 1, 1, 3)
 
-            self.vpWidget.layout().addWidget(self.azimuthLabel, 2, 1, 1, 1)
-            self.vpWidget.layout().addWidget(self.elevationLabel, 2, 2, 1, 1)
-            self.vpWidget.layout().addWidget(self.radiusLabel, 2, 3, 1, 1)
+            self.grid_plot_widget = GridPlotWidget(measurement_ref)
+            self.vpWidget.layout().addWidget(self.grid_plot_widget, 0, 0, 5, 5)
+
+        self.vpWidget.layout().addWidget(self.azimuthLabel, 6, 1, 1, 1)
+        self.vpWidget.layout().addWidget(self.elevationLabel, 6, 2, 1, 1)
+        self.vpWidget.layout().addWidget(self.radiusLabel, 6, 3, 1, 1)
 
 
 
@@ -624,9 +623,9 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.plotgroupbox = QtWidgets.QGroupBox('Measurement Plots')
         self.plotgroupbox.setLayout(QtWidgets.QVBoxLayout())
 
-        self.plot_widget = PlotWidget()
+        self.signal_plot_widget = SignalPlotWidget()
 
-        self.plotgroupbox.layout().addWidget(self.plot_widget)
+        self.plotgroupbox.layout().addWidget(self.signal_plot_widget)
         self.tab_measure.layout().addWidget(self.plotgroupbox)
 
         ## DATA LIST TAB
@@ -653,7 +652,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.remove_measurement_button.clicked.connect(self.remove_measurement)
         self.tab_data.layout().addWidget(self.remove_measurement_button, 1, 0, 1, 1)
 
-        self.plot_widget2 = PlotWidget()
+        self.plot_widget2 = SignalPlotWidget()
         #self.plot_widget2.setMaximumWidth(200)
         self.tab_data.layout().addWidget(self.plot_widget2, 0, 1, 1, 1)
 
@@ -792,6 +791,35 @@ class UiMainWindow(QtWidgets.QMainWindow):
     def add_measurement_point(self, az, el):
         if use_vispy:
             self.vispy_canvas.meas_points.add_point(az, el)
+        else:
+            self.grid_plot_widget.add_point(az, el)
+
+    def add_recommendation_point(self, az, el):
+        if use_vispy:
+            self.vispy_canvas.recommendation_points.add_point(az, el)
+        else:
+            self.grid_plot_widget.add_recommendation_point(az, el)
+
+    def remove_measurement_point(self, id=None):
+        if use_vispy:
+            if id is not None:
+                self.vispy_canvas.meas_points.remove_point(id)
+            else:
+                self.vispy_canvas.meas_points.clear_all_points()
+        else:
+            self.grid_plot_widget.clear_points(id)
+
+    def remove_recommendation_point(self, id=None):
+        if use_vispy:
+            if id is not None:
+                self.vispy_canvas.recommendation_points.remove_point(id)
+            else:
+                self.vispy_canvas.recommendation_points.clear_all_points()
+        else:
+            self.grid_plot_widget.clear_recommendation_points(id)
+
+
+
 
     def add_center_point(self):
         if use_vispy:
@@ -800,10 +828,10 @@ class UiMainWindow(QtWidgets.QMainWindow):
     #def remove_measurement_point(self, az, el):
 
     def plot_recordings(self, rec_l, rec_r, fb_loop, fs, fb_loop_used=False):
-        self.plot_widget.plot_recordings(rec_l, rec_r, fb_loop, fs=fs, fb_loop_used=fb_loop_used)
+        self.signal_plot_widget.plot_recordings(rec_l, rec_r, fb_loop, fs=fs, fb_loop_used=fb_loop_used)
 
     def plot_IRs(self, ir_l, ir_r, fs):
-        self.plot_widget.plot_IRs(ir_l, ir_r, fs=fs)
+        self.signal_plot_widget.plot_IRs(ir_l, ir_r, fs=fs)
 
     def updateMeasurementList(self, measurement_data):
         pass
@@ -976,6 +1004,8 @@ class UiMainWindow(QtWidgets.QMainWindow):
         if use_vispy:
             self.vispy_canvas.meas_points.deselect_points(deselected.row())
             self.vispy_canvas.meas_points.select_point(selected.row())
+        else:
+            self.grid_plot_widget.highlight_point(selected.row())
 
         #print("Data Table Selection: " + str(selected.row()))
         idx = selected.row()
@@ -986,7 +1016,7 @@ class UiMainWindow(QtWidgets.QMainWindow):
             raw_r = self.measurement_ref.raw_signals[idx, 1, :]
             fb = self.measurement_ref.raw_feedbackloop[idx, 0, :]
 
-            self.plot_widget2.plot_IRs(ir_l, ir_r, plot='spectrogram')
+            self.plot_widget2.plot_IRs(ir_l, ir_r, fs=self.measurement_ref.measurement.get_samplerate(), plot='waveform_log')
             self.plot_widget2.plot_recordings(raw_l, raw_r, fb, fs=self.measurement_ref.measurement.get_samplerate(), plot='spectrogram', fb_loop_used=self.measurement_ref.measurement.feedback_loop_used)
 
         except IndexError:
@@ -998,6 +1028,8 @@ class UiMainWindow(QtWidgets.QMainWindow):
             if index is not self.tab_data_index:
                 if use_vispy:
                     self.vispy_canvas.meas_points.deselect_points()
+                else:
+                    self.grid_plot_widget.highlight_point(None)
             else:
                 numRows = self.positions_table.model().rowCount(QtCore.QModelIndex())
                 self.positions_table.selectRow(numRows-1)
@@ -1163,15 +1195,14 @@ class UiMainWindow(QtWidgets.QMainWindow):
         self.sliderTheta.hide()
         self.sliderPhi.hide()
 
-
+        self.grid_plot_widget = GridPlotWidget(self.measurement_ref)
+        self.vpWidget.layout().addWidget(self.grid_plot_widget, 0, 0, 5, 5)
 
         #del self.vispy_canvas
         #del self.sliderPhi
         #del self.sliderTheta
 
-        self.vp_missing_label = QtWidgets.QLabel(
-            "Vispy package missing or deactivated: \n3D speaker representation disabled.")
-        self.vpWidget.layout().addWidget(self.vp_missing_label, 1, 1, 1, 3)
+        print("Error with vispy (OpenGL). Using Matplotlib instead")
 
 
 

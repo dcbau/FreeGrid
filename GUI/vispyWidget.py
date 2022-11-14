@@ -37,20 +37,6 @@ void main()
 """
 
 
-class VispyWidget(QWidget):
-    clicked = pyqtSignal()
-
-    def __init__(self, parent=None):
-        QWidget.__init__(self, parent)
-        self.color = QColor(0, 0, 0)
-
-    def paintEvent(self, event):
-        pass
-
-    def mousePressEvent(self, event):
-        self.clicked.emit()
-
-
 class TrackerOrientation():
     def __init__(self, tracker_ref):
         self.tracker = tracker_ref
